@@ -1,7 +1,7 @@
 #include <HXJson/Json.h>
 
 #include <HXprint/print.h>
-#include <HXSTL/utils/ToString.h>
+#include <HXSTL/utils/ToString.hpp>
 
 namespace HX { namespace  json {
 

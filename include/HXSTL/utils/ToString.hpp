@@ -34,6 +34,7 @@
 #include <HXSTL/concepts/PairContainer.hpp>
 #include <HXSTL/concepts/SingleElementContainer.hpp>
 #include <HXSTL/concepts/StringType.hpp>
+#include <HXSTL/reflection/MemberName.hpp>
 
 // 屏蔽未使用函数、变量和参数的警告
 #if defined(_MSC_VER) // MSVC
@@ -72,24 +73,52 @@ concept ToJsonClassType = requires(T t) {
 // 主模版
 template <typename... Ts>
 struct ToString {
-    static std::string toString(const Ts&...) { // 禁止默认实现
+    static std::string toString(Ts const&... obj) { // 禁止默认实现
         static_assert(sizeof...(Ts) == 0, "toString is not implemented for this type");
         return {};
     }
 };
 
+// toString`聚合类` (当其他模版都不适配时候, 就只能适配本模版; 
+// 而如果可以适配其他模版, 则不会适配本模版, 因为有更适合的)
+template <typename T>
+struct ToString<T> {
+    static std::string toString(T const& obj) {
+        std::string res;
+        constexpr std::size_t Cnt = HX::STL::reflection::membersCountVal<T>;
+        static_assert(Cnt > 0, "toString is not implemented for this type");
+        res.push_back('{');
+        if constexpr (Cnt > 0) {
+            HX::STL::reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+                res.push_back('"');
+                res.append(name.data(), name.size());
+                res.push_back('"');
+
+                res.push_back(':');
+                auto&& str = ToString<std::decay_t<decltype(val)>>::toString(val);
+                res.append(str.data(), str.size());
+
+                if (index < Cnt - 1) [[likely]] {
+                    res.push_back(',');
+                }
+            });
+        }
+        res.push_back('}');
+        return res;
+    }
+};
 // ===偏特化 ===
 template <>
 struct ToString<std::nullptr_t> {
     static std::string toString(const std::nullptr_t&) { // 普通指针不行
-        return "nullptr";
+        return "null";
     }
 };
 
 template <>
 struct ToString<std::nullopt_t> {
     static std::string toString(const std::nullopt_t&) {
-        return "nullopt";
+        return "null";
     }
 };
 
@@ -113,7 +142,7 @@ template <class T>
 struct ToString<T> {
     static std::string toString(const T& t) {
         if constexpr (std::is_floating_point_v<T>) {
-            // 如果浮点数是整数（例如 26.0），则不显示小数部分
+            // 如果浮点数是整数 (例如 26.0), 则不显示小数部分
             if (std::floor(t) == t) {
                 return std::format("{:.0f}", t);
             } else {

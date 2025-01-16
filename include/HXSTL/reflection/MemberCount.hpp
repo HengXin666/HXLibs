@@ -30,7 +30,7 @@ namespace internal {
          * @brief 万能类型转换运算符, 只用于模版判断
          */
         template <typename T>
-        operator T();
+        operator T() { return T{}; }
     };
 
     /**
@@ -42,7 +42,7 @@ namespace internal {
     template <typename T, typename... Args>
     inline consteval std::size_t membersCount() {
         if constexpr (requires {
-            T {{Args{}}..., internal::Any{}};
+            T {Args{}..., internal::Any{}};
         }) {
             return membersCount<T, Args..., internal::Any>();
         } else {

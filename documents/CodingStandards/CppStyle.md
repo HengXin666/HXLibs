@@ -27,14 +27,21 @@
 ```cpp
 namespace HX { namespace STL { namespace coroutine { namespace loop {
 
+// 此处是库的某些内部实现
+namespace internal {
+
+} // namespace internal
+
 }}}} // namespace HX::STL::coroutine::loop
 ```
 
 - 类成员命名方式为`_name`(自用函数也是以`_`开头)
 - 变量名: 几乎全部都是`驼峰`命名
 - 枚举: 首字母大写的驼峰
-- 常量: `k`开头 + 驼峰
-- 类的构造函数: 请 **显式** 书写构造函数, 必要可以添加`explicit`关键字!, 而不是依赖`C++20`的自动隐式匹配生成!
+- 编译期常量: (`k`开头 +) 驼峰
+- ~~类的构造函数: 请 **显式** 书写构造函数, 必要可以添加`explicit`关键字!, 而不是依赖`C++20`的自动隐式匹配生成!~~
+    - 聚合类可以!!!
+
 - 宏定义: 全大写+下划线
 
 > [!TIP]

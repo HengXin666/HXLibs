@@ -27,7 +27,7 @@
 #include <cstdarg>
 #endif // _HX_DEBUG_
 
-#include <HXSTL/utils/ToString.h>
+#include <HXSTL/utils/ToString.hpp>
 
 // 屏蔽未使用函数、变量和参数的警告
 #if defined(_MSC_VER) // MSVC

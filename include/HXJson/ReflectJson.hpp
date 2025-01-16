@@ -20,7 +20,7 @@
 #ifndef _HX_REFLECT_JSON_H_
 #define _HX_REFLECT_JSON_H_
 
-#include <HXSTL/utils/ToString.h>
+#include <HXSTL/utils/ToString.hpp>
 #include <HXJson/Json.h>
 
 // 辅助宏: 展开调用 f

@@ -101,6 +101,16 @@ struct ReflectionVisitor {
             "2) Your struct is not an aggregate type.\n\n"
         );
     }
+
+    static constexpr auto visit(T& obj) {
+        static_assert(
+            sizeof(T) < 0,
+            "\n\nThis error occurs for one of two reasons:\n\n"
+            "1) You have created a struct with more than 255 fields, which is "
+            "unsupported. \n\n"
+            "2) Your struct is not an aggregate type.\n\n"
+        );
+    }
 };
 
 /**
@@ -110,6 +120,10 @@ struct ReflectionVisitor {
 template <typename T> 
 struct ReflectionVisitor<T, 0> {
     static constexpr auto visit() {
+        return std::tuple<>{};
+    }
+
+    static constexpr auto visit(T& obj) {
         return std::tuple<>{};
     }
 };
@@ -128,6 +142,11 @@ struct ReflectionVisitor<T, N> {                            \
         };                                                  \
         return std::apply(f, t);                            \
     }                                                       \
+                                                            \
+    static constexpr auto visit(T& obj) {                   \
+        auto& [__VA_ARGS__] = obj;                          \
+        return std::tie(__VA_ARGS__);                       \
+    }                                                       \
 };
 
 /**
@@ -143,6 +162,17 @@ struct ReflectionVisitor<T, N> {                            \
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
     return ReflectionVisitor<std::decay_t<T>, membersCountVal<T>>::visit();
+}
+
+/**
+ * @brief Get the Obj Tie object
+ * @tparam T `聚合类`类型
+ * @param obj 对象实例
+ * @return tuple<obj成员的左值引用...>
+ */
+template <typename T>
+inline constexpr auto getObjTie(T& obj) {
+    return ReflectionVisitor<std::decay_t<T>, membersCountVal<T>>::visit(obj);
 }
 
 /**
@@ -178,6 +208,23 @@ inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersName
     internal::staticForTupleSetArr<T>(arr, std::make_index_sequence<membersCountVal<T>>{});
 #endif
     return arr;
+}
+
+/**
+ * @brief 遍历`聚合类`的所有成员, 并且以(`index`, `name`, `val`)的方式传入`visit`中
+ * @tparam T `聚合类`类型
+ * @tparam Visit 回调函数
+ * @param obj 需要被遍历成员的对象实例
+ * @param visit 回调函数
+ */
+template <typename T, typename Visit>
+inline constexpr void forEach(T&& obj, Visit&& func) {
+    constexpr auto Cnt = membersCountVal<T>;
+    constexpr auto membersArr = HX::STL::reflection::getMembersNames<T>();
+    auto tr = internal::getObjTie(obj);
+    [&] <std::size_t... Is> (std::index_sequence<Is...>) {
+        ((func(Is, membersArr[Is], std::get<Is>(tr))), ...);
+    } (std::make_index_sequence<Cnt>{});
 }
 
 }}} // namespace HX::STL::reflection

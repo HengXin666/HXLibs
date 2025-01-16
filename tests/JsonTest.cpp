@@ -1,6 +1,110 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
+
 #include <HXJson/Json.h>
 #include <HXprint/print.h>
-#include <HXSTL/concepts/SingleElementContainer.hpp>
+
+TEST_CASE("JSON解析") {
+    // 宽松解析
+    {
+        auto [data, err] = HX::json::parse(R"(
+            {
+                "name": "张三",
+                "age": 27,
+            }
+        )");
+        CHECK(data["name"].get<std::string>() == "张三");
+        CHECK(data["age"].get<int>() == 27);
+    }
+    
+    // 紧凑解析
+    {
+        auto [data, err] = HX::json::parse(R"({"name":"张三","age":27})");
+        CHECK(data["name"].get<std::string>() == "张三");
+        CHECK(data["age"].get<int>() == 27);
+    }
+
+    // 任意缩进解析
+    {
+        auto [data, err] = HX::json::parse(R"({
+        "name":                        "张三"                           ,
+                
+"age":27                                     })");
+        CHECK(data["name"].get<std::string>() == "张三");
+        CHECK(data["age"].get<int>() == 27);
+    }
+}
+
+#include <HXJson/JsonWrite.hpp>
+
+TEST_CASE("测试无宏toJson") {
+    // 简单结构体
+    {
+        struct Man {
+            int id;
+            std::string name;
+        };
+
+        Man man {1, "张三"};
+        std::string jsonStr;
+        HX::json::toJson(man, jsonStr);
+        CHECK(jsonStr == R"({"id":1,"name":"张三"})");
+    }
+
+    // 嵌套结构体 (const std::vector<自定义结构体>)
+    {
+        struct CatHome {
+            struct Cat {
+                int id;
+                std::string name;
+            };
+            const std::vector<Cat> cats;
+        };
+
+        CatHome cats {{
+            {1, "咪咪"},
+            {2, "明卡"},
+            {3, "TomCat"}
+        }};
+
+        std::string jsonStr;
+        HX::json::toJson(cats, jsonStr);
+        CHECK(jsonStr == R"({"cats":[{"id":1,"name":"咪咪"},{"id":2,"name":"明卡"},{"id":3,"name":"TomCat"}]})");
+    }
+
+    // 复杂的嵌套结构体
+    {
+        struct Data {
+            std::unordered_map<std::string, std::string> nameUidMap;
+            std::list<int> idList;
+            bool ok;
+        };
+
+        struct JsonVo {
+            int code;
+            std::string_view message;
+            Data data;
+        };
+
+        JsonVo jsonVo {
+            200,
+            "Get Ok!",
+            {
+                {
+                    {"张三", "uuid0x0721"},
+                    {"王五", "uuid0x07222"},
+                    {"老六", "uuid0x0666"},
+                },
+                { 1, 1, 4, 5, 1, 4},
+                true
+            }
+        };
+        
+        std::string jsonStr;
+        HX::json::toJson(jsonVo, jsonStr);
+        CHECK(jsonStr == R"({"code":200,"message":"Get Ok!","data":{"nameUidMap":{"老六":"uuid0x0666","王五":"uuid0x07222","张三":"uuid0x0721"},"idList":[1,1,4,5,1,4],"ok":true}})");
+    }
+}
 
 // JSON解析示例
 void test_01() {
@@ -158,12 +262,12 @@ void test_03() {
     HX::json::parse(stdConst.toJson()).first.print();
 }
 
-int main () {
-    HX::print::print("示例1: json解析\n");
-    test_01();
-    HX::print::print("\n\n示例2: json合成string || jsonString合成到结构体 || 其他鲁棒性测试示例\n");
-    test_02();
-    HX::print::print("\n\n示例3: 对于 const auto& 类型的 toJsonString 的支持\n");
-    test_03();
-    return 0;
-}
+// int main () {
+//     HX::print::print("示例1: json解析\n");
+//     test_01();
+//     HX::print::print("\n\n示例2: json合成string || jsonString合成到结构体 || 其他鲁棒性测试示例\n");
+//     test_02();
+//     HX::print::print("\n\n示例3: 对于 const auto& 类型的 toJsonString 的支持\n");
+//     test_03();
+//     return 0;
+// }
