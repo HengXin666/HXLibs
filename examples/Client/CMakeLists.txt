@@ -1,5 +1,3 @@
-project(Client LANGUAGES CXX)
-
 option(CLIENT "Build Client" ON)
 
 if (CLIENT)

@@ -55,6 +55,7 @@ const int _HX_endpoint_##FUNC_NAME = []() -> int { \
  * @brief 结束端点的定义
  */
 #define ENDPOINT_END \
+        co_return true; \
         } \
     );\
     return 0;\
@@ -122,7 +123,7 @@ auto pathSplitArr = HX::STL::utils::StringUtil::split(io.getRequest().getPureReq
  * @warning 如果解析不到(出错), 则会直接返回错误给客户端
  */
 #define PARSE_PARAM(INDEX, TYPE, NAME, ...) \
-auto NAME = HX::web::router::TypeInterpretation<TYPE>::wildcardElementTypeConversion(pathSplitArr[wildcarIndexArr[INDEX]]); \
+auto NAME = HX::web::router::TypeInterpretation<TYPE>::wildcardElementTypeConversion(pathSplitArr[static_cast<std::size_t>(wildcarIndexArr[static_cast<std::size_t>(INDEX)])]); \
 if (!NAME) { \
     RESPONSE_DATA(400, "Missing PATH parameter '"#NAME"'", "application/json", "UTF-8"); \
     co_return __VA_OPT__(void)(0) __VA_OPT__(, __VA_ARGS__); \

@@ -1,5 +1,3 @@
-project(websocket-server LANGUAGES CXX)
-
 option(WEBSOCKET_SERVER "Build websocket-server" ON)
 
 if (WEBSOCKET_SERVER)

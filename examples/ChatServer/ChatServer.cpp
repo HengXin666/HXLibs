@@ -128,7 +128,7 @@ class ChatController {
                 RESPONSE_DATA(
                     200,
                     MsgArrConst(std::span<const MsgArr::Message> {
-                        msgArr.arr.begin() + std::min<std::size_t>(len, msgArr.arr.size()), 
+                        msgArr.arr.begin() + std::min(static_cast<long>(len), static_cast<long>(msgArr.arr.size())), 
                         msgArr.arr.end()
                     }).toJson(),
                     "text/plain", "UTF-8"

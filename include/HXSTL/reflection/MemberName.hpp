@@ -69,16 +69,16 @@ inline constexpr std::string_view getMemberName() {
  */
 template <typename T>
 struct StaticObj {
-    inline static std::decay_t<T> obj;
+    inline static HX::STL::utils::remove_cvref_v<T> obj;
 };
 
 /**
  * @brief 获取类静态成员T
  * @tparam T 
- * @return constexpr std::decay_t<T>& 
+ * @return constexpr HX::STL::utils::remove_cvref_v<T>& 
  */
 template <typename T>
-inline constexpr std::decay_t<T>& getStaticObj() {
+inline constexpr HX::STL::utils::remove_cvref_v<T>& getStaticObj() {
     return StaticObj<T>::obj;
 }
 
@@ -102,7 +102,7 @@ struct ReflectionVisitor {
         );
     }
 
-    static constexpr auto visit(T& obj) {
+    static constexpr auto visit(T&) {
         static_assert(
             sizeof(T) < 0,
             "\n\nThis error occurs for one of two reasons:\n\n"
@@ -123,7 +123,7 @@ struct ReflectionVisitor<T, 0> {
         return std::tuple<>{};
     }
 
-    static constexpr auto visit(T& obj) {
+    static constexpr auto visit(T&) {
         return std::tuple<>{};
     }
 };
@@ -161,7 +161,7 @@ struct ReflectionVisitor<T, N> {                            \
  */
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
-    return ReflectionVisitor<std::decay_t<T>, membersCountVal<T>>::visit();
+    return ReflectionVisitor<HX::STL::utils::remove_cvref_v<T>, membersCountVal<T>>::visit();
 }
 
 /**
@@ -172,7 +172,7 @@ inline constexpr auto getStaticObjPtrTuple() {
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
-    return ReflectionVisitor<std::decay_t<T>, membersCountVal<T>>::visit(obj);
+    return ReflectionVisitor<HX::STL::utils::remove_cvref_v<T>, membersCountVal<T>>::visit(obj);
 }
 
 /**

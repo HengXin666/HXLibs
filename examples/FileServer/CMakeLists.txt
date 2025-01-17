@@ -1,5 +1,3 @@
-project(file-server LANGUAGES CXX)
-
 option(FILE_SERVER "Build file-server" ON)
 
 if (FILE_SERVER)

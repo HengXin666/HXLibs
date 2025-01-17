@@ -1,5 +1,3 @@
-project(chat-server LANGUAGES CXX)
-
 option(CHAT_SERVER "Build chat-server" ON)
 
 if (CHAT_SERVER)

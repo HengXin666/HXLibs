@@ -21,6 +21,7 @@
 #define _HX_MEMBER_COUNT_H_
 
 #include <type_traits>
+#include <HXSTL/utils/TypeTraits.hpp>
 
 namespace HX { namespace STL { namespace reflection {
 
@@ -58,7 +59,7 @@ namespace internal {
  */
 template <typename T>
 inline consteval std::size_t membersCount() {
-    return internal::membersCount<std::decay_t<T>>();
+    return internal::membersCount<HX::STL::utils::remove_cvref_v<T>>();
 }
 
 /**

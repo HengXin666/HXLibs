@@ -155,7 +155,8 @@ struct JsonObject {
      */
     const auto& at(const std::string& key) const {
         // returning reference to local temporary object [-Wreturn-stack-address] GCC (Clang)
-        return get<JsonDict>().at(key);
+        auto&& map = get<JsonDict>();
+        return map.at(key);
     }
 };
 
