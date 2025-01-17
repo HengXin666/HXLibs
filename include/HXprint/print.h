@@ -81,7 +81,7 @@ void logMessage(LogLevel level, const char* format, ...);
 
 template <typename... Ts>
 inline void printImpl(Ts const&... ts) {
-    std::cout << HX::STL::utils::toString(ts...);
+    std::cout << HX::STL::utils::toStrings(ts...);
 }
 
 template <PrintClassType PT>

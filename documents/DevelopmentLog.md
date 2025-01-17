@@ -1,5 +1,6 @@
 # 开发日志
 
+- [2025-1-17 20:46:02] : 修改`toString`支持传入任意的流对象, 如`std::string`; 然后进行添加, 而不是只能返回`std::string`. (但是内部有依赖`std::string`(数字转换)/`push_back()`/`append()`)
 - [2025-1-17 13:53:05] : 修改`toString`的tuple为使用`std::index_sequence<Is...>`的迭代实现, 而不是递归.
 - [2025-1-16 23:35:59] : 修复一个计算成员变量个数的bug, 现在可以统计带`std::string_view`的结构体了, 而不会数量异常, 同理无宏`toJson`可以使用`std::string_view`等做为成员了!
 - [2025-1-16 22:00:30] : 支持无宏, 结构体`toJson`! 支持嵌套类型、结构体; 但是暂时不支持`const auto& 成员`、`const auto 成员`、`std::string_view`(视图需要一个指向)

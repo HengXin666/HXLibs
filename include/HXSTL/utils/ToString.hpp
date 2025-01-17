@@ -104,6 +104,28 @@ struct ToString<T> {
         res.push_back('}');
         return res;
     }
+
+    template <typename Stream>
+    static void toString(T const& obj, Stream& s) {
+        constexpr std::size_t Cnt = HX::STL::reflection::membersCountVal<T>;
+        static_assert(Cnt > 0, "toString is not implemented for this type");
+        s.push_back('{');
+        if constexpr (Cnt > 0) {
+            HX::STL::reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+                s.push_back('"');
+                s.append(name.data(), name.size());
+                s.push_back('"');
+
+                s.push_back(':');
+                ToString<std::decay_t<decltype(val)>>::toString(val, s);
+
+                if (index < Cnt - 1) [[likely]] {
+                    s.push_back(',');
+                }
+            });
+        }
+        s.push_back('}');
+    }
 };
 
 // ===偏特化 ===
@@ -112,12 +134,22 @@ struct ToString<std::nullptr_t> {
     static std::string toString(const std::nullptr_t&) { // 普通指针不行
         return "null";
     }
+
+    template <typename Stream>
+    static void toString(const std::nullptr_t&, Stream& s) {
+        s.append("null");
+    }
 };
 
 template <>
 struct ToString<std::nullopt_t> {
     static std::string toString(const std::nullopt_t&) {
         return "null";
+    }
+
+    template <typename Stream>
+    static void toString(const std::nullopt_t&, Stream& s) {
+        s.append("null");
     }
 };
 
@@ -126,12 +158,22 @@ struct ToString<bool> {
     static std::string toString(bool t) {
         return t ? "true" : "false";
     }
+
+    template <typename Stream>
+    static void toString(bool t, Stream& s) {
+        s.append(t ? "true" : "false");
+    }
 };
 
 template <>
 struct ToString<std::monostate> {
     static std::string toString(const std::monostate&) {
         return "monostate";
+    }
+
+    template <typename Stream>
+    static void toString(const std::monostate&, Stream& s) {
+        s.append("monostate");
     }
 };
 
@@ -150,6 +192,11 @@ struct ToString<T> {
         } else {
             return std::format("{}", t);
         }
+    }
+
+    template <typename Stream>
+    static void toString(const T& t, Stream& s) {
+        s.append(ToString<T>::toString(t));
     }
 };
 
@@ -170,6 +217,20 @@ struct ToString<T[N]> {
         res += ']';
         return res;
     }
+
+    template <typename Stream>
+    static void toString(const T (&arr)[N], Stream& s) {
+        s.push_back('[');
+        bool once = false;
+        for (const auto& it : arr) {
+            if (once)
+                s.push_back(',');
+            else
+                once = true;
+            ToString<std::decay_t<decltype(it)>>::toString(it, s);
+        }
+        s.push_back(']');
+    }
 };
 
 // span视图
@@ -189,6 +250,20 @@ struct ToString<std::span<T>> {
         res += ']';
         return res;
     }
+
+    template <typename Stream>
+    static void toString(std::span<T> t, Stream& s) {
+        s.push_back('[');
+        bool once = false;
+        for (const auto& it : t) {
+            if (once)
+                s.push_back(',');
+            else
+                once = true;
+            ToString<std::decay_t<decltype(it)>>::toString(it, s);
+        }
+        s.push_back(']');
+    }
 };
 
 // std::optional
@@ -202,6 +277,14 @@ struct ToString<std::optional<Ts...>> {
             res += ToString<std::nullopt_t>::toString(std::nullopt);
         return res;
     }
+
+    template <typename Stream>
+    static void toString(const std::optional<Ts...>& t, Stream& s) {
+        if (t.has_value())
+            ToString<std::decay_t<decltype(*t)>>::toString(*t, s);
+        else
+            ToString<std::nullopt_t>::toString(std::nullopt, s);
+    }
 };
 
 // std::variant 现代共用体
@@ -210,6 +293,13 @@ struct ToString<std::variant<Ts...>> {
     static std::string toString(const std::variant<Ts...>& t) {
         return std::visit([] (const auto& v) -> std::string { // 访问者模式
             return ToString<std::decay_t<decltype(v)>>::toString(v);
+        }, t);
+    }
+
+    template <typename Stream>
+    static void toString(const std::variant<Ts...>& t, Stream& s) {
+        std::visit([&] (const auto& v) -> void { // 访问者模式
+            ToString<std::decay_t<decltype(v)>>::toString(v, s);
         }, t);
     }
 };
@@ -225,6 +315,15 @@ struct ToString<Container> {
         res += ToString<std::decay_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
         res += ')';
         return res;
+    }
+
+    template <typename Stream>
+    static void toString(const Container& p, Stream& s) {
+        s.push_back('(');
+        ToString<std::decay_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
+        s.push_back(',');
+        ToString<std::decay_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
+        s.push_back(')');
     }
 };
 
@@ -244,6 +343,20 @@ struct ToString<Container> {
         }
         res += ']';
         return res;
+    }
+
+    template <typename Stream>
+    static void toString(const Container& sc, Stream& s) {
+        s.push_back('[');
+        bool once = false;
+        for (const auto& it : sc) {
+            if (once)
+                s.push_back(',');
+            else
+                once = true;
+            ToString<std::decay_t<decltype(it)>>::toString(it, s);
+        }
+        s.push_back(']');
     }
 };
 
@@ -266,6 +379,22 @@ struct ToString<Container> {
         res += '}';
         return res;
     }
+
+    template <typename Stream>
+    static void toString(const Container& map, Stream& s) {
+        s.push_back('{');
+        bool once = false;
+        for (const auto& [k, v] : map) {
+            if (once)
+                s.push_back(',');
+            else
+                once = true;
+            ToString<std::decay_t<decltype(k)>>::toString(k, s);
+            s.push_back(':');
+            ToString<std::decay_t<decltype(v)>>::toString(v, s);
+        }
+        s.push_back('}');
+    }
 };
 
 // str相关的类型
@@ -278,6 +407,13 @@ struct ToString<ST> {
         res += '"';
         return res;
     }
+
+    template <typename Stream>
+    static void toString(const ST& t, Stream& s) {
+        s.push_back('"');
+        s.append(t);
+        s.push_back('"');
+    }
 };
 
 // C风格字符串
@@ -286,6 +422,11 @@ template <typename T, std::size_t N>
 struct ToString<T[N]> {
     static std::string toString(const T (&str)[N]) {
         return std::string {str, N - 1}; // - 1 是为了去掉 '\0'
+    }
+
+    template <typename Stream>
+    static void toString(const T (&str)[N], Stream& s) {
+        s.append(std::string {str, N - 1}); // - 1 是为了去掉 '\0'
     }
 };
 
@@ -327,25 +468,68 @@ std::string tupleToString(
     return res;
 }
 
+template <typename Stream, typename... Ts, std::size_t... Is>
+void tupleToString(
+    const std::tuple<Ts...>& tup,
+    Stream& s,
+    std::index_sequence<Is...>
+) {
+    s.push_back('(');
+    ((
+        ToString<std::decay_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
+        s.push_back(',')
+    ), ...);
+    s.back() = ')';
+}
+
 // tuple
 template <typename... Ts>
 struct ToString<std::tuple<Ts...>> {
     static std::string toString(const std::tuple<Ts...>& tup) {
         return tupleToString(tup, std::make_index_sequence<sizeof...(Ts)>());
     }
+
+    template <typename Stream>
+    static void toString(const std::tuple<Ts...>& tup, Stream& s) {
+        tupleToString(tup, s, std::make_index_sequence<sizeof...(Ts)>());
+    }
 };
 
 } // namespace internal
 
 /**
- * @brief toString
+ * @brief toString 全部参数
+ * @return std::string 
  */
 template <typename T0, typename... Ts>
-static std::string toString(T0 const& t0, Ts const&... ts) {
+inline std::string toStrings(T0 const& t0, Ts const&... ts) {
     std::string res;
     res += internal::ToString<T0>::toString(t0);
     ((res += internal::ToString<Ts>::toString(ts)), ...);
     return res;
+}
+
+/**
+ * @brief 将`t`转换为字符串
+ * @tparam T 
+ * @param t 
+ * @return std::string 转化结果
+ */
+template <typename T>
+inline std::string toString(T const& t) {
+    return internal::ToString<T>::toString(t);
+}
+
+/**
+ * @brief 将`t`转为字符串, 然后存入`s`中
+ * @tparam T 
+ * @tparam Stream 
+ * @param t 
+ * @param s 字符串
+ */
+template <typename T, typename Stream>
+inline void toString(T&& t, Stream& s) {
+    internal::ToString<std::remove_cv_t<std::remove_reference_t<T>>>::toString(std::forward<T>(t), s);
 }
 
 }}} // namespace HX::STL::utils

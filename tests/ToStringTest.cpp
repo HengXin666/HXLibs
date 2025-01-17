@@ -33,6 +33,10 @@ TEST_CASE("测试 toSring -> C风格数组") {
     res = HX::STL::utils::toString(cats);
     std::cout << res << '\n';
     CHECK(res == R"([{"id":1,"name":"大一"},{"id":2,"name":"小两"},{"id":3,"name":"三带一"}])");
+
+    res.clear();
+    HX::STL::utils::toString(cats, res);
+    CHECK(res == R"([{"id":1,"name":"大一"},{"id":2,"name":"小两"},{"id":3,"name":"三带一"}])");
 }
 
 TEST_CASE("测试 toString -> std::tuple") {
@@ -41,4 +45,11 @@ TEST_CASE("测试 toString -> std::tuple") {
     auto res = HX::STL::utils::toString(t);
     std::cout << res << '\n';
     CHECK(res == R"((1,3.14,"0x3f"))");
+}
+
+TEST_CASE("测试 toString By Stream") {
+    std::string res;
+    std::tuple<int, double, std::string> t{1, 3.14, "0x3f"};
+    HX::STL::utils::toString(t, res);
+    std::cout << res << '\n';
 }

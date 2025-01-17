@@ -26,8 +26,7 @@ namespace HX { namespace json {
 
 template <typename Obj, typename Stream>
 inline void toJson(Obj&& obj, Stream& s) {
-    auto&& str = HX::STL::utils::internal::ToString<Obj>::toString(std::forward<Obj>(obj));
-    s.append(str.data(), str.size());
+    HX::STL::utils::internal::ToString<Obj>::toString(std::forward<Obj>(obj), s);
 }
 
 }} // namespace HX::json
