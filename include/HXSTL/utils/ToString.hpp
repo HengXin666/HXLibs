@@ -305,29 +305,33 @@ struct ToString<T> {
     }
 };
 
-// 递归打印tuple
-template <std::size_t I = 0, typename... Ts>
-std::string tupleToString(const std::tuple<Ts...>& tup) {
+/**
+ * @brief 编译器静态遍历所有tuple的成员, 并且toString
+ * @tparam Ts tuple的成员类型包
+ * @tparam Is tuple的成员数量
+ * @param tup 需要打印的东西
+ * @return std::string 
+ */
+template <typename... Ts, std::size_t... Is>
+std::string tupleToString(
+    const std::tuple<Ts...>& tup,
+    std::index_sequence<Is...>
+) {
     std::string res;
-    if constexpr (I == sizeof...(Ts)) { // 因为 I 从 0 开始
-        return res;
-    } else {
-        if constexpr (I > 0)
-            res += ',';
-        res += ToString<std::decay_t<decltype(std::get<I>)>>::toString(std::get<I>(tup));
-        res += tupleToString<I + 1>(tup);
-        return res;
-    }
+    res += '(';
+    ((
+        res += ToString<std::decay_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
+        res += ','
+    ), ...);
+    res.back() = ')';
+    return res;
 }
 
+// tuple
 template <typename... Ts>
 struct ToString<std::tuple<Ts...>> {
     static std::string toString(const std::tuple<Ts...>& tup) {
-        std::string res;
-        res += '(';
-        res += tupleToString(tup);
-        res += ')';
-        return res;
+        return tupleToString(tup, std::make_index_sequence<sizeof...(Ts)>());
     }
 };
 

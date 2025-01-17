@@ -45,9 +45,8 @@ TEST_CASE("测试无宏toJson") {
             std::string name;
         };
 
-        Man man {1, "张三"};
         std::string jsonStr;
-        HX::json::toJson(man, jsonStr);
+        HX::json::toJson(Man{1, "张三"}, jsonStr);
         CHECK(jsonStr == R"({"id":1,"name":"张三"})");
     }
 
@@ -82,7 +81,7 @@ TEST_CASE("测试无宏toJson") {
 
         struct JsonVo {
             int code;
-            std::string_view message;
+            const std::string_view message;
             Data data;
         };
 

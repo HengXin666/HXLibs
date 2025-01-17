@@ -30,7 +30,7 @@ namespace internal {
          * @brief 万能类型转换运算符, 只用于模版判断
          */
         template <typename T>
-        operator T() { return T{}; }
+        operator T();
     };
 
     /**

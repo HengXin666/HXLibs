@@ -20,3 +20,11 @@ TEST_CASE("测试 toSring -> char []") {
     CHECK(res == std::string {"char []", 7});
     CHECK("\"" + res + "\"" == HX::STL::utils::toString(res));
 }
+
+TEST_CASE("测试 toString -> std::tuple") {
+    std::cout << "输出: ";
+    std::tuple<int, double, std::string> t{1, 3.14, "0x3f"};
+    auto res = HX::STL::utils::toString(t);
+    std::cout << res << '\n';
+    CHECK(res == R"((1,3.14,"0x3f"))");
+}
