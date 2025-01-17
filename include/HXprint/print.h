@@ -59,7 +59,7 @@ concept PrintClassType = requires(T t) {
 // === 仅DEBUG编译期(未发布)有的日志打印 ===
 
 #ifdef _HX_DEBUG_
-enum LogLevel {
+enum class LogLevel {
     LOG_ERROR,
     LOG_WARNING,
     LOG_INFO,
@@ -67,9 +67,9 @@ enum LogLevel {
 
 void logMessage(LogLevel level, const char* format, ...);
 
-#define LOG_ERROR(...) logMessage(HX::print::internal::LOG_ERROR, __VA_ARGS__)
-#define LOG_WARNING(...) logMessage(HX::print::internal::LOG_WARNING, __VA_ARGS__)
-#define LOG_INFO(...) logMessage(HX::print::internal::LOG_INFO, __VA_ARGS__)
+#define LOG_ERROR(...) logMessage(HX::print::internal::LogLevel::LOG_ERROR, __VA_ARGS__)
+#define LOG_WARNING(...) logMessage(HX::print::internal::LogLevel::LOG_WARNING, __VA_ARGS__)
+#define LOG_INFO(...) logMessage(HX::print::internal::LogLevel::LOG_INFO, __VA_ARGS__)
 
 #else
 

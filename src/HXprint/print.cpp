@@ -7,13 +7,13 @@ void internal::logMessage(LogLevel level, const char* format, ...) {
     va_list args;
     va_start(args, format);
     switch (level) {
-        case LOG_ERROR:
+        case internal::LogLevel::LOG_ERROR:
             printf("\033[0m\033[1;31m[ERROR]: ");
             break;
-        case LOG_WARNING:
+        case internal::LogLevel::LOG_WARNING:
             printf("\033[0m\033[1;33m[WARNING]: ");
             break;
-        case LOG_INFO:
+        case internal::LogLevel::LOG_INFO:
             printf("\033[0m\033[1;32m[INFO]: ");
             break;
     }

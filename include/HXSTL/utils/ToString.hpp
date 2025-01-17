@@ -23,8 +23,6 @@
 #include <iomanip>
 #include <optional>
 #include <tuple>
-#include <map>
-#include <unordered_map>
 #include <variant>
 #include <span>
 #include <format>
@@ -107,6 +105,7 @@ struct ToString<T> {
         return res;
     }
 };
+
 // ===偏特化 ===
 template <>
 struct ToString<std::nullptr_t> {
@@ -160,6 +159,7 @@ struct ToString<T[N]> {
     static std::string toString(const T (&arr)[N]) {
         std::string res;
         bool once = false;
+        res += '[';
         for (const auto& it : arr) {
             if (once)
                 res += ',';
@@ -338,9 +338,9 @@ struct ToString<std::tuple<Ts...>> {
 } // namespace internal
 
 /**
- * @brief toString 紧凑的
+ * @brief toString
  */
-template <typename T0, typename ...Ts>
+template <typename T0, typename... Ts>
 static std::string toString(T0 const& t0, Ts const&... ts) {
     std::string res;
     res += internal::ToString<T0>::toString(t0);

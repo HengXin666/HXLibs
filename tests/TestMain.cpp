@@ -37,7 +37,7 @@ void testRadixTree() {
         printf("\n没有这个\n");
 }
 
-#include <HXSTL/utils/MagicEnum.h>
+#include <HXSTL/utils/MagicEnum.hpp>
 /// @brief 魔法枚举测试
 void testMagicEnum() {
     enum MyEnum {

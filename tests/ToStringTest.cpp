@@ -12,13 +12,27 @@ TEST_CASE("测试 toSring -> std::pair") {
     CHECK(res == "(1,(2,3.14))");
 }
 
-TEST_CASE("测试 toSring -> char []") {
+TEST_CASE("测试 toSring -> C风格数组") {
     std::cout << "输出: ";
     char str[] = "char []";
     auto res = HX::STL::utils::toString(str);
     std::cout << res << '\n';
     CHECK(res == std::string {"char []", 7});
     CHECK("\"" + res + "\"" == HX::STL::utils::toString(res));
+
+    struct Cat {
+        int id;
+        std::string name;
+    };
+
+    Cat cats[3] = {
+        {1, "大一"},
+        {2, "小两"},
+        {3, "三带一"},
+    };
+    res = HX::STL::utils::toString(cats);
+    std::cout << res << '\n';
+    CHECK(res == R"([{"id":1,"name":"大一"},{"id":2,"name":"小两"},{"id":3,"name":"三带一"}])");
 }
 
 TEST_CASE("测试 toString -> std::tuple") {
