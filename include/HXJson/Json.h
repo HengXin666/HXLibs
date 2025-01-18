@@ -43,6 +43,8 @@ struct JsonObject {
     using JsonData = std::variant
     < std::nullptr_t  // null
     , bool            // true
+    // , int
+    // , long long
     , double          // 3.14
     , std::string     // "hello"
     , JsonList        // [42, "hello"]
@@ -50,6 +52,11 @@ struct JsonObject {
     >;
 
     JsonData _inner;
+
+    template <typename T>
+    static bool typeInJson() {
+        return std::holds_alternative<T>(JsonData{});
+    }
 
     explicit JsonObject() : _inner(std::nullptr_t{})
     {}
@@ -67,6 +74,17 @@ struct JsonObject {
      * @return std::string 
      */
     std::string toString() const;
+
+    /**
+     * @brief 判断当前类型是否为 T
+     * @tparam T 
+     * @return true 是
+     * @return false 否
+     */
+    template <typename T>
+    bool hasType() const noexcept {
+        return std::holds_alternative<T>(_inner);
+    }
 
     /**
      * @brief 安全的获取值

@@ -69,16 +69,16 @@ inline constexpr std::string_view getMemberName() {
  */
 template <typename T>
 struct StaticObj {
-    inline static HX::STL::utils::remove_cvref_v<T> obj;
+    inline static HX::STL::utils::remove_cvref_t<T> obj;
 };
 
 /**
  * @brief 获取类静态成员T
  * @tparam T 
- * @return constexpr HX::STL::utils::remove_cvref_v<T>& 
+ * @return constexpr HX::STL::utils::remove_cvref_t<T>& 
  */
 template <typename T>
-inline constexpr HX::STL::utils::remove_cvref_v<T>& getStaticObj() {
+inline constexpr HX::STL::utils::remove_cvref_t<T>& getStaticObj() {
     return StaticObj<T>::obj;
 }
 
@@ -111,6 +111,17 @@ struct ReflectionVisitor {
             "2) Your struct is not an aggregate type.\n\n"
         );
     }
+
+    template <typename Visitor>
+    static constexpr auto visit(T&, Visitor&&) {
+        static_assert(
+            sizeof(T) < 0,
+            "\n\nThis error occurs for one of two reasons:\n\n"
+            "1) You have created a struct with more than 255 fields, which is "
+            "unsupported. \n\n"
+            "2) Your struct is not an aggregate type.\n\n"
+        );
+    }
 };
 
 /**
@@ -125,6 +136,11 @@ struct ReflectionVisitor<T, 0> {
 
     static constexpr auto visit(T&) {
         return std::tuple<>{};
+    }
+
+    template <typename Visitor>
+    static constexpr auto visit(T&, Visitor&& visitor) {
+        return visitor();
     }
 };
 
@@ -147,6 +163,12 @@ struct ReflectionVisitor<T, N> {                            \
         auto& [__VA_ARGS__] = obj;                          \
         return std::tie(__VA_ARGS__);                       \
     }                                                       \
+                                                            \
+    template <typename Visitor>                             \
+    static constexpr auto visit(T& obj, Visitor&& visitor) {\
+        auto& [__VA_ARGS__] = obj;                          \
+        return visitor(obj);                                \
+    }                                                       \
 };
 
 /**
@@ -161,7 +183,7 @@ struct ReflectionVisitor<T, N> {                            \
  */
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
-    return ReflectionVisitor<HX::STL::utils::remove_cvref_v<T>, membersCountVal<T>>::visit();
+    return ReflectionVisitor<HX::STL::utils::remove_cvref_t<T>, membersCountVal<T>>::visit();
 }
 
 /**
@@ -172,7 +194,7 @@ inline constexpr auto getStaticObjPtrTuple() {
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
-    return ReflectionVisitor<HX::STL::utils::remove_cvref_v<T>, membersCountVal<T>>::visit(obj);
+    return ReflectionVisitor<HX::STL::utils::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
 }
 
 /**

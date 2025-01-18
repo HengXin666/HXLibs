@@ -59,7 +59,7 @@ namespace internal {
  */
 template <typename T>
 inline consteval std::size_t membersCount() {
-    return internal::membersCount<HX::STL::utils::remove_cvref_v<T>>();
+    return internal::membersCount<HX::STL::utils::remove_cvref_t<T>>();
 }
 
 /**

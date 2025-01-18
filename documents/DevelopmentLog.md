@@ -1,5 +1,6 @@
 # 开发日志
 
+- [2025-1-18 20:53:09] : 支持从`jsonString`反序列化到结构体, 并且不需要宏定义! (初步测试通过!!)
 - [2025-1-17 23:08:53] : 新增`remove_cvref_v = std::remove_cv_t<std::remove_reference_t<T>>`, 而不是使用`std::decay_t<T>`因为会把C数组衰变为指针, 因为有隐患. 目前代码可clang编译, 0警告 (魔法枚举需要重构!)
 - [2025-1-17 20:46:02] : 修改`toString`支持传入任意的流对象, 如`std::string`; 然后进行添加, 而不是只能返回`std::string`. (但是内部有依赖`std::string`(数字转换)/`push_back()`/`append()`)
 - [2025-1-17 13:53:05] : 修改`toString`的tuple为使用`std::index_sequence<Is...>`的迭代实现, 而不是递归.

@@ -37,7 +37,7 @@ TEST_CASE("JSON解析") {
 
 #include <HXJson/JsonWrite.hpp>
 
-TEST_CASE("测试无宏toJson") {
+TEST_CASE("测试无宏structToJson") {
     // 简单结构体
     {
         struct Man {
@@ -104,6 +104,69 @@ TEST_CASE("测试无宏toJson") {
         CHECK(jsonStr == R"({"code":200,"message":"Get Ok!","data":{"nameUidMap":{"老六":"uuid0x0666","王五":"uuid0x07222","张三":"uuid0x0721"},"idList":[1,1,4,5,1,4],"ok":true}})");
     }
 }
+
+#include <HXJson/JsonRead.hpp>
+
+TEST_CASE("测试无宏structFromJson") {
+    // 简单结构体
+    {
+        struct Man {
+            int id;
+            std::string name;
+        };
+
+        std::string json = R"({"id":1,"name":"张三"})";
+        Man man{};
+        HX::json::fromJson(man, json);
+        HX::print::println(man);
+    }
+
+    // 嵌套结构体
+    {
+        struct CatHome {
+            struct Cat {
+                int id;
+                std::string name;
+            };
+            std::vector<Cat> cats;
+        };
+
+        CatHome cats {};
+
+        HX::json::fromJson(cats, R"({"cats":[{"id":1,"name":"咪咪"},{"id":2,"name":"明卡"},{"id":3,"name":"TomCat"}]})");
+        HX::print::println(cats);
+    }
+
+    // 复杂的嵌套结构体
+    {
+        struct Data {
+            std::unordered_map<std::string, std::string> nameUidMap;
+            std::list<int> idList;
+            bool ok;
+        };
+
+        struct JsonVo {
+            int code;
+            std::string message;
+            Data data;
+        };
+
+        JsonVo jsonVo {};
+        HX::json::fromJson(jsonVo, R"({"code":200,"message":"Get Ok!","data":{"nameUidMap":{"老六":"uuid0x0666","王五":"uuid0x07222","张三":"uuid0x0721"},"idList":[1,1,4,5,1,4],"ok":true}})");
+        HX::print::println(jsonVo);
+    }
+}
+
+/**
+ * @todo Heng_Xin 还需要补充测试例子!
+ * @warning 目前已知: 不能解析超高精度、超大数字 (让他们以字符串形式接收)
+ * @warning 目前, 反序列化还不是零拷贝的, 后续需要支持一下(至少是优化!)
+ * 但目前无法证明程序能支持所有 JSON 格式内容。为了验证对 JSON 的全面支持，你可以补充以下测试用例：
+ * - 添加对基础数据类型（如 double、float、bool、null）的测试。
+ * - 验证边界情况（字段缺失、多余字段、类型错误）。
+ * - 添加空对象、空数组和嵌套更深的 JSON 测试。
+ * - 测试包含特殊字符和大数据的 JSON。
+ */
 
 // JSON解析示例
 void test_01() {

@@ -20,16 +20,38 @@
 #ifndef _HX_TYPE_TRAITS_H_
 #define _HX_TYPE_TRAITS_H_
 
+#include <variant>
 #include <type_traits>
 
 namespace HX { namespace STL { namespace utils {
+
+namespace internal {
+
+template <typename T, typename Variant>
+struct has_variant_type;
+
+template <typename T, typename... Ts>
+struct has_variant_type<T, std::variant<Ts...>> 
+    : std::disjunction<std::is_same<T, Ts>...> 
+{};
+
+} // namespace internal
 
 /**
  * @brief 删除 T 类型的 const、引用、v 修饰
  * @tparam T 
  */
 template <typename T>
-using remove_cvref_v = std::remove_cv_t<std::remove_reference_t<T>>;
+using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
+/**
+ * @brief 判断`variant<Ts...>`中是否含有`T`类型
+ * 
+ * @tparam T 
+ * @tparam Ts 
+ */
+template <typename T, typename... Ts>
+constexpr bool has_variant_type_v = internal::has_variant_type<T, Ts...>::value;
 
 }}}
 
