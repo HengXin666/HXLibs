@@ -21,6 +21,7 @@
 #define _HX_MEMBER_NAME_H_
 
 #include <string_view>
+#include <tuple>
 #include <array>
 #include <utility>
 
@@ -131,11 +132,11 @@ struct ReflectionVisitor {
 template <typename T> 
 struct ReflectionVisitor<T, 0> {
     static constexpr auto visit() {
-        return std::tuple<>{};
+        return std::tie();
     }
 
     static constexpr auto visit(T&) {
-        return std::tuple<>{};
+        return std::tie();
     }
 
     template <typename Visitor>

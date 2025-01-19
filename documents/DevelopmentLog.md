@@ -1,5 +1,6 @@
 # 开发日志
 
+- [2025-1-19 22:54:30] : 更新无宏反序列化为近乎零拷贝(内部使用`std::move`来保证); 支持将数字解析为任意类型(不论int、double、`std::string`)
 - [2025-1-18 20:53:09] : 支持从`jsonString`反序列化到结构体, 并且不需要宏定义! (初步测试通过!!)
 - [2025-1-17 23:08:53] : 新增`remove_cvref_v = std::remove_cv_t<std::remove_reference_t<T>>`, 而不是使用`std::decay_t<T>`因为会把C数组衰变为指针, 因为有隐患. 目前代码可clang编译, 0警告 (魔法枚举需要重构!)
 - [2025-1-17 20:46:02] : 修改`toString`支持传入任意的流对象, 如`std::string`; 然后进行添加, 而不是只能返回`std::string`. (但是内部有依赖`std::string`(数字转换)/`push_back()`/`append()`)

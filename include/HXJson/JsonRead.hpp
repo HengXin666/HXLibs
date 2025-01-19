@@ -31,18 +31,18 @@ namespace HX { namespace json {
 namespace internal {
 
 template <typename T>
-extern T fromJson(const HX::json::JsonObject& json);
+extern T fromJson(HX::json::JsonObject& json);
 
 template <HX::STL::concepts::SingleElementContainer Container>
-void fromJson(Container& val, const HX::json::JsonObject& json) {
+void fromJson(Container& val, HX::json::JsonObject& json) {
     using T = typename Container::value_type;
-    for (const auto& it : json.get<HX::json::JsonList>()) {
+    for (auto& it : json.move<HX::json::JsonList>()) {
         if constexpr (
             HX::STL::utils::has_variant_type_v<T, HX::json::JsonObject::JsonData>
             || std::is_integral_v<T> 
             || std::is_floating_point_v<T>
         ) {
-            val.emplace_back(it.get<T>());
+            val.emplace_back(it.move<T>());
         } else {
             val.emplace_back(fromJson<T>(it));
         }
@@ -50,15 +50,15 @@ void fromJson(Container& val, const HX::json::JsonObject& json) {
 }
 
 template <HX::STL::concepts::KeyValueContainer Container>
-void fromJson(Container& val, const HX::json::JsonObject& json) {
+void fromJson(Container& val, HX::json::JsonObject& json) {
     using T = typename Container::mapped_type;
-    for (const auto& [k, v] : json.get<HX::json::JsonDict>()) {
+    for (auto& [k, v] : json.move<HX::json::JsonDict>()) {
         if constexpr (
             HX::STL::utils::has_variant_type_v<T, HX::json::JsonObject::JsonData>
             || std::is_integral_v<T> 
             || std::is_floating_point_v<T>
         ) {
-            val.emplace(k, v.get<T>());
+            val.emplace(k, v.move<T>());
         } else {
             // 因为键规定为std::string, 所以可行
             val.emplace(k, fromJson<T>(v));
@@ -67,20 +67,20 @@ void fromJson(Container& val, const HX::json::JsonObject& json) {
 }
 
 template <typename T>
-void fromJson(T& val, const HX::json::JsonObject& json) {
+void fromJson(T& val, HX::json::JsonObject& json) {
     if constexpr (
         HX::STL::utils::has_variant_type_v<T, HX::json::JsonObject::JsonData> 
         || std::is_integral_v<T> 
         || std::is_floating_point_v<T>
     ) {
-        val = json.get<T>();
+        val = json.move<T>();
     } else {
         val = fromJson<T>(json);
     }
 }
 
 template <typename T>
-T fromJson(const HX::json::JsonObject& json) {
+T fromJson(HX::json::JsonObject& json) {
     T obj{};
     HX::STL::reflection::forEach(obj, [&](auto index, auto name, auto& val) {
         static_cast<void>(index);
@@ -91,6 +91,17 @@ T fromJson(const HX::json::JsonObject& json) {
 
 } // namespace internal
 
+/**
+ * @brief 将json字符串反序列化到`聚合类`中, 解析失败或者字段不存在, 则会抛出异常
+ * @tparam Obj `聚合类`
+ * @tparam Stream 字符串, 如`std::string`、`std::string_view`
+ * @param obj `聚合类`实例对象
+ * @param s jsonString
+ * @throw `std::runtime_error`: Json解析失败
+ * @throw `std::runtime_error`: 成员字段不存在于json中
+ * @throw `std::runtime_error`: 解析数字不完全 (很少见)
+ * @throw `std::system_error`: 解析数字异常 (常见是数字溢出)
+ */
 template <typename Obj, typename Stream>
 inline void fromJson(Obj& obj, const Stream& s) {
     // 1. 解析json, 必定为 name: val 形式

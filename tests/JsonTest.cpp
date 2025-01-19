@@ -1,3 +1,8 @@
+#include <climits>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
@@ -159,14 +164,64 @@ TEST_CASE("测试无宏structFromJson") {
 
 /**
  * @todo Heng_Xin 还需要补充测试例子!
- * @warning 目前已知: 不能解析超高精度、超大数字 (让他们以字符串形式接收)
- * @warning 目前, 反序列化还不是零拷贝的, 后续需要支持一下(至少是优化!)
- * 但目前无法证明程序能支持所有 JSON 格式内容。为了验证对 JSON 的全面支持，你可以补充以下测试用例：
- * - 添加对基础数据类型（如 double、float、bool、null）的测试。
+ * - 添加对基础数据类型（如 float、null）的测试。
  * - 验证边界情况（字段缺失、多余字段、类型错误）。
  * - 添加空对象、空数组和嵌套更深的 JSON 测试。
  * - 测试包含特殊字符和大数据的 JSON。
  */
+
+TEST_CASE("测试bigNum情况") {
+    // 9'223'372'036'854'775'807LL
+    // long long 测试
+    {    
+        struct DataLL {
+            long long num;
+        };
+        DataLL data;
+        HX::json::fromJson(data, "{\"num\": 9223372036854775807}");
+        HX::print::println(data);
+
+        CHECK(data.num == 9223372036854775807LL);
+
+        // 示例: 解析数字溢出: 抛异常
+        try {
+            HX::json::fromJson(data, "{\"num\": 92233720368547758071}");
+            HX::print::println(data);
+        } catch (const std::system_error& err) {
+            std::cerr << err.what() << '\n';
+        }
+    }
+
+    // double 测试
+    {
+        struct DataD {
+            double num;
+        };
+        DataD data;
+
+        // 精度丢失示例
+        HX::json::fromJson(data, "{\"num\": 9223372036854775807}");
+        HX::print::println(data);
+
+        // 正常的
+        HX::json::fromJson(data, "{\"num\": 3.1415926535897936}");
+        CHECK(data.num == 3.1415926535897936);
+        HX::print::println(data);
+    }
+
+    // bigString
+    {
+        struct DataStr {
+            std::string num;
+        };
+        DataStr data;
+        HX::json::fromJson(data, "{\"num\": 112233445566778899}");
+        HX::print::println(data);
+
+        // 解析为字符串, 而不是任何基础数字类型
+        CHECK(data.num == "112233445566778899");
+    }
+}
 
 // JSON解析示例
 void test_01() {

@@ -13,7 +13,7 @@ std::string JsonObject::toString() const {
     return HX::STL::utils::toString(_inner);
 }
 
-char unescaped_char(char c) {
+char internal::unescaped_char(char c) {
     switch (c) {
     case 'n': return '\n';
     case 'r': return '\r';
@@ -27,7 +27,7 @@ char unescaped_char(char c) {
     }
 }
 
-std::size_t skipTail(std::string_view json, std::size_t i, char ch) {
+std::size_t internal::skipTail(std::string_view json, std::size_t i, char ch) {
     if (json[i] == ch)
         return 1;
     // 正向查找在原字符串中第一个与指定字符串(或字符)中的任一字符都不匹配的字符, 返回它的位置. 

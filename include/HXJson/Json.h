@@ -20,6 +20,8 @@
 #ifndef _HX_JSON_H_
 #define _HX_JSON_H_
 
+#include <utility>
+#include <type_traits>
 #include <variant>
 #include <vector>
 #include <unordered_map>
@@ -29,23 +31,71 @@
 #include <regex>
 #include <charconv>
 
+#include <HXSTL/utils/TypeTraits.hpp>
+
 // 下期目标: 实现一个将Json数据转存为Json文件的Code
 // 目前的转化感觉有点不优雅...
 
 namespace HX { namespace json {
+
+namespace internal {
+
+struct NumerString {
+    std::string num;
+
+    explicit NumerString(std::string&& _num)
+        : num(std::move(_num)) 
+    {}
+
+    std::string toString() const {
+        return num;
+    }
+
+    // 由于`std::variant`中有用到 拷贝 (普通的JsonObject::get时候) 因此不能删除
+    // NumerString(const NumerString&) = delete; // 禁止拷贝构造
+    // NumerString& operator=(const NumerString&) = delete; // 禁止拷贝赋值
+
+    // NumerString(NumerString&&) noexcept = default; // 默认移动构造
+    // NumerString& operator=(NumerString&&) noexcept = default; // 默认移动赋值
+};
+
+template <class T>
+std::optional<T> try_parse_num(std::string_view str) {
+    T value;
+    // std::from_chars 尝试将 str 转为 T(数字)类型的值, 返回值是一个 tuple<指针 , T>
+    // 值得注意的是 from_chars 不识别指数外的正号(在起始位置只允许出现负号)
+    // 具体请见: https://zh.cppreference.com/w/cpp/utility/from_chars
+    auto res = std::from_chars(str.data(), str.data() + str.size(), value);
+    if (res.ec == std::errc() && 
+        res.ptr == str.data() + str.size()) { // 必需保证整个str都是数字
+        return value;
+    }
+    return std::nullopt;
+}
+
+char unescaped_char(char c);
+
+// 跳过末尾的空白字符 如: [1      , 2]
+std::size_t skipTail(std::string_view json, std::size_t i, char ch);
+
+} // namespace internal
 
 struct JsonObject;
 
 using JsonList = std::vector<JsonObject>;
 using JsonDict = std::unordered_map<std::string, JsonObject>;
 
+/**
+ * @todo 需要支持将内容移动, 而不是拷贝!
+ * @todo 需要支持指定解析, 如即便是数字, 也是可以 get<std::string> / get<int> / get<double>
+ * @todo 建议: 上面的数字, 可以先存储为std::string? 然后get时候, 再进行实例化
+ */
+
 struct JsonObject {
     using JsonData = std::variant
     < std::nullptr_t  // null
     , bool            // true
-    // , int
-    // , long long
-    , double          // 3.14
+    , internal::NumerString // index = 2 不可变! 懒存储数字信息, 使用时候再解析
     , std::string     // "hello"
     , JsonList        // [42, "hello"]
     , JsonDict        // {"hello": 985, "world": 211}
@@ -53,15 +103,10 @@ struct JsonObject {
 
     JsonData _inner;
 
-    template <typename T>
-    static bool typeInJson() {
-        return std::holds_alternative<T>(JsonData{});
-    }
-
     explicit JsonObject() : _inner(std::nullptr_t{})
     {}
 
-    explicit JsonObject(JsonData&& data) : _inner(data) 
+    explicit JsonObject(JsonData&& data) : _inner(std::move(data)) 
     {}
 
     /**
@@ -89,44 +134,72 @@ struct JsonObject {
     /**
      * @brief 安全的获取值
      * @tparam T 需要获取的值的类型
-     * @return T, 如果当前共用体不是该类型则会返回该类型的`默认构造空对象`
+     * @return T 类型的拷贝
      */
-    template <class T>
+    template <typename T, 
+        typename = std::enable_if_t<
+            HX::STL::utils::has_variant_type_v<T, JsonData>>>
     T get() const {
-        if (std::holds_alternative<T>(_inner)) {
-            return std::get<T>(_inner);
-        }
-        return T {};
-    }
-
-    /**
-     * @brief 获取值
-     * @warning 必须保证其存在, 否则请使用`const`属性的, 它会返回其拷贝, 非当前类型则会返回该类型的`默认构造空对象`
-     * @tparam T 需要获取的类型
-     */
-    template <class T>
-        requires (std::is_same_v<T, double> || // 不能是非double的数字类型
-                 (!std::is_integral_v<T> && !std::is_floating_point_v<T>))
-    T &get() {
         return std::get<T>(_inner);
     }
 
-    template <class T>
-        requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
-    T get() {
-        if (std::holds_alternative<double>(_inner)) {
-            return static_cast<T>(std::get<double>(_inner));
+    /**
+     * @brief 获取数字
+     * @tparam T 需要获取的类型, 如`int`、`double`
+     */
+    template <typename T, 
+        typename = std::enable_if_t<
+            !HX::STL::utils::has_variant_type_v<T, JsonData>
+            && (std::is_integral_v<T> || std::is_floating_point_v<T>)>,
+        typename = void>
+    T get() const {
+        auto& numStr = std::get<internal::NumerString>(_inner).num;
+        T num;
+        auto [ptr, ec] = std::from_chars(numStr.data(), numStr.data() + numStr.size(), num);
+        if (ec != std::errc()) [[unlikely]] {
+            throw std::system_error(std::make_error_code(ec));
+        } else if (ptr != numStr.data() + numStr.size()) [[unlikely]] { // 必需保证整个str都是数字
+            throw std::runtime_error("Unable to parse all strings to numbers: " + numStr);
         }
-        return 0;
+        return num;
     }
 
-    template <class T>
-        requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
-    T get() const {
-        if (std::holds_alternative<double>(_inner)) {
-            return static_cast<T>(std::get<double>(_inner));
+    /**
+     * @brief 获取值 (以移动的方式)
+     * @tparam T 需要获取的值的类型
+     * @return T 类型的移动
+     */
+    template <typename T, 
+        typename = std::enable_if_t<
+            HX::STL::utils::has_variant_type_v<T, JsonData>
+            && !std::is_same_v<T, std::string>>>
+    T move() {
+        return std::move(std::get<T>(_inner));
+    }
+
+    template <typename T, 
+        typename = std::enable_if_t<std::is_same_v<T, std::string>>,
+        typename = void,
+        typename = void>
+    T move() {
+        if (_inner.index() == 2) {
+            auto&& res = std::move(std::get<internal::NumerString>(_inner));
+            return std::move(res.num);
         }
-        return 0;
+        return std::move(std::get<std::string>(_inner));
+    }
+
+    /**
+     * @brief 获取数字
+     * @tparam T 需要获取的类型, 如`int`、`double`
+     */
+    template <typename T, 
+        typename = std::enable_if_t<
+            !HX::STL::utils::has_variant_type_v<T, JsonData>
+            && (std::is_integral_v<T> || std::is_floating_point_v<T>)>,
+        typename = void>
+    T move() {
+        return get<T>(); // 基础类型无需移动
     }
 
     /**
@@ -178,25 +251,6 @@ struct JsonObject {
     }
 };
 
-template <class T>
-std::optional<T> try_parse_num(std::string_view str) {
-    T value;
-    // std::from_chars 尝试将 str 转为 T(数字)类型的值, 返回值是一个 tuple<指针 , T>
-    // 值得注意的是 from_chars 不识别指数外的正号(在起始位置只允许出现负号)
-    // 具体请见: https://zh.cppreference.com/w/cpp/utility/from_chars
-    auto res = std::from_chars(str.data(), str.data() + str.size(), value);
-    if (res.ec == std::errc() && 
-        res.ptr == str.data() + str.size()) { // 必需保证整个str都是数字
-        return value;
-    }
-    return std::nullopt;
-}
-
-char unescaped_char(char c);
-
-// 跳过末尾的空白字符 如: [1      , 2]
-std::size_t skipTail(std::string_view json, std::size_t i, char ch);
-
 // 更优性能应该使用栈实现的非递归
 
 /**
@@ -217,15 +271,17 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
         std::cmatch match; // 匹配结果
         if (std::regex_search(json.data(), json.data() + json.size(), match, num_re)) { // re解析成功
             std::string str = match.str();
+            auto size = str.size();
             // 支持识别为 int 或者 double
             // if (auto num = try_parse_num<int>(str)) {
             //     return {JsonObject{*num}, str.size()};
             // } else if (auto num = try_parse_num<long long>(str)) {
             //     return {JsonObject{*num}, str.size()};
             // } else 
-            if (auto num = try_parse_num<double>(str)) {
-                return {JsonObject{*num}, str.size()};
-            }
+            // if (auto num = try_parse_num<double>(str)) {
+            //     return {JsonObject{*num}, str.size()};
+            // }
+            return {JsonObject{internal::NumerString{std::move(str)}}, size};
         }
     } else if (json[0] == '"') { // 识别字符串, 注意, 如果有 \", 那么 这个"是不识别的
         std::string str;
@@ -246,7 +302,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
                     str += ch;
                 }
             } else if (phase == Escaped) {
-                str += unescaped_char(ch); // 处理转义字符
+                str += internal::unescaped_char(ch); // 处理转义字符
                 phase = Raw;
             }
         }
@@ -267,7 +323,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
             i += eaten;
             res.push_back(std::move(obj));
 
-            i += skipTail(json, i, ',');
+            i += internal::skipTail(json, i, ',');
         }
         return {JsonObject{std::move(res)}, i};
     } else if (json[0] == '{') { // 解析字典, 如果Key重复, 则使用最新的Key的Val
@@ -292,7 +348,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
                 break;
             }
 
-            i += skipTail(json, i, ':');
+            i += internal::skipTail(json, i, ':');
 
             auto [val, valEaten] = parse(json.substr(i));
             if (valEaten == 0) {
@@ -303,7 +359,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
 
             res.insert({std::move(key.get<std::string>()), std::move(val)});
 
-            i += skipTail(json, i, ',');
+            i += internal::skipTail(json, i, ',');
         }
         return {JsonObject{std::move(res)}, i};
     } else if constexpr (analysisKey) { // 解析Key不带 ""

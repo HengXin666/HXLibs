@@ -30,6 +30,7 @@ namespace internal {
 template <typename T, typename Variant>
 struct has_variant_type;
 
+// 偏特化
 template <typename T, typename... Ts>
 struct has_variant_type<T, std::variant<Ts...>> 
     : std::disjunction<std::is_same<T, Ts>...> 
@@ -53,6 +54,6 @@ using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 template <typename T, typename... Ts>
 constexpr bool has_variant_type_v = internal::has_variant_type<T, Ts...>::value;
 
-}}}
+}}} // namespace HX::STL::utils
 
 #endif // !_HX_TYPE_TRAITS_H_
