@@ -1,11 +1,10 @@
 #include <HXSTL/utils/FileUtils.h>
 
-#include <chrono>
 #include <fstream>
+#include <cassert>
 
 #include <HXSTL/tools/ErrorHandlingTools.h>
 #include <HXSTL/coroutine/loop/AsyncLoop.h>
-#include <cassert>
 
 using namespace std::chrono;
 
@@ -101,7 +100,7 @@ inline static HX::STL::coroutine::task::TimerTask close(int fd) {
     co_await HX::STL::coroutine::loop::IoUringTask().prepClose(fd);
 }
 
-FileUtils::AsyncFile::~AsyncFile() {
+FileUtils::AsyncFile::~AsyncFile() noexcept {
     HX::STL::coroutine::loop::AsyncLoop::getLoop().getTimerLoop().addInitiationTask(
         std::make_shared<HX::STL::coroutine::task::TimerTask>(
             close(_fd)

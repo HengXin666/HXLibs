@@ -1,6 +1,6 @@
 # 改用 clang 编译器
-# set(CMAKE_C_COMPILER clang)
-# set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
 
 # 是否开启单元测试
 option(BUILD_UNIT_TESTS "Build unit tests" ON)

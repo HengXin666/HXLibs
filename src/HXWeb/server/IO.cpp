@@ -105,7 +105,7 @@ HX::STL::coroutine::task::Task<> IO<HX::web::protocol::http::Http>::_sendRespons
     }
 }
 
-IO<HX::web::protocol::https::Https>::~IO() {
+IO<HX::web::protocol::https::Https>::~IO() noexcept {
     if (_ssl) {
         ::SSL_shutdown(_ssl);
         ::SSL_free(_ssl);

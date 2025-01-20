@@ -90,7 +90,7 @@ inline static HX::STL::coroutine::task::TimerTask cancel(IoUringTask* op) {
     co_return;
 }
 
-IoUringTask::~IoUringTask() {
+IoUringTask::~IoUringTask() noexcept {
     if (_cancel) {
         // printf("营长! 快取消!\n");
         HX::STL::coroutine::loop::AsyncLoop::getLoop().getTimerLoop().addInitiationTask(
