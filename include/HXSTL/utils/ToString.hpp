@@ -17,10 +17,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cstddef>
 #ifndef _HX_TO_STRING_H_
 #define _HX_TO_STRING_H_
 
-#include <iomanip>
 #include <optional>
 #include <tuple>
 #include <variant>
@@ -33,6 +33,7 @@
 #include <HXSTL/concepts/SingleElementContainer.hpp>
 #include <HXSTL/concepts/StringType.hpp>
 #include <HXSTL/reflection/MemberName.hpp>
+#include <HXSTL/utils/NumericBaseConverter.hpp>
 
 // 屏蔽未使用函数、变量和参数的警告
 #if defined(_MSC_VER) // MSVC
@@ -427,6 +428,33 @@ struct ToString<T[N]> {
     template <typename Stream>
     static void toString(const T (&str)[N], Stream& s) {
         s.append(std::string {str, N - 1}); // - 1 是为了去掉 '\0'
+    }
+};
+
+// C风格字符串指针
+template <typename T>
+    requires (std::same_as<const T*, const char*>)
+struct ToString<const T*> {
+    static std::string toString(const T* const& str) {
+        return std::string {str}; // - 1 是为了去掉 '\0'
+    }
+
+    template <typename Stream>
+    static void toString(const T* const& str, Stream& s) {
+        s.append(std::string {str}); // - 1 是为了去掉 '\0'
+    }
+};
+
+// C风格指针
+template <typename T>
+struct ToString<T*> {
+    static std::string toString(T* const& p) {
+        return HX::STL::utils::NumericBaseConverter::hexadecimalConversion(static_cast<std::size_t>(p));
+    }
+
+    template <typename Stream>
+    static void toString(T* const& p, Stream& s) {
+        s.append(HX::STL::utils::NumericBaseConverter::hexadecimalConversion(static_cast<std::size_t>(p)));
     }
 };
 

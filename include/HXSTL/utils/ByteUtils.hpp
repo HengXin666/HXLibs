@@ -30,7 +30,7 @@ struct ByteUtils {
     static constexpr T bruteForceByteSwap(T value) {
         if constexpr (sizeof(T) > 1) {
             char* ptr = reinterpret_cast<char*>(&value);
-            for (size_t i = 0; i < sizeof(T) / 2; ++i) {
+            for (std::size_t i = 0; i < sizeof(T) / 2; ++i) {
                 std::swap(ptr[i], ptr[sizeof(T) - 1 - i]);
             }
         }

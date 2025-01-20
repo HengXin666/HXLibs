@@ -57,6 +57,10 @@ struct NumerString {
 
     // NumerString(NumerString&&) noexcept = default; // 默认移动构造
     // NumerString& operator=(NumerString&&) noexcept = default; // 默认移动赋值
+
+    bool operator==(const NumerString& that) const {
+        return that.num == num;
+    }
 };
 
 template <class T>
@@ -91,6 +95,9 @@ using JsonDict = std::unordered_map<std::string, JsonObject>;
  * @todo 建议: 上面的数字, 可以先存储为std::string? 然后get时候, 再进行实例化
  */
 
+/**
+ * @brief Json解析中间对象
+ */
 struct JsonObject {
     using JsonData = std::variant
     < std::nullptr_t  // null
@@ -138,9 +145,26 @@ struct JsonObject {
      */
     template <typename T, 
         typename = std::enable_if_t<
-            HX::STL::utils::has_variant_type_v<T, JsonData>>>
+            HX::STL::utils::has_variant_type_v<T, JsonData>
+            && !std::is_same_v<T, std::string>>>
     T get() const {
         return std::get<T>(_inner);
+    }
+
+    /**
+     * @brief 获取字符串/大数字符串
+     * @tparam T 字符串
+     * @return T 字符串`std::string`
+     */
+    template <typename T, 
+        typename = std::enable_if_t<std::is_same_v<T, std::string>>,
+        typename = void,
+        typename = void>
+    T get() const {
+        if (_inner.index() == 2) {
+            return std::get<internal::NumerString>(_inner).num;
+        }
+        return std::get<std::string>(_inner);
     }
 
     /**
@@ -249,6 +273,10 @@ struct JsonObject {
         auto&& map = get<JsonDict>();
         return map.at(key);
     }
+
+    bool operator==(const JsonObject& that) const {
+        return that._inner == _inner;
+    }
 };
 
 // 更优性能应该使用栈实现的非递归
@@ -321,7 +349,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
                 break;
             }
             i += eaten;
-            res.push_back(std::move(obj));
+            res.emplace_back(std::move(obj));
 
             i += internal::skipTail(json, i, ',');
         }
@@ -357,7 +385,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
             }
             i += valEaten;
 
-            res.insert({std::move(key.get<std::string>()), std::move(val)});
+            res.emplace(key.move<std::string>(), std::move(val));
 
             i += internal::skipTail(json, i, ',');
         }

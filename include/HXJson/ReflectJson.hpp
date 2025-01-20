@@ -260,6 +260,8 @@ for i in range(1, n+1):
 
 namespace HX { namespace json {
 
+namespace internal {
+
 /// @brief 判断是否存在`const HX::json::JsonObject&`作为参数的构造函数
 /// @tparam T 
 template <typename T>
@@ -301,16 +303,55 @@ void setVal(Container& val, const HX::json::JsonObject& json) {
     }
 }
 
+/// 下面使用移动`std::move`(零拷贝)
+
+template <class T>
+void setVal(T& val, HX::json::JsonObject& json) {
+    val = json.move<T>();
+}
+
+template <HX::STL::concepts::SingleElementContainer Container>
+void setVal(Container& val, HX::json::JsonObject& json) {
+    for (auto& it : json.move<HX::json::JsonList>()) {
+        val.emplace_back(it.move<typename Container::value_type>());
+    }
+}
+
+template <HX::STL::concepts::SingleElementContainer Container>
+    requires (isConstructibleFromJsonObject<typename Container::value_type>)
+void setVal(Container& val, HX::json::JsonObject& json) {
+    for (auto& it : json.move<HX::json::JsonList>()) {
+        val.emplace_back(it);
+    }
+}
+
+template <HX::STL::concepts::KeyValueContainer Container>
+    requires (isConstructibleFromJsonObject<typename Container::mapped_type>)
+void setVal(Container& val, HX::json::JsonObject& json) {
+    for (auto& [k, v] : json.move<HX::json::JsonDict>()) {
+        val.emplace(std::move(k), v);
+    }
+}
+
+template <HX::STL::concepts::KeyValueContainer Container>
+void setVal(Container& val, HX::json::JsonObject& json) {
+    for (auto& [k, v] : json.move<HX::json::JsonDict>()) {
+        val.emplace(std::move(k), v.move<typename Container::mapped_type>());
+    }
+}
+
+} // namespace internal
+
 }} // namespace HX::json
 
 // 实际上的JSON序列化实现
-#define _REFLECT_TO_JSON(name) \
-        res += "\""#name"\":"; \
-        res += HX::STL::utils::toString(name); \
+#define _REFLECT_TO_JSON(name)                  \
+        res += "\""#name"\":";                  \
+        res += HX::STL::utils::toString(name);  \
         res += ',';
 
 #define _REFLECT_CONSTRUCTOR_TO_JSON(name) \
-        HX::json::setVal(name, json[#name]);
+        HX::json::internal::setVal(name, json[#name]);
 
 #define _REFLECT_CONSTRUCTOR_ARG(name) \
         const decltype(name)& name##_,
@@ -331,35 +372,35 @@ void setVal(Container& val, const HX::json::JsonObject& json) {
 /**
  * @brief 获取最后一个参数
  */
-#define _GET_LAST_ARG(...) \
-_REFLECT_PP_CALL(_GET_LAST_ARG_, _REFLECT_PP_FOREACH_SIZEOF(__VA_ARGS__)) \
+#define _GET_LAST_ARG(...)                                                  \
+_REFLECT_PP_CALL(_GET_LAST_ARG_, _REFLECT_PP_FOREACH_SIZEOF(__VA_ARGS__))   \
 (__VA_ARGS__)
 
 /**
  * @brief 删除最后一个参数
  */
-#define _DEL_LAST_ARG(...) \
-_REFLECT_PP_CALL(_DEL_LAST_ARG_, _REFLECT_PP_FOREACH_SIZEOF(__VA_ARGS__)) \
+#define _DEL_LAST_ARG(...)                                                  \
+_REFLECT_PP_CALL(_DEL_LAST_ARG_, _REFLECT_PP_FOREACH_SIZEOF(__VA_ARGS__))   \
 (__VA_ARGS__)
 
 // 展开, 难点: 需要计算 size(...) 以展开
-#define _REFLECT_PP_FOREACH(f, ...) \
+#define _REFLECT_PP_FOREACH(f, ...)                                             \
 _REFLECT_PP_CALL(_REFLECT_PP_FOREACH_, _REFLECT_PP_FOREACH_SIZEOF(__VA_ARGS__)) \
 (f, __VA_ARGS__)
 
 // 最后一个位置 调用 endFun 宏, 其余的调用 Fun 宏
 #define _REFLECT_PP_FOREACH_FINALLY_SPECIAL(Fun, EndFun, ...) \
-_REFLECT_PP_FOREACH(Fun, _DEL_LAST_ARG(__VA_ARGS__)) \
+_REFLECT_PP_FOREACH(Fun, _DEL_LAST_ARG(__VA_ARGS__))          \
 _REFLECT_PP_FOREACH(EndFun, _GET_LAST_ARG(__VA_ARGS__))
 
 // 反射: 将成员反射以序列化成JSON字符串, 支持`const auto&`成员
-#define REFLECT(...) \
-std::string toJson() const { \
-    std::string res; \
-    res += '{'; \
-    _REFLECT_PP_FOREACH(_REFLECT_TO_JSON, __VA_ARGS__) \
-    res.back() = '}'; \
-    return res; \
+#define REFLECT(...)                                    \
+std::string toJson() const {                            \
+    std::string res;                                    \
+    res += '{';                                         \
+    _REFLECT_PP_FOREACH(_REFLECT_TO_JSON, __VA_ARGS__)  \
+    res.back() = '}';                                   \
+    return res;                                         \
 }
 
 /**
@@ -367,13 +408,23 @@ std::string toJson() const { \
  * @warning 请保证 ... 至少存在一个参数! 否则毫无意义
  * @warning 不支持`const auto&`成员
  */
-#define REFLECT_CONSTRUCTOR(TYPE, ...) \
-TYPE(const std::string& json) \
-    : TYPE(HX::json::parse(json).first) \
-{} \
-TYPE(const HX::json::JsonObject& json) { \
-    _REFLECT_PP_FOREACH(_REFLECT_CONSTRUCTOR_TO_JSON, __VA_ARGS__) \
-} \
+#define REFLECT_CONSTRUCTOR(TYPE, ...)                              \
+TYPE(const std::string& json)                                       \
+    : TYPE(HX::json::parse(json).first)                             \
+{}                                                                  \
+                                                                    \
+TYPE(std::string&& json)                                            \
+    : TYPE(std::move(HX::json::parse(json).first))                  \
+{}                                                                  \
+                                                                    \
+TYPE(const HX::json::JsonObject& json) {                            \
+    _REFLECT_PP_FOREACH(_REFLECT_CONSTRUCTOR_TO_JSON, __VA_ARGS__)  \
+}                                                                   \
+                                                                    \
+TYPE(HX::json::JsonObject&& json) {                                 \
+    _REFLECT_PP_FOREACH(_REFLECT_CONSTRUCTOR_TO_JSON, __VA_ARGS__)  \
+}                                                                   \
+                                                                    \
 REFLECT(__VA_ARGS__)
 
 /**
@@ -381,10 +432,11 @@ REFLECT(__VA_ARGS__)
  * @warning 请保证 ... 至少存在一个参数! 否则毫无意义
  * @warning 不支持`const auto&`成员
  */
-#define REFLECT_CONSTRUCTOR_ALL(TYPE, ...) \
-TYPE(_REFLECT_PP_FOREACH_FINALLY_SPECIAL(_REFLECT_CONSTRUCTOR_ARG, _REFLECT_CONSTRUCTOR_ARG_END, __VA_ARGS__)) \
-    : _REFLECT_PP_FOREACH_FINALLY_SPECIAL(_REFLECT_CONSTRUCTOR_SET_ARG, _REFLECT_CONSTRUCTOR_SET_ARG_END, __VA_ARGS__) \
-{} \
+#define REFLECT_CONSTRUCTOR_ALL(TYPE, ...)                                                                              \
+TYPE(_REFLECT_PP_FOREACH_FINALLY_SPECIAL(_REFLECT_CONSTRUCTOR_ARG, _REFLECT_CONSTRUCTOR_ARG_END, __VA_ARGS__))          \
+    : _REFLECT_PP_FOREACH_FINALLY_SPECIAL(_REFLECT_CONSTRUCTOR_SET_ARG, _REFLECT_CONSTRUCTOR_SET_ARG_END, __VA_ARGS__)  \
+{}                                                                                                                      \
+                                                                                                                        \
 REFLECT_CONSTRUCTOR(TYPE, __VA_ARGS__)
 
 // 不能 #undef 好烦人, 因为它是在原地宏展开的; 因此提供了: `<HXJson/UnReflectJson.hpp>`

@@ -46,7 +46,7 @@
     #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
-namespace HX { namespace print { // C++20
+namespace HX { namespace print {
 
 namespace internal {
 

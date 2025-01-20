@@ -17,6 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <string_view>
 #ifndef _HX_NUMERIC_BASE_CONVERTER_H_
 #define _HX_NUMERIC_BASE_CONVERTER_H_
 
@@ -34,7 +35,7 @@ struct NumericBaseConverter {
      * @return std::string 十六进制
      */
     static std::string hexadecimalConversion(std::size_t num) {
-        static std::string str = "0123456789ABCDEF";
+        static std::string_view str = "0123456789ABCDEF";
         std::string res;
         do {
             res += str[num % 16];

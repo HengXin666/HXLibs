@@ -58,10 +58,10 @@ void fromJson(Container& val, HX::json::JsonObject& json) {
             || std::is_integral_v<T> 
             || std::is_floating_point_v<T>
         ) {
-            val.emplace(k, v.move<T>());
+            val.emplace(std::move(k), v.move<T>());
         } else {
             // 因为键规定为std::string, 所以可行
-            val.emplace(k, fromJson<T>(v));
+            val.emplace(std::move(k), fromJson<T>(v));
         }
     }
 }
@@ -84,7 +84,7 @@ T fromJson(HX::json::JsonObject& json) {
     T obj{};
     HX::STL::reflection::forEach(obj, [&](auto index, auto name, auto& val) {
         static_cast<void>(index);
-        internal::fromJson(val, json[std::string {name}]);
+        internal::fromJson(val, json[std::string{name.data(), name.size()}]);
     });
     return obj;
 }
@@ -112,7 +112,7 @@ inline void fromJson(Obj& obj, const Stream& s) {
     // 2. 获取obj的所有字段, 及其名称
     HX::STL::reflection::forEach(obj, [&](auto index, auto name, auto& val) {
         static_cast<void>(index);
-        internal::fromJson(val, json[std::string {name}]);
+        internal::fromJson(val, json[std::string{name.data(), name.size()}]);
     });
 }
 
