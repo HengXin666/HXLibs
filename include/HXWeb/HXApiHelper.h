@@ -21,10 +21,11 @@
 #define _HX_API_HELPER_H_
 
 #include <HXWeb/router/Router.h>
+#include <HXWeb/router/RequestParsing.h>
 #include <HXWeb/server/IO.h>
+#include <HXWeb/server/Server.h>
 #include <HXWeb/protocol/http/Request.h>
 #include <HXWeb/protocol/http/Response.h>
-#include <HXWeb/router/RequestParsing.h>
 #include <HXSTL/coroutine/task/Task.hpp>
 #include <HXSTL/utils/StringUtils.h>
 
@@ -149,6 +150,6 @@ auto NAME = io.getRequest().getParseQueryParameters()
  * @param NAME 控制器类名
  */
 #define ROUTER_BIND(NAME) \
-{NAME {};}
+{static_cast<void>(NAME {});}
 
 #endif // _HX_API_HELPER_H_

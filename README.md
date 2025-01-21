@@ -9,7 +9,7 @@
 - `Json`解析: 
     - 支持静态反射注册到结构体, 实现`toString`生成json字符串和自动生成的构造函数实现`jsonString`/`jsonObj`赋值到结构体, 只需要一个宏即可实现!
 
-    - 支持对`聚合类`继续序列化、反序列化! **不需要宏定义!** 直接使用即可 (示例: [JsonTest.cpp](./tests/JsonTest.cpp))
+    - 支持对`聚合类`进行序列化、反序列化! **不需要宏定义!** 直接使用即可 (示例: [JsonTest.cpp](tests/JsonTest.cpp))
 
 - 万能`print`/`toString`等工具类; 
 
@@ -24,12 +24,12 @@
 > 仍然在开发, 非最终产品
 >
 > - 其他示例:
->   - [基于轮询的聊天室](examples/ChatServer.cpp)
->   - [WebSocket服务端](examples/WsServer.cpp)
->   - [使用`Transfer-Encoding`分块编码传输文件的服务端](examples/HttpsFileServer.cpp)
->   - [支持`socks5`代理的`Http/Https`客户端](examples/Client.cpp)
->   - [自实现のJson解析、结构体静态反射到Json和Json赋值到反射注册的结构体的示例](examples/JsonTest.cpp) (只需要一个`宏`即可实现!)
->   - [LRUCache/LFUCache的示例](examples/CacheTest.cpp)
+>   - [基于轮询的聊天室](examples/ChatServer/ChatServer.cpp)
+>   - [WebSocket服务端](examples/WsServer/WsServer.cpp)
+>   - [使用`Transfer-Encoding`分块编码传输文件的服务端](examples/FileServer/FileServer.cpp)
+>   - [支持`socks5`代理的`Http/Https`客户端](examples/Client/Client.cpp)
+>   - [自实现のJson解析、结构体静态反射到Json和Json赋值到反射注册的结构体的示例(只需要一个`宏`即可实现!) / 支持对`聚合类`进行序列化、反序列化! **不需要宏定义!**](tests/JsonTest.cpp)
+>   - [LRUCache/LFUCache的示例](tests/CacheTest.cpp)
 
 - 编写端点 (提供了简化使用的 API 宏)
 

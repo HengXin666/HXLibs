@@ -21,6 +21,7 @@
 #define _HX_REQUEST_INTERCEPTOR_H_
 
 #include <vector>
+#include <functional>
 
 #include <HXWeb/server/IO.h>
 
@@ -36,14 +37,13 @@ enum class RequestFlow : bool {
  */
 class RequestInterceptor {
     RequestInterceptor() = default;
+    RequestInterceptor operator=(RequestInterceptor&&) = delete;
 public:
     /**
      * @brief 前向拦截器类型
      * @return RequestFlow 
      */
-    using PreHandleFunc = decltype(
-        [](HX::web::server::IO<>& io) -> RequestFlow {return RequestFlow::Pass;}
-    );
+    using PreHandleFunc = std::function<HX::web::interceptor::RequestFlow(HX::web::server::IO<>&)>;
 
     /**
      * @brief 获取请求拦截器单例

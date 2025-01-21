@@ -11,6 +11,7 @@
 #include <HXSTL/tools/ErrorHandlingTools.h>
 #include <HXSTL/utils/FileUtils.h>
 #include <HXWeb/router/Router.h>
+#include <HXWeb/interceptor/RequestInterceptor.h>
 #include <HXWeb/protocol/http/Request.h>
 #include <HXWeb/protocol/http/Response.h>
 #include <HXWeb/server/IO.h>
@@ -47,6 +48,15 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::http::H
             // 交给路由处理
             // LOG_INFO("路由解析中...");
             try {
+                // 前向拦截
+                if (HX::web::interceptor::RequestInterceptor::
+                        getRequestInterceptor()
+                            .checkPreHandle(io) ==
+                    HX::web::interceptor::RequestFlow::Block
+                ) {
+                    co_await io.sendResponse(HX::STL::container::NonVoidHelper<>{});
+                    break;
+                }
                 // printf("cli -> url: %s\n", _request.getRequesPath().c_str());
                 endpointRes = co_await HX::web::router::Router::getSingleton().getEndpointFunc(
                     io._request->getRequesType(),
@@ -115,14 +125,22 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::https::
             // 交给路由处理
             // LOG_INFO("路由解析中...");
             try {
-                // 
+                // 前向拦截
+                if (HX::web::interceptor::RequestInterceptor::
+                        getRequestInterceptor()
+                            .checkPreHandle(io) ==
+                    HX::web::interceptor::RequestFlow::Block
+                ) {
+                    co_await io.sendResponse(HX::STL::container::NonVoidHelper<>{});
+                    break;
+                }
 
-                // printf("cli -> url: %s\n", _request.getRequesPath().c_str());
                 endpointRes = co_await HX::web::router::Router::getSingleton().getEndpointFunc(
                     io._request->getRequesType(),
                     io._request->getRequesPath()
                 )(io);
 
+                // printf("cli -> url: %s\n", _request.getRequesPath().c_str());
                 // === 响应 ===
                 // LOG_INFO("响应中...");
                 co_await io.sendResponse(HX::STL::container::NonVoidHelper<>{});

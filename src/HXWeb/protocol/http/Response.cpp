@@ -11,7 +11,6 @@
 
 #include <HXSTL/utils/StringUtils.h>
 #include <HXSTL/utils/FileUtils.h>
-#include <iostream>
 
 namespace HX { namespace web { namespace protocol { namespace http {
 
