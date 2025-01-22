@@ -48,7 +48,7 @@ inline constexpr auto HEAD = HttpMethod::HEAD;
 inline constexpr auto PUT = HttpMethod::PUT;
 inline constexpr auto CONNECT = HttpMethod::CONNECT;
 
-inline constexpr std::string_view method_name(HttpMethod mthd) {
+inline constexpr std::string_view getMethodStringView(HttpMethod mthd) {
     switch (mthd) {
     case HttpMethod::DEL:     return "DELETE"sv;
     case HttpMethod::GET:     return "GET"sv;

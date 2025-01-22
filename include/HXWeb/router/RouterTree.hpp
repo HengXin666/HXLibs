@@ -20,11 +20,108 @@
 #ifndef _HX_ROUTER_TREE_H_
 #define _HX_ROUTER_TREE_H_
 
+#include <string>
+#include <vector>
+#include <stack>
+#include <functional>
+
+#include <HXWeb/protocol/http/Request.h>
+#include <HXWeb/protocol/http/Response.h>
+#include <HXSTL/coroutine/task/Task.hpp>
+#include <HXSTL/container/RadixTree.hpp>
+
 namespace HX { namespace web { namespace router {
 
+using EndpointFunc = std::function<HX::STL::coroutine::task::Task<>(
+    protocol::http::Request&, 
+    protocol::http::Response&)>;
+
 class RouterTree {
+    using Node = HX::STL::container::RadixTreeNode<EndpointFunc>;
 public:
-    
+    explicit RouterTree() 
+        : _root(std::make_shared<Node>())
+        , _notFoundHandler([](protocol::http::Request &req,
+                              protocol::http::Response &res) 
+        -> HX::STL::coroutine::task::Task<> {
+            res.setResponseLine(protocol::http::Response::Status::CODE_404)
+               .setContentType("text/html", "UTF-8")
+               .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
+            co_return;
+        })
+    {}
+
+    RouterTree& operator=(const RouterTree&) = delete;
+    RouterTree(const RouterTree& ) = delete;
+
+    void insert(
+        std::vector<std::string>& buildLink,
+        EndpointFunc&& endpoint
+    ) {
+        auto node = _root;
+        for (auto& key : buildLink) {
+            if (key.front() == '{') { // 特别处理: 如果是 {xxx}, 那么映射到 "*"
+                key = "*";
+            }
+            auto findIt = node->child.find(key);
+            if (findIt == node->child.end()) {
+                node = node->child[key] = std::make_shared<Node>();
+            } else {
+                node = findIt->second;
+            }
+        }
+        node->val = endpoint;
+    }
+
+    EndpointFunc find(const std::vector<std::string>& findLink) const {
+        const std::size_t n = findLink.size();
+        std::stack<std::tuple<std::shared_ptr<Node>, int, int>> st;
+        st.push({_root, 0, 0});
+        auto node = _root;
+        while (st.size()) {
+            int i, tag;
+            std::tie(node, i, tag) = st.top();
+            st.pop();
+            auto findIt = node->child.end(); 
+            if (tag)
+                goto End;
+
+            for (; i < n; ++i) {
+                findIt = node->child.find(findLink[i]);
+                if (findIt == node->child.end()) {
+                    // 以 {} 尝试
+                    findIt = node->child.find("*");
+                    if (findIt != node->child.end()) {
+                        st.push({node, i, 1});
+                        node = findIt->second;
+                        continue;
+                    }
+
+                End:
+                    // 只能看看是否有**了
+                    findIt = node->child.find("**");
+                    if (findIt == node->child.end()) {
+                        if (st.empty()) {
+                            return _notFoundHandler;
+                        }
+                        break; // 开始新的递归
+                    }
+                    return *findIt->second->val;
+                } else {
+                    node = findIt->second;
+                }
+            }
+        }
+        return *node->val;
+    }
+
+private:
+    std::shared_ptr<Node> _root;
+
+    /**
+     * @brief 路由找不到时, 调用的端点; 俗称`404`
+     */
+    EndpointFunc _notFoundHandler;
 };
 
 }}} // namespace HX::web::router

@@ -32,13 +32,17 @@ namespace HX { namespace STL { namespace container {
  * @brief 基数树结点
  * @tparam T 存储的类型
  */
-template <class T>
+template <typename T>
 struct RadixTreeNode {
     std::optional<T> val;
-    std::unordered_map<std::string, std::shared_ptr<RadixTreeNode<T>>> child;
+    std::unordered_map<
+        std::string, 
+        std::shared_ptr<RadixTreeNode<T>>
+    > child;
 
-    explicit RadixTreeNode() : val(std::nullopt)
-                             , child()
+    explicit RadixTreeNode() 
+        : val(std::nullopt)
+        , child()
     {}
 };
 
@@ -52,7 +56,7 @@ struct RadixTreeNode {
  * @brief 基数树(压缩前缀树) as 字典树
  * @tparam T 存储的类型
  */
-template <class T>
+template <typename T>
 class RadixTree {
 protected:
     std::shared_ptr<RadixTreeNode<T>> _root;

@@ -28,6 +28,7 @@
 #include <HXWeb/protocol/http/Response.h>
 #include <HXWeb/router/RouterTree.hpp>
 #include <HXSTL/coroutine/task/Task.hpp>
+#include <HXSTL/utils/StringUtils.h>
 
 namespace HX { namespace web { namespace router {
 
@@ -67,15 +68,25 @@ constexpr auto has_after_v = has_after<T>::value;
 
 class Router {
 public:
+    /**
+     * @brief 添加路由端点
+     * @tparam Method 
+     * @tparam Func 
+     * @tparam Interceptors 
+     * @param path 
+     * @param endpoint 
+     * @param interceptors 
+     */
     template <protocol::http::HttpMethod Method,
         typename Func,
         typename... Interceptors>
-    void addEndpoint(std::string key, Func&& endpoint, Interceptors&&... interceptors) {
+    void addEndpoint(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
         std::function<HX::STL::coroutine::task::Task<>(
-            protocol::http::Request&, 
-            protocol::http::Response&
-        )> honki = [this, endpoint = std::move(endpoint), ...interceptors = interceptors]
-            (protocol::http::Request& req, protocol::http::Response& res)
+            protocol::http::Request &, protocol::http::Response &)>
+            realEndpoint =
+                [this, endpoint = std::move(endpoint),
+                 ... interceptors = interceptors](protocol::http::Request &req,
+                                                  protocol::http::Response &res)
             -> HX::STL::coroutine::task::Task<> {
             bool ok = true;
             (doBefore(interceptors, ok, req, res), ...);
@@ -85,6 +96,12 @@ public:
             ok = true;
             (doAfter(interceptors, ok, req, res), ...);
         };
+        auto buildLink = HX::STL::utils::StringUtil::split(
+            path, 
+            "/",
+            {std::string{protocol::http::getMethodStringView(Method)}}
+        );
+        _routerTree.insert(buildLink, std::move(realEndpoint));
     }
 
 private:

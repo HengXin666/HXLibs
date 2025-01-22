@@ -12,16 +12,18 @@ std::vector<std::string> StringUtil::split(
     if (str.empty()) 
         return res;
 
-    size_t start = 0;
-    size_t end = 0;
+    std::size_t start = 0;
+    std::size_t end = 0;
     while ((end = str.find(delim, start)) != std::string_view::npos) {
-        res.emplace_back(str.substr(start, end - start));
+        auto tk = str.substr(start, end - start);
+        if (tk.size()) {
+            res.emplace_back(tk);
+        }
         start = end + delim.size();
     }
 
     // 添加最后一个分割的部分
     res.emplace_back(str.substr(start));
-
     return res;
 }
 
