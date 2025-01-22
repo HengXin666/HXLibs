@@ -88,6 +88,6 @@ int main() {
     ROUTER_BIND(HttpsController);
     // HX::STL::coroutine::task::runTask(HX::STL::coroutine::loop::AsyncLoop::getLoop(), test());
     // 启动服务
-    HX::web::server::Server::startHttps("127.0.0.1", "28205", "certs/cert.pem", "certs/key.pem");
+    HX::web::server::ServerRun::startHttps("127.0.0.1", "28205", "certs/cert.pem", "certs/key.pem");
     return 0;
 }

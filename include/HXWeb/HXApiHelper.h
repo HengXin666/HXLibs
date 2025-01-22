@@ -20,7 +20,7 @@
 #ifndef _HX_API_HELPER_H_
 #define _HX_API_HELPER_H_
 
-#include <HXWeb/router/Router.h>
+#include <HXWeb/router/RouterSingleton.h>
 #include <HXWeb/router/RequestParsing.h>
 #include <HXWeb/server/IO.h>
 #include <HXWeb/server/Server.h>
@@ -46,10 +46,10 @@
 #define ENDPOINT_BEGIN(METHOD, PATH, FUNC_NAME) \
 const int _HX_endpoint_##FUNC_NAME = []() -> int { \
     std::string templatePath = PATH; \
-    HX::web::router::Router::getSingleton().addEndpoint( \
+    HX::web::router::RouterSingleton::getSingleton().addEndpoint( \
         METHOD,\
         templatePath,\
-        [=](const HX::web::server::IO<>& io) -> HX::web::router::Router::EndpointReturnType { \
+        [=](const HX::web::server::IO<>& io) -> HX::web::router::RouterSingleton::EndpointReturnType { \
             static_cast<void>(io); // 让 -Wunused-parameter 闭嘴
 
 /**
@@ -66,7 +66,7 @@ const int _HX_endpoint_##FUNC_NAME = []() -> int { \
  * @brief 设置路由失败时候的端点函数, 其中形参定义了`io`(HX::web::server::IO)
  */
 #define ERROR_ENDPOINT_BEGIN \
-HX::web::router::Router::getSingleton().setErrorEndpointFunc([=](const HX::web::server::IO<>& io) -> HX::web::router::Router::EndpointReturnType { \
+HX::web::router::RouterSingleton::getSingleton().setErrorEndpointFunc([=](const HX::web::server::IO<>& io) -> HX::web::router::RouterSingleton::EndpointReturnType { \
     static_cast<void>(io);
 
 /**

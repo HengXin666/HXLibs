@@ -26,7 +26,7 @@
 
 namespace HX { namespace web { namespace server {
 
-class Server {
+class ServerRun {
 public:
     /**
      * @brief [阻塞的] 启动Http服务器, 并且阻塞

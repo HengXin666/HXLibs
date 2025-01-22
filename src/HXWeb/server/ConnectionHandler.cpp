@@ -10,7 +10,7 @@
 #include <HXSTL/coroutine/task/WhenAny.hpp>
 #include <HXSTL/tools/ErrorHandlingTools.h>
 #include <HXSTL/utils/FileUtils.h>
-#include <HXWeb/router/Router.h>
+#include <HXWeb/router/RouterSingleton.h>
 #include <HXWeb/interceptor/RequestInterceptor.h>
 #include <HXWeb/protocol/http/Request.h>
 #include <HXWeb/protocol/http/Response.h>
@@ -58,7 +58,7 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::http::H
                     break;
                 }
                 // printf("cli -> url: %s\n", _request.getRequesPath().c_str());
-                endpointRes = co_await HX::web::router::Router::getSingleton().getEndpointFunc(
+                endpointRes = co_await HX::web::router::RouterSingleton::getSingleton().getEndpointFunc(
                     io._request->getRequesType(),
                     io._request->getRequesPath()
                 )(io);
@@ -135,7 +135,7 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::https::
                     break;
                 }
 
-                endpointRes = co_await HX::web::router::Router::getSingleton().getEndpointFunc(
+                endpointRes = co_await HX::web::router::RouterSingleton::getSingleton().getEndpointFunc(
                     io._request->getRequesType(),
                     io._request->getRequesPath()
                 )(io);

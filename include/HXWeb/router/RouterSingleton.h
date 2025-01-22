@@ -20,8 +20,6 @@
 #ifndef _HX_ROUTER_H_
 #define _HX_ROUTER_H_
 
-#include <memory>
-#include <unordered_map>
 #include <string>
 #include <functional>
 
@@ -40,7 +38,7 @@ namespace HX { namespace web { namespace router {
 /**
  * @brief 路由类: 懒汉单例
  */
-class Router {
+class RouterSingleton {
 public:
     /**
      * @brief 端点函数返回值
@@ -53,16 +51,16 @@ protected:
         const HX::web::server::IO<void>&
     )>;
 
-    explicit Router();
+    explicit RouterSingleton();
 
-    Router(const Router&) = delete;
-    Router& operator=(const Router&) = delete;
+    RouterSingleton(const RouterSingleton&) = delete;
+    RouterSingleton& operator=(const RouterSingleton&) = delete;
 public:
     /**
      * @brief 获取路由类单例
      */
-    [[nodiscard]] static Router& getSingleton() {
-        static Router router {};
+    [[nodiscard]] static RouterSingleton& getSingleton() {
+        static RouterSingleton router {};
         return router;
     }
 

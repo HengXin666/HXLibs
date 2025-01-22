@@ -130,6 +130,6 @@ int main() {
     } ERROR_ENDPOINT_END;
 
     // 启动服务
-    HX::web::server::Server::startHttp("127.0.0.1", "28205", 16, 5s); 
+    HX::web::server::ServerRun::startHttp("127.0.0.1", "28205", 16, 5s); 
     return 0;
 }

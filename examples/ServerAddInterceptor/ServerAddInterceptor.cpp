@@ -19,6 +19,6 @@ int main() {
         }
         return HX::web::interceptor::RequestFlow::Pass;
     });
-    HX::web::server::Server::startHttp("127.0.0.1", "28205");
+    HX::web::server::ServerRun::startHttp("127.0.0.1", "28205");
     return 0;
 }

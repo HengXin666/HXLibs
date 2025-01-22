@@ -25,7 +25,6 @@
 #include <string>
 #include <string_view>
 #include <optional>
-#include <span>
 
 namespace HX { namespace web { namespace client {
 

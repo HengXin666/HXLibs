@@ -12,7 +12,7 @@
 
 namespace HX { namespace web { namespace server {
 
-void Server::startHttp(
+void ServerRun::startHttp(
     const std::string& name,
     const std::string& port,
     std::size_t threadNum /*= std::thread::hardware_concurrency()*/,
@@ -51,7 +51,7 @@ void Server::startHttp(
     }
 }
 
-void Server::startHttps(
+void ServerRun::startHttps(
     const std::string& name,
     const std::string& port,
     const std::string& certificate,

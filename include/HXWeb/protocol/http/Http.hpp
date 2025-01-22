@@ -20,9 +20,48 @@
 #ifndef _HX_HTTP_H_
 #define _HX_HTTP_H_
 
+#include <string_view>
+
+using namespace std::string_view_literals;
+
 namespace HX { namespace web { namespace protocol { namespace http {
 
 class Http {};
+
+enum class HttpMethod {
+    NIL = 0,
+    GET,
+    HEAD,
+    POST,
+    PUT,
+    TRACE,
+    PATCH,
+    CONNECT,
+    OPTIONS,
+    DEL,
+};
+
+inline constexpr auto GET = HttpMethod::GET;
+inline constexpr auto POST = HttpMethod::POST;
+inline constexpr auto DEL = HttpMethod::DEL;
+inline constexpr auto HEAD = HttpMethod::HEAD;
+inline constexpr auto PUT = HttpMethod::PUT;
+inline constexpr auto CONNECT = HttpMethod::CONNECT;
+
+inline constexpr std::string_view method_name(HttpMethod mthd) {
+    switch (mthd) {
+    case HttpMethod::DEL:     return "DELETE"sv;
+    case HttpMethod::GET:     return "GET"sv;
+    case HttpMethod::HEAD:    return "HEAD"sv;
+    case HttpMethod::POST:    return "POST"sv;
+    case HttpMethod::PUT:     return "PUT"sv;
+    case HttpMethod::PATCH:   return "PATCH"sv;
+    case HttpMethod::CONNECT: return "CONNECT"sv;
+    case HttpMethod::OPTIONS: return "OPTIONS"sv;
+    case HttpMethod::TRACE:   return "TRACE"sv;
+    default:                  return "NIL"sv;
+    }
+}
 
 }}}} // namespace HX::web::protocol::http
 

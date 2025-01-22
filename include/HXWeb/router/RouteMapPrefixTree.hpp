@@ -20,8 +20,6 @@
 #ifndef _HX_ROUTE_MAP_PREFIX_TREE_H_
 #define _HX_ROUTE_MAP_PREFIX_TREE_H_
 
-#include <stack>
-
 #include <HXSTL/container/RadixTree.hpp>
 
 namespace HX { namespace web { namespace router {

@@ -158,6 +158,6 @@ int main() {
     ROUTER_BIND(ChatController);
     
     // 启动服务 (指定使用一个线程 (因为messageArr得同步, 多线程就需要上锁(我懒得写了qwq)))
-    HX::web::server::Server::startHttp("127.0.0.1", "28205", 1, 10s);
+    HX::web::server::ServerRun::startHttp("127.0.0.1", "28205", 1, 10s);
     return 0;
 }
