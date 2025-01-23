@@ -17,8 +17,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_ROUTER_H_
-#define _HX_ROUTER_H_
+#ifndef _HX_ROUTER_SINGLETON_H_
+#define _HX_ROUTER_SINGLETON_H_
 
 #include <string>
 #include <functional>
@@ -117,4 +117,4 @@ protected:
 
 }}} // namespace HX::web::router
 
-#endif // _HX_ROUTER_H_
+#endif // _HX_ROUTER_SINGLETON_H_

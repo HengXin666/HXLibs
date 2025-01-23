@@ -44,6 +44,7 @@ public:
         , _notFoundHandler([](protocol::http::Request &req,
                               protocol::http::Response &res) 
         -> HX::STL::coroutine::task::Task<> {
+            static_cast<void>(req);
             res.setResponseLine(protocol::http::Response::Status::CODE_404)
                .setContentType("text/html", "UTF-8")
                .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
@@ -73,17 +74,17 @@ public:
         node->val = endpoint;
     }
 
-    EndpointFunc find(const std::vector<std::string>& findLink) const {
+    const EndpointFunc& find(const std::vector<std::string>& findLink) const {
         const std::size_t n = findLink.size();
-        std::stack<std::tuple<std::shared_ptr<Node>, int, int>> st;
-        st.push({_root, 0, 0});
+        std::stack<std::tuple<std::shared_ptr<Node>, std::size_t>> st;
+        st.push({_root, static_cast<std::size_t>(0)});
         auto node = _root;
         while (st.size()) {
-            int i, tag;
-            std::tie(node, i, tag) = st.top();
+            std::size_t i = 0;
+            std::tie(node, i) = st.top();
             st.pop();
             auto findIt = node->child.end(); 
-            if (tag)
+            if (i == n)
                 goto End;
 
             for (; i < n; ++i) {
@@ -92,7 +93,7 @@ public:
                     // 以 {} 尝试
                     findIt = node->child.find("*");
                     if (findIt != node->child.end()) {
-                        st.push({node, i, 1});
+                        st.push({node, n});
                         node = findIt->second;
                         continue;
                     }
@@ -104,7 +105,7 @@ public:
                         if (st.empty()) {
                             return _notFoundHandler;
                         }
-                        break; // 开始新的递归
+                        break; // 回溯之前的
                     }
                     return *findIt->second->val;
                 } else {

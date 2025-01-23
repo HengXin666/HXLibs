@@ -67,7 +67,65 @@ constexpr auto has_after_v = has_after<T>::value;
 } // namespace internal
 
 class Router {
+    Router() = default;
+    Router& operator=(Router&&) = delete;
 public:
+    /**
+     * @brief 获取路由单例
+     * @return Router& 
+     */
+    [[nodiscard]] static Router& getRouter() {
+        static Router router{};
+        return router;
+    }
+
+    /**
+     * @brief 获取路由
+     * @param method 
+     * @param path 
+     * @return EndpointFunc 
+     */
+    const EndpointFunc& getEndpoint(
+        std::string_view method,
+        std::string_view path
+    ) const {
+        return _routerTree.find(
+            HX::STL::utils::StringUtil::split(
+                path, 
+                "/", 
+                {std::string{method}}
+        ));
+    }
+
+    /**
+    * @brief 为服务器添加一个端点
+    * @tparam Methods 请求类型, 如`GET`、`POST`
+    * @tparam Func 端点函数类型
+    * @tparam Interceptors 拦截器类型
+    * @param key url, 如"/"、"home/{id}"
+    * @param endpoint 端点函数
+    * @param interceptors 拦截器
+    */
+    template <protocol::http::HttpMethod... Methods,
+        typename Func,
+        typename... Interceptors>
+    void addEndpoint(std::string key, Func endpoint, Interceptors&&... interceptors) {
+        if constexpr (sizeof...(Methods) == 1) {
+            (_addEndpoint<Methods>(
+                std::move(key),
+                std::move(endpoint),
+                std::forward<Interceptors>(interceptors)...
+            ), ...);
+        } else {
+            (_addEndpoint<Methods>(
+                key, 
+                endpoint, 
+                std::forward<Interceptors>(interceptors)...
+            ), ...);
+        }
+    }
+
+private:
     /**
      * @brief 添加路由端点
      * @tparam Method 
@@ -80,14 +138,15 @@ public:
     template <protocol::http::HttpMethod Method,
         typename Func,
         typename... Interceptors>
-    void addEndpoint(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
+    void _addEndpoint(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
         std::function<HX::STL::coroutine::task::Task<>(
             protocol::http::Request &, protocol::http::Response &)>
             realEndpoint =
                 [this, endpoint = std::move(endpoint),
-                 ... interceptors = interceptors](protocol::http::Request &req,
-                                                  protocol::http::Response &res)
+                 ... interceptors = interceptors] (protocol::http::Request &req,
+                                                  protocol::http::Response &res) mutable
             -> HX::STL::coroutine::task::Task<> {
+            static_cast<void>(this);
             bool ok = true;
             (doBefore(interceptors, ok, req, res), ...);
             if (ok) {
@@ -104,7 +163,6 @@ public:
         _routerTree.insert(buildLink, std::move(realEndpoint));
     }
 
-private:
     template <typename T>
     void doBefore(
         T& interceptors, 
@@ -135,7 +193,7 @@ private:
         }
     }
 
-    RouterTree _routerTree;
+    RouterTree _routerTree {};
 };
 
 }}} // namespace HX::web::router

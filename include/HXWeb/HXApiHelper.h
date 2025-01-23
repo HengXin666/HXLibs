@@ -20,6 +20,7 @@
 #ifndef _HX_API_HELPER_H_
 #define _HX_API_HELPER_H_
 
+#include <HXWeb/router/Router.hpp>
 #include <HXWeb/router/RouterSingleton.h>
 #include <HXWeb/router/RequestParsing.h>
 #include <HXWeb/server/IO.h>
