@@ -109,16 +109,16 @@ public:
     template <protocol::http::HttpMethod... Methods,
         typename Func,
         typename... Interceptors>
-    void addEndpoint(std::string key, Func endpoint, Interceptors&&... interceptors) {
+    void addEndpoint(std::string path, Func endpoint, Interceptors&&... interceptors) {
         if constexpr (sizeof...(Methods) == 1) {
             (_addEndpoint<Methods>(
-                std::move(key),
+                std::move(path),
                 std::move(endpoint),
                 std::forward<Interceptors>(interceptors)...
             ), ...);
         } else {
             (_addEndpoint<Methods>(
-                key, 
+                path, 
                 endpoint, 
                 std::forward<Interceptors>(interceptors)...
             ), ...);
