@@ -125,6 +125,24 @@ public:
         }
     }
 
+    /**
+     * @brief 为服务器添加一个端点
+     * @tparam Methods 请求类型, 如`GET`、`POST`
+     * @tparam Func 端点函数类型
+     * @tparam Interceptors 拦截器类型
+     * @param key url, 如"/"、"home/{id}"
+     * @param endpoint 端点函数
+     * @param interceptors 拦截器
+     * @return Router& *this (可链式调用)
+     */
+    template <protocol::http::HttpMethod... Methods,
+        typename Func,
+        typename... Interceptors>
+    Router& on(std::string path, Func endpoint, Interceptors&&... interceptors) {
+        addEndpoint<Methods...>(std::move(path), std::move(endpoint), interceptors...);
+        return *this;
+    }
+
 private:
     /**
      * @brief 添加路由端点

@@ -7,29 +7,8 @@
 #undef ENDPOINT_BEGIN
 #undef ENDPOINT_END
 
-#define _EXPAND_2(x, y, z) x##y##z
-#define _EXPAND(x, y, z) _EXPAND_2(x, y, z)
-#define _UNIQUE_ID(prefix, suffix) _EXPAND(prefix, __LINE__, suffix)
-
-#define ROUTER                                  \
-const int _UNIQUE_ID(_HXWeb_, _endpoint_) = []{ \
-    using namespace HX::web::protocol::http;    \
-    using namespace HX::STL::coroutine::task;   \
-    HX::web::router::Router::getRouter()
-
-#define ROUTER_END  \
-    ;               \
-    return 0;       \
-}()
-
 class ServerAddInterceptorTestController {
 public:
-    // ENDPOINT_BEGIN(<GET>, "/", root)("/", [](
-    //     Request& req,
-    //     Response& res
-    // ) -> Task<> {
-    // })
-
     struct Log {
         decltype(std::chrono::steady_clock::now()) t;
 
@@ -50,21 +29,31 @@ public:
         }
     };
 
-    ROUTER.addEndpoint<GET, POST>("/", [](
+    ROUTER.on<GET, POST>("/", [](
         Request& req,
         Response& res
-    ) -> HX::STL::coroutine::task::Task<> {
+    ) -> Task<> {
         auto map = req.getParseQueryParameters();
         if (map.find("loli") == map.end()) {
             res.setResponseLine(Response::Status::CODE_200)
-                .setContentType("text/html")
-                .setBodyData("<h1>You is no good!</h1>");
+               .setContentType("text/html")
+               .setBodyData("<h1>You is no good!</h1>");
             co_return;
         }
         res.setResponseLine(Response::Status::CODE_200)
-            .setContentType("text/html")
-            .setBodyData("<h1>yo si yo si!</h1>");
-    }, Log{}) ROUTER_END;
+           .setContentType("text/html")
+           .setBodyData("<h1>yo si yo si!</h1>");
+    }, Log{})
+    .on<GET, POST>("/home/{id}/**", [](
+        Request& req,
+        Response& res
+    ) -> Task<> {
+        static_cast<void>(req);
+        res.setResponseLine(Response::Status::CODE_200)
+           .setContentType("text/html")
+           .setBodyData("<h1>This is Home</h1>");
+        co_return;
+    }) ROUTER_END;
 
 
     // int __init___ = [] {

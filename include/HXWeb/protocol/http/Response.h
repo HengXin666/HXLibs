@@ -22,7 +22,6 @@
 
 #include <string>
 #include <string_view>
-#include <span>
 #include <vector>
 #include <unordered_map>
 #include <optional>
@@ -243,7 +242,7 @@ public:
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
     Response& setContentType(const std::string& type, const std::string& encoded = "") {
-        if (encoded == "") // Content-Type: text/html
+        if (encoded.empty()) // Content-Type: text/html
             _responseHeaders["Content-Type"] = type;
         else // Content-Type: text/html; charset=UTF-8
             _responseHeaders["Content-Type"] = type + ";charset=" + encoded;

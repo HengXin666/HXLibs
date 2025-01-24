@@ -81,7 +81,9 @@ public:
         auto node = _root;
         while (st.size()) {
             std::size_t i = 0;
-            std::tie(node, i) = st.top();
+            auto& top = st.top();
+            node = std::move(std::get<0>(top));
+            i = std::get<1>(top);
             st.pop();
             auto findIt = node->child.end(); 
             if (i == n)
@@ -113,7 +115,7 @@ public:
                 }
             }
         }
-        return *node->val;
+        return node->val.has_value() ? *node->val : _notFoundHandler;
     }
 
 private:

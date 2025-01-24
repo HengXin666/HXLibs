@@ -38,6 +38,27 @@
 #define API_PUT "PUT"
 #define API_DELETE "DELETE"
 
+#define _EXPAND_2(x, y, z) x##y##z
+#define _EXPAND(x, y, z) _EXPAND_2(x, y, z)
+#define _UNIQUE_ID(prefix, suffix) _EXPAND(prefix, __LINE__, suffix)
+
+/**
+ * @brief 全局路由单例, 可链式调用
+ */
+#define ROUTER                                  \
+const int _UNIQUE_ID(_HXWeb_, _endpoint_) = []{ \
+    using namespace HX::web::protocol::http;    \
+    using namespace HX::STL::coroutine::task;   \
+    HX::web::router::Router::getRouter()
+
+/**
+ * @brief 结束路由单例使用
+ */
+#define ROUTER_END  \
+    ;               \
+    return 0;       \
+}()
+
 /**
  * @brief 定义一个端点, 其中形参定义了`io`(HX::web::server::IO)
  * @param METHOD 请求类型, 如"GET"
