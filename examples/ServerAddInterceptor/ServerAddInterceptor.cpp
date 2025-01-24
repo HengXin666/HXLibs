@@ -4,9 +4,6 @@
 
 #include <chrono>
 
-#undef ENDPOINT_BEGIN
-#undef ENDPOINT_END
-
 class ServerAddInterceptorTestController {
 public:
     struct Log {

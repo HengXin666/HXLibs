@@ -52,6 +52,14 @@ public:
         })
     {}
 
+    /**
+     * @brief 设置`找不到路由`时候, 调用的端点
+     * @param func 
+     */
+    void setNotFoundHandler(EndpointFunc&& func) {
+        _notFoundHandler = std::move(func);
+    }
+
     RouterTree& operator=(const RouterTree&) = delete;
     RouterTree(const RouterTree& ) = delete;
 

@@ -199,6 +199,14 @@ public:
     }
 
     /**
+     * @brief 获取请求体
+     * @return 如果没有请求体, 则返回`""`
+     */
+    std::string getRequesBody() noexcept {
+        return std::move(_body);
+    }
+
+    /**
      * @brief 获取请求PATH
      * @return 请求PATH (如: "/", "/home?loli=watasi"...)
      */

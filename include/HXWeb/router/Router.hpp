@@ -98,6 +98,34 @@ public:
     }
 
     /**
+     * @brief 设置路由找不到时候的端点函数
+     * @tparam Func 
+     * @tparam Interceptors 
+     * @param endpoint 端点函数
+     * @param interceptors 拦截器
+     */
+    template <typename Func, typename... Interceptors>
+    void setErrorEndpointFunc(Func&& endpoint, Interceptors&&... interceptors) {
+        std::function<HX::STL::coroutine::task::Task<>(
+            protocol::http::Request &, protocol::http::Response &)>
+            realEndpoint =
+                [this, endpoint = std::move(endpoint),
+                 ... interceptors = interceptors] (protocol::http::Request &req,
+                                                  protocol::http::Response &res) mutable
+            -> HX::STL::coroutine::task::Task<> {
+            static_cast<void>(this);
+            bool ok = true;
+            (doBefore(interceptors, ok, req, res), ...);
+            if (ok) {
+                co_await endpoint(req, res);
+            }
+            ok = true;
+            (doAfter(interceptors, ok, req, res), ...);
+        };
+        _routerTree.setNotFoundHandler(std::move(realEndpoint));
+    }
+
+    /**
     * @brief 为服务器添加一个端点
     * @tparam Methods 请求类型, 如`GET`、`POST`
     * @tparam Func 端点函数类型
@@ -138,7 +166,7 @@ public:
     template <protocol::http::HttpMethod... Methods,
         typename Func,
         typename... Interceptors>
-    Router& on(std::string path, Func endpoint, Interceptors&&... interceptors) {
+    Router& on(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
         addEndpoint<Methods...>(std::move(path), std::move(endpoint), interceptors...);
         return *this;
     }

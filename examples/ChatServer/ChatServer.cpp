@@ -8,6 +8,7 @@
 #include <HXSTL/coroutine/task/WhenAny.hpp>
 #include <HXSTL/coroutine/loop/TriggerWaitLoop.h>
 #include <HXWeb/server/Server.h>
+#include <HXprint/print.h>
 
 using namespace std::chrono;
 
@@ -50,99 +51,90 @@ struct MsgArrConst {
 HX::STL::coroutine::loop::TriggerWaitLoop waitLoop {};
 
 class ChatController {
-    ENDPOINT_BEGIN(API_GET, "/", root) {
-        RESPONSE_DATA(
-            200,
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html"),
-            "text/html", "UTF-8"
-        );
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/index", index) {
-        RESPONSE_DATA(
-            200,
-            HX::STL::utils::DateTimeFormat::formatWithMilli(),
-            "text/html", "UTF-8"
-        );
-        co_return true;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/end", end) {
-        exit(0);
-        co_return false;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/favicon.ico", faviconIco) {
-        RESPONSE_DATA(
-            200, 
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
-            "image/x-icon"
-        );
-        co_return false;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_POST, "/send", send) { // 客户端发送消息过来
-        auto body = io.getRequest().getRequesBody();
-        auto jsonPair = HX::json::parse(body);
-        if (jsonPair.second) {
-            msgArr.arr.emplace_back(jsonPair.first);
-            // printf("%s\n", Message::toJson(messageArr.begin(), messageArr.end()).c_str());
-            waitLoop.runAllTask();
-        } else {
-            printf("解析客户端出错\n");
+    struct LogPrint {
+        void print() const {
+            HX::print::println("欢迎光临~");
         }
-        
-        RESPONSE_STATUS(200).setContentType("text/plain", "UTF-8").setBodyData("OK");
-        co_return true;
-    } ENDPOINT_END;
+    };
 
-    ENDPOINT_BEGIN(API_POST, "/recv", recv) { // 发送内容给客户端
-        using namespace std::chrono_literals;
+    ROUTER
+        .on<GET>("/", [log = LogPrint{}] ENDPOINT {
+            RESPONSE_DATA(
+                200,
+                co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html"),
+                "text/html", "UTF-8"
+            );
+            log.print();
+        })
+        .on<GET, POST>("/nowTime", [] ENDPOINT {
+            RESPONSE_DATA(
+                200,
+                HX::STL::utils::DateTimeFormat::formatWithMilli(),
+                "text/html", "UTF-8"
+            );
+            co_return;
+        })
+        .on<GET>("/favicon.ico", [] ENDPOINT {
+            RESPONSE_DATA(
+                200, 
+                co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
+                "image/x-icon"
+            );
+        })
+    ROUTER_END;
 
-        auto body = io.getRequest().getRequesBody();
-        // printf("recv (%s)\n", body.c_str());
-        auto jsonPair = HX::json::parse(body);
-
-        if (jsonPair.second) {
-            int len = jsonPair.first["first"].get<int>();
-            // printf("内容是: %d\n", len);
-            if (len < (int)msgArr.arr.size()) {
-                // printf("立马回复, 是新消息~\n");
-                RESPONSE_DATA(
-                    200,
-                    MsgArrConst(std::span<const MsgArr::Message> {
-                        msgArr.arr.begin() + len, 
-                        msgArr.arr.end()
-                    }).toJson(),
-                    "text/plain", "UTF-8"
-                );
-                co_return true;
+    ROUTER
+        .on<POST>("/send", [] ENDPOINT { // 客户端发送消息过来
+            auto body = req.getRequesBody();
+            auto jsonPair = HX::json::parse(body);
+            if (jsonPair.second) {
+                msgArr.arr.emplace_back(jsonPair.first);
+                waitLoop.runAllTask();
+            } else {
+                printf("解析客户端出错\n");
             }
-            else {
-                // printf("等我3秒~\n");
-                co_await HX::STL::coroutine::task::WhenAny::whenAny(
-                    HX::STL::coroutine::loop::TriggerWaitLoop::triggerWait(waitLoop),
-                    HX::STL::coroutine::loop::TimerLoop::sleepFor(3s)
-                );
+            
+            RESPONSE_STATUS(200).setContentType("text/plain", "UTF-8").setBodyData("OK");
+            co_return;
+        })
+        .on<POST>("/recv", [] ENDPOINT {
+            using namespace std::chrono_literals;
+            auto jsonPair = HX::json::parse(req.getRequesBody());
 
-                RESPONSE_DATA(
-                    200,
-                    MsgArrConst(std::span<const MsgArr::Message> {
-                        msgArr.arr.begin() + std::min(static_cast<long>(len), static_cast<long>(msgArr.arr.size())), 
-                        msgArr.arr.end()
-                    }).toJson(),
-                    "text/plain", "UTF-8"
-                );
-                co_return true;
+            if (jsonPair.second) { // 发送内容给客户端
+                int len = jsonPair.first["first"].get<int>();
+                if (len < (int)msgArr.arr.size()) {
+                    RESPONSE_DATA(
+                        200,
+                        MsgArrConst(std::span<const MsgArr::Message> {
+                            msgArr.arr.begin() + len, 
+                            msgArr.arr.end()
+                        }).toJson(),
+                        "text/plain", "UTF-8"
+                    );
+                    co_return;
+                }
+                else {
+                    co_await HX::STL::coroutine::task::WhenAny::whenAny(
+                        HX::STL::coroutine::loop::TriggerWaitLoop::triggerWait(waitLoop),
+                        HX::STL::coroutine::loop::TimerLoop::sleepFor(3s)
+                    );
+
+                    RESPONSE_DATA(
+                        200,
+                        MsgArrConst(std::span<const MsgArr::Message> {
+                            msgArr.arr.begin() + std::min(static_cast<long>(len), static_cast<long>(msgArr.arr.size())), 
+                            msgArr.arr.end()
+                        }).toJson(),
+                        "text/plain", "UTF-8"
+                    );
+                    co_return;
+                }
+            } else {
+                printf("啥也没有...\n");
             }
-        } else {
-            printf("啥也没有...\n");
-        }
-        co_return true;
-    } ENDPOINT_END;
-
-public: // 控制器成员函数 (请写成`static`方法)
-
+        })
+    ROUTER_END;
 };
 
 int main() {
@@ -156,6 +148,15 @@ int main() {
         std::cerr << "Error: " << e.what() << '\n';
     }
     ROUTER_BIND(ChatController);
+
+    // 设置路由失败时候的端点
+    ROUTER_ERROR_ENDPOINT([] ENDPOINT {
+        static_cast<void>(req);
+        res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_404)
+           .setContentType("text/html", "UTF-8")
+           .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#990099}p{font-size:24px;color:gold}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
+        co_return;
+    });
     
     // 启动服务 (指定使用一个线程 (因为messageArr得同步, 多线程就需要上锁(我懒得写了qwq)))
     HX::web::server::ServerRun::startHttp("127.0.0.1", "28205", 1, 10s);

@@ -20,12 +20,22 @@
 #ifndef _HX_IO_URING_LOOP_H_
 #define _HX_IO_URING_LOOP_H_
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
+#if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
+#elif defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 4100 4101) // 示例警告编号，替换为实际需要忽略的编号
+#endif
 
 #include <liburing.h>
 
-#pragma GCC diagnostic pop
+#if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+    #pragma warning(pop)
+    #pragma warning(pop)
+#endif
 
 #include <coroutine>
 #include <chrono>

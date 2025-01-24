@@ -30,6 +30,23 @@
 #include <HXSTL/coroutine/task/Task.hpp>
 #include <HXSTL/utils/StringUtils.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
+#elif defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 4100 4101)
+#endif
+
+// #if defined(__GNUC__) || defined(__clang__)
+//     #pragma GCC diagnostic pop
+//     #pragma GCC diagnostic pop
+// #elif defined(_MSC_VER)
+//     #pragma warning(pop)
+//     #pragma warning(pop)
+// #endif
+
 /* 简化用户编写的 API 宏 */
 
 // 定义常用的请求类型
@@ -52,6 +69,15 @@ const int _UNIQUE_ID(_HXWeb_, _endpoint_) = []{ \
     HX::web::router::Router::getRouter()
 
 /**
+ * @brief 定义标准的端点, 请求使用`req`变量, 响应使用`res`变量
+ */
+#define ENDPOINT                            \
+(                                           \
+    HX::web::protocol::http::Request& req,  \
+    HX::web::protocol::http::Response& res  \
+) -> HX::STL::coroutine::task::Task<>
+
+/**
  * @brief 结束路由单例使用
  */
 #define ROUTER_END  \
@@ -60,42 +86,10 @@ const int _UNIQUE_ID(_HXWeb_, _endpoint_) = []{ \
 }()
 
 /**
- * @brief 定义一个端点, 其中形参定义了`io`(HX::web::server::IO)
- * @param METHOD 请求类型, 如"GET"
- * @param PATH 端点对应的路径, 如"/home/{id}"
- * @param FUNC_NAME 端点函数名称
+ * @brief 设置路由失败时候的端点函数
  */
-#define ENDPOINT_BEGIN(METHOD, PATH, FUNC_NAME) \
-const int _HX_endpoint_##FUNC_NAME = []() -> int { \
-    std::string templatePath = PATH; \
-    HX::web::router::RouterSingleton::getSingleton().addEndpoint( \
-        METHOD,\
-        templatePath,\
-        [=](const HX::web::server::IO<>& io) -> HX::web::router::RouterSingleton::EndpointReturnType { \
-            static_cast<void>(io); // 让 -Wunused-parameter 闭嘴
-
-/**
- * @brief 结束端点的定义
- */
-#define ENDPOINT_END \
-        co_return true; \
-        } \
-    );\
-    return 0;\
-}()
-
-/**
- * @brief 设置路由失败时候的端点函数, 其中形参定义了`io`(HX::web::server::IO)
- */
-#define ERROR_ENDPOINT_BEGIN \
-HX::web::router::RouterSingleton::getSingleton().setErrorEndpointFunc([=](const HX::web::server::IO<>& io) -> HX::web::router::RouterSingleton::EndpointReturnType { \
-    static_cast<void>(io);
-
-/**
- * @brief 结束设置路由失败时候的端点函数的定义
- */
-#define ERROR_ENDPOINT_END \
-})
+#define ROUTER_ERROR_ENDPOINT \
+HX::web::router::Router::getRouter().setErrorEndpointFunc
 
 /**
  * @brief 将数据写入响应体, 并且指定状态码
@@ -105,9 +99,9 @@ HX::web::router::RouterSingleton::getSingleton().setErrorEndpointFunc([=](const 
  * 如 `"text/html", "UTF-8"`, `"image/x-icon"`
  */
 #define RESPONSE_DATA(CODE, DATA, ...) \
-io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
-  .setBodyData(DATA) \
-  .setContentType(__VA_ARGS__)
+res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
+   .setBodyData(DATA) \
+   .setContentType(__VA_ARGS__)
 
 /**
  * @brief 使用`Transfer-Encoding`分块编码响应, 以传输文件
@@ -117,8 +111,8 @@ io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE
  * 如 `"text/html", "UTF-8"`, `"image/x-icon"`
  */
 #define RESPONSE_FILE(CODE, PATH, ...) \
-io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
-                .setContentType(__VA_ARGS__); \
+res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
+   .setContentType(__VA_ARGS__); \
 co_await io.sendResponseWithChunkedEncoding(PATH)
 
 /**
@@ -126,7 +120,7 @@ co_await io.sendResponseWithChunkedEncoding(PATH)
  * @param 状态码 (如`200`)
  */
 #define RESPONSE_STATUS(CODE) \
-io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE)
+res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE)
 
 /**
  * @brief 开始解析请求路径参数
@@ -134,7 +128,7 @@ io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE
  */
 #define START_PARSE_PATH_PARAMS \
 static const auto wildcarIndexArr = HX::web::router::RequestTemplateParsing::getPathWildcardAnalysisArr(templatePath); \
-auto pathSplitArr = HX::STL::utils::StringUtil::split(io.getRequest().getPureRequesPath(), "/")
+auto pathSplitArr = HX::STL::utils::StringUtil::split(req.getPureRequesPath(), "/")
 
 /**
  * @brief 用于解析指定索引的路径参数, 并将其转换为指定类型的变量
@@ -158,14 +152,14 @@ if (!NAME) { \
  */
 #define PARSE_MULTI_LEVEL_PARAM(NAME) \
 static const auto UWPIndex = HX::web::router::RequestTemplateParsing::getUniversalWildcardPathBeginIndex(templatePath); \
-std::string NAME = io.getRequest().getPureRequesPath().substr(UWPIndex)
+std::string NAME = req.getPureRequesPath().substr(UWPIndex)
 
 /**
  * @brief 解析查询参数键值对Map (解析如: `?name=loli&awa=ok&hitori`)
  * @param NAME 键值对Map的变量名
  */
 #define GET_PARSE_QUERY_PARAMETERS(NAME) \
-auto NAME = io.getRequest().getParseQueryParameters()
+auto NAME = req.getParseQueryParameters()
 
 /**
  * @brief 路由绑定, 将控制器绑定到路由
