@@ -37,7 +37,7 @@ using EndpointFunc = std::function<HX::STL::coroutine::task::Task<>(
     protocol::http::Response&)>;
 
 class RouterTree {
-    using Node = HX::STL::container::RadixTreeNode<EndpointFunc>;
+    using Node = HX::STL::container::RadixTreeNode<std::string_view, EndpointFunc>;
 public:
     explicit RouterTree() 
         : _root(std::make_shared<Node>())
@@ -64,7 +64,7 @@ public:
     RouterTree(const RouterTree& ) = delete;
 
     void insert(
-        std::vector<std::string>& buildLink,
+        std::vector<std::string_view>& buildLink,
         EndpointFunc&& endpoint
     ) {
         auto node = _root;
@@ -82,7 +82,7 @@ public:
         node->val = endpoint;
     }
 
-    const EndpointFunc& find(const std::vector<std::string>& findLink) const {
+    const EndpointFunc& find(const std::vector<std::string_view>& findLink) const {
         const std::size_t n = findLink.size();
         std::stack<std::tuple<std::shared_ptr<Node>, std::size_t>> st;
         st.push({_root, static_cast<std::size_t>(0)});

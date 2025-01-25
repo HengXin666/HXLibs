@@ -21,7 +21,6 @@
 #define _HX_API_HELPER_H_
 
 #include <HXWeb/router/Router.hpp>
-#include <HXWeb/router/RouterSingleton.h>
 #include <HXWeb/router/RequestParsing.h>
 #include <HXWeb/server/IO.h>
 #include <HXWeb/server/Server.h>
@@ -48,12 +47,6 @@
 // #endif
 
 /* 简化用户编写的 API 宏 */
-
-// 定义常用的请求类型
-#define API_GET "GET"
-#define API_POST "POST"
-#define API_PUT "PUT"
-#define API_DELETE "DELETE"
 
 #define _EXPAND_2(x, y, z) x##y##z
 #define _EXPAND(x, y, z) _EXPAND_2(x, y, z)
@@ -143,8 +136,8 @@ auto pathSplitArr = HX::STL::utils::StringUtil::split(req.getPureRequesPath(), "
 auto NAME = HX::web::router::TypeInterpretation<TYPE>::wildcardElementTypeConversion(pathSplitArr[static_cast<std::size_t>(wildcarIndexArr[static_cast<std::size_t>(INDEX)])]); \
 if (!NAME) { \
     RESPONSE_DATA(400, "Missing PATH parameter '"#NAME"'", "application/json", "UTF-8"); \
-    co_return __VA_OPT__(void)(0) __VA_OPT__(, __VA_ARGS__); \
-} // C++20才引入的 __VA_OPT__
+    co_return; \
+}
 
 /**
  * @brief 解析多级通配符的宏, 如 `/home/ **` 这种

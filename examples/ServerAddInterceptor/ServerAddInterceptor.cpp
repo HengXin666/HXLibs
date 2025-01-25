@@ -26,31 +26,33 @@ public:
         }
     };
 
-    ROUTER.on<GET, POST>("/", [](
-        Request& req,
-        Response& res
-    ) -> Task<> {
-        auto map = req.getParseQueryParameters();
-        if (map.find("loli") == map.end()) {
+    ROUTER
+        .on<GET, POST>("/", [](
+            Request& req,
+            Response& res
+        ) -> Task<> {
+            auto map = req.getParseQueryParameters();
+            if (map.find("loli") == map.end()) {
+                res.setResponseLine(Response::Status::CODE_200)
+                .setContentType("text/html")
+                .setBodyData("<h1>You is no good!</h1>");
+                co_return;
+            }
             res.setResponseLine(Response::Status::CODE_200)
-               .setContentType("text/html")
-               .setBodyData("<h1>You is no good!</h1>");
+            .setContentType("text/html")
+            .setBodyData("<h1>yo si yo si!</h1>");
+        }, Log{})
+        .on<GET, POST>("/home/{id}/**", [](
+            Request& req,
+            Response& res
+        ) -> Task<> {
+            static_cast<void>(req);
+            res.setResponseLine(Response::Status::CODE_200)
+            .setContentType("text/html")
+            .setBodyData("<h1>This is Home</h1>");
             co_return;
-        }
-        res.setResponseLine(Response::Status::CODE_200)
-           .setContentType("text/html")
-           .setBodyData("<h1>yo si yo si!</h1>");
-    }, Log{})
-    .on<GET, POST>("/home/{id}/**", [](
-        Request& req,
-        Response& res
-    ) -> Task<> {
-        static_cast<void>(req);
-        res.setResponseLine(Response::Status::CODE_200)
-           .setContentType("text/html")
-           .setBodyData("<h1>This is Home</h1>");
-        co_return;
-    }) ROUTER_END;
+        })
+    ROUTER_END;
 
 
     // int __init___ = [] {

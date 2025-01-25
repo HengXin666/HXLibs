@@ -58,7 +58,7 @@ class ChatController {
     };
 
     ROUTER
-        .on<GET>("/", [log = LogPrint{}] ENDPOINT {
+        .on<GET>("/"sv, [log = LogPrint{}] ENDPOINT {
             RESPONSE_DATA(
                 200,
                 co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html"),

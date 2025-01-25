@@ -53,25 +53,7 @@ class HttpsController {
     } ENDPOINT_END;
 };
 
-// 测试代码, 下面发现了一个潜在的问题
-#include <HXSTL/coroutine/task/WhenAny.hpp>
-#include <chrono>
-
-HX::STL::coroutine::task::Task<bool> __text() {
-    co_return false;
-}
-
-HX::STL::coroutine::task::Task<bool> _text() {
-    // co_await HX::STL::coroutine::loop::TimerLoop::sleepFor(std::chrono::seconds{0});
-    co_return co_await __text();
-}
-
-HX::STL::coroutine::task::Task<> test() {
-    co_await HX::STL::coroutine::task::WhenAny::whenAny( // 如果下面参数互换, 则会段错误
-        HX::STL::coroutine::loop::TimerLoop::sleepFor(std::chrono::seconds{3}),
-        _text()
-    );
-}
+HX::STL::coroutine::task::Task<> test();
 
 int main() {
     // return (void)test()._coroutine.resume(), 0;
@@ -90,4 +72,24 @@ int main() {
     // 启动服务
     HX::web::server::ServerRun::startHttps("127.0.0.1", "28205", "certs/cert.pem", "certs/key.pem");
     return 0;
+}
+
+// 测试代码, 下面发现了一个潜在的问题
+#include <HXSTL/coroutine/task/WhenAny.hpp>
+#include <chrono>
+
+HX::STL::coroutine::task::Task<bool> __text() {
+    co_return false;
+}
+
+HX::STL::coroutine::task::Task<bool> _text() {
+    // co_await HX::STL::coroutine::loop::TimerLoop::sleepFor(std::chrono::seconds{0});
+    co_return co_await __text();
+}
+
+HX::STL::coroutine::task::Task<> test() {
+    co_await HX::STL::coroutine::task::WhenAny::whenAny( // 如果下面参数互换, 则会段错误
+        HX::STL::coroutine::loop::TimerLoop::sleepFor(std::chrono::seconds{3}),
+        _text()
+    );
 }

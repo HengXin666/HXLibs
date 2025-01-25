@@ -47,7 +47,7 @@ std::size_t Request::parserRequest(
         }
 
         // 解析请求行
-        _requestLine = HX::STL::utils::StringUtil::split(buf.substr(0, pos), " ");
+        _requestLine = HX::STL::utils::StringUtil::split<std::string>(buf.substr(0, pos), " ");
         if (_requestLine.size() != 3)
             return HX::STL::utils::FileUtils::kBufMaxSize;
         buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
@@ -146,7 +146,7 @@ std::unordered_map<std::string, std::string> Request::getParseQueryParameters() 
         return {};
     // 如果有#这种, 要删除: 无需处理, 这个只是存在于客户端, 不会传输到服务端(?)至少path没有
     std::string parameter = path.substr(pos + 1);
-    auto kvArr = HX::STL::utils::StringUtil::split(parameter, "&");
+    auto kvArr = HX::STL::utils::StringUtil::split<std::string>(parameter, "&");
     std::unordered_map<std::string, std::string> res;
     for (const auto& it : kvArr) {
         auto&& kvPair = HX::STL::utils::StringUtil::splitAtFirst(it, "=");

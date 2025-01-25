@@ -20,7 +20,6 @@
 #ifndef _HX_ROUTER_H_
 #define _HX_ROUTER_H_
 
-#include <string>
 #include <functional>
 
 #include <HXWeb/protocol/http/Http.hpp>
@@ -90,10 +89,10 @@ public:
         std::string_view path
     ) const {
         return _routerTree.find(
-            HX::STL::utils::StringUtil::split(
+            HX::STL::utils::StringUtil::split<std::string_view>(
                 path, 
                 "/", 
-                {std::string{method}}
+                {method}
         ));
     }
 
@@ -137,7 +136,7 @@ public:
     template <protocol::http::HttpMethod... Methods,
         typename Func,
         typename... Interceptors>
-    void addEndpoint(std::string path, Func endpoint, Interceptors&&... interceptors) {
+    void addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
         if constexpr (sizeof...(Methods) == 1) {
             (_addEndpoint<Methods>(
                 std::move(path),
@@ -166,7 +165,7 @@ public:
     template <protocol::http::HttpMethod... Methods,
         typename Func,
         typename... Interceptors>
-    Router& on(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
+    Router& on(std::string_view path, Func&& endpoint, Interceptors&&... interceptors) {
         addEndpoint<Methods...>(std::move(path), std::move(endpoint), interceptors...);
         return *this;
     }
@@ -184,7 +183,7 @@ private:
     template <protocol::http::HttpMethod Method,
         typename Func,
         typename... Interceptors>
-    void _addEndpoint(std::string path, Func&& endpoint, Interceptors&&... interceptors) {
+    void _addEndpoint(std::string_view path, Func&& endpoint, Interceptors&&... interceptors) {
         std::function<HX::STL::coroutine::task::Task<>(
             protocol::http::Request &, protocol::http::Response &)>
             realEndpoint =
@@ -201,10 +200,10 @@ private:
             ok = true;
             (doAfter(interceptors, ok, req, res), ...);
         };
-        auto buildLink = HX::STL::utils::StringUtil::split(
+        auto buildLink = HX::STL::utils::StringUtil::split<std::string_view>(
             path, 
             "/",
-            {std::string{protocol::http::getMethodStringView(Method)}}
+            {protocol::http::getMethodStringView(Method)}
         );
         _routerTree.insert(buildLink, std::move(realEndpoint));
     }

@@ -229,7 +229,7 @@ std::size_t Response::parserResponse(std::string_view buf) {
         }
 
         // 解析响应行, 注意 不能按照空格直接切分! 因为 HTTP/1.1 404 NOF FOND\r\n
-        _statusLine = HX::STL::utils::StringUtil::split(buf.substr(0, pos), " ");
+        _statusLine = HX::STL::utils::StringUtil::split<std::string>(buf.substr(0, pos), " ");
         if (_statusLine.size() < 3)
             return HX::STL::utils::FileUtils::kBufMaxSize;
         if (_statusLine.size() > 3) {

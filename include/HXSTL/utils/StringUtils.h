@@ -24,6 +24,8 @@
 #include <string>
 #include <string_view>
 
+#include <HXprint/print.h>
+
 namespace HX { namespace STL { namespace utils {
 
 /**
@@ -32,16 +34,48 @@ namespace HX { namespace STL { namespace utils {
 struct StringUtil final {
     /**
      * @brief 将字符串按`delimiter`分割为数组
+     * @tparam Str 字符串类型, 可以是`std::string`或者`std::string_view`等
+     * @tparam SkipEmpty 是否跳过切割出来的空的字符串
      * @param str 需要分割的字符串
-     * @param delimiter 分割字符
+     * @param delim 分割字符串
      * @param res 待返回数组, 你可以事先在前面插入元素
-     * @return 分割后的数组
+     * @return std::vector<Str> 
      */
-    static std::vector<std::string> split(
+    template <typename Str, bool SkipEmpty = true>
+    inline static std::vector<Str> split(
         std::string_view str,
         std::string_view delim, 
-        std::vector<std::string> res = std::vector<std::string>{}
-    );
+        std::vector<Str> res = std::vector<Str>{}
+    ) {
+        if (str.empty()) 
+            return res;
+
+        std::size_t start = 0;
+        std::size_t end = str.find(delim, start);
+        while (end != std::string_view::npos) {
+            if constexpr (SkipEmpty) {
+                auto tk = str.substr(start, end - start);
+                if (tk.size()) {
+                    res.emplace_back(std::move(tk));
+                }
+            } else {
+                res.emplace_back(str.substr(start, end - start));
+            }
+            start = end + delim.size();
+            end = str.find(delim, start);
+        }
+
+        // 添加最后一个分割的部分
+        if constexpr (SkipEmpty) {
+            auto tk = str.substr(start);
+            if (tk.size()) {
+                res.emplace_back(std::move(tk));
+            }
+        } else {
+            res.emplace_back(str.substr(start));
+        }
+        return res;
+    }
 
     /**
      * @brief 将字符串按从左到右第一个`delimiter`分割为两半
@@ -49,16 +83,26 @@ struct StringUtil final {
      * @param delimiter 分割字符
      * @return 分割后的数组, 失败返回: `{"", ""}`
      */
-    static std::pair<std::string, std::string> splitAtFirst(
+    inline static std::pair<std::string, std::string> splitAtFirst(
         std::string_view str,
         std::string_view delim
-    );
+    ) {
+        std::pair<std::string, std::string> res;
+        std::size_t pos = str.find(delim);
+        if (pos != std::string_view::npos) {
+            res.first = str.substr(0, pos);
+            res.second = str.substr(pos + delim.size());
+        } else {
+            res.first = res.second = "";
+        }
+        return res;
+    }
 
     /**
      * @brief 将字符串转为小写字母
      * @param str [in, out] 待处理字符串
      */
-    static void toSmallLetter(std::string& str) {
+    inline static void toSmallLetter(std::string& str) {
         const std::size_t n = str.size();
         for (std::size_t i = 0; i < n; ++i)
             if ('A' <= str[i] && str[i] <= 'Z')
@@ -71,7 +115,7 @@ struct StringUtil final {
      * @param delim 模版字符串
      * @return 截取后面的子字符串, 如果没有则返回: 返回原字符串
      */
-    static std::string rfindAndTrim(std::string_view str, std::string_view delim) {
+    inline static std::string rfindAndTrim(std::string_view str, std::string_view delim) {
         std::size_t pos = str.rfind(delim);
         if (pos != std::string::npos) {
             return std::string {str.substr(pos + 1)};

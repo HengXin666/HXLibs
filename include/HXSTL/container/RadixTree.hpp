@@ -32,12 +32,12 @@ namespace HX { namespace STL { namespace container {
  * @brief 基数树结点
  * @tparam T 存储的类型
  */
-template <typename T>
+template <typename K, typename T>
 struct RadixTreeNode {
     std::optional<T> val;
     std::unordered_map<
-        std::string, 
-        std::shared_ptr<RadixTreeNode<T>>
+        K, 
+        std::shared_ptr<RadixTreeNode<K, T>>
     > child;
 
     explicit RadixTreeNode() 
@@ -59,9 +59,10 @@ struct RadixTreeNode {
 template <typename T>
 class RadixTree {
 protected:
-    std::shared_ptr<RadixTreeNode<T>> _root;
+    using Node = RadixTreeNode<std::string, T>;
+    std::shared_ptr<Node> _root;
 public:
-    explicit RadixTree() : _root(std::make_shared<RadixTreeNode<T>>())
+    explicit RadixTree() : _root(std::make_shared<Node>())
     {}
 
     RadixTree& operator=(const RadixTree&) = delete;
@@ -78,7 +79,7 @@ public:
         for (const auto& it : buildLink) {
             auto findIt = node->child.find(it);
             if (findIt == node->child.end()) {
-               node = node->child[it] = std::make_shared<RadixTreeNode<T>>();
+               node = node->child[it] = std::make_shared<Node>();
             } else {
                 node = findIt->second;
             }
