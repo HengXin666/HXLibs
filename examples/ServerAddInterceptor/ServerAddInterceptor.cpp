@@ -33,13 +33,13 @@ public:
         ) -> Task<> {
             auto map = req.getParseQueryParameters();
             if (map.find("loli") == map.end()) {
-                res.setResponseLine(Response::Status::CODE_200)
-                .setContentType("text/html")
+                res.setResponseLine(Status::CODE_200)
+                .setContentType(HX::web::protocol::http::ResContentType::html)
                 .setBodyData("<h1>You is no good!</h1>");
                 co_return;
             }
-            res.setResponseLine(Response::Status::CODE_200)
-            .setContentType("text/html")
+            res.setResponseLine(Status::CODE_200)
+            .setContentType(HX::web::protocol::http::ResContentType::html)
             .setBodyData("<h1>yo si yo si!</h1>");
         }, Log{})
         .on<GET, POST>("/home/{id}/**", [](
@@ -47,8 +47,8 @@ public:
             Response& res
         ) -> Task<> {
             static_cast<void>(req);
-            res.setResponseLine(Response::Status::CODE_200)
-            .setContentType("text/html")
+            res.setResponseLine(Status::CODE_200)
+            .setContentType(HX::web::protocol::http::ResContentType::html)
             .setBodyData("<h1>This is Home</h1>");
             co_return;
         })
@@ -63,12 +63,12 @@ public:
     //     ) -> HX::STL::coroutine::task::Task<> {
     //         auto map = req.getParseQueryParameters();
     //         if (map.find("loli") == map.end()) {
-    //             res.setResponseLine(Response::Status::CODE_200)
+    //             res.setResponseLine(Status::CODE_200)
     //                .setContentType("text/html")
     //                .setBodyData("<h1>You is no good!</h1>");
     //             co_return;
     //         }
-    //         res.setResponseLine(Response::Status::CODE_200)
+    //         res.setResponseLine(Status::CODE_200)
     //             .setContentType("text/html")
     //             .setBodyData("<h1>yo si yo si!</h1>");
     //     }, Log{});

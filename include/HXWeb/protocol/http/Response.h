@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <optional>
 
+#include <HXWeb/protocol/http/Status.hpp>
+#include <HXWeb/protocol/http/MimeType.hpp>
 #include <HXSTL/coroutine/task/Task.hpp>
 
 namespace HX { namespace web { namespace server {
@@ -59,9 +61,9 @@ class Response {
     // 指向上一次解析的响应头的键值对; 无效时候指向 `.end()`
     std::unordered_map<std::string, std::string>::iterator _responseHeadersIt; 
 
-    std::string _buf; // 上一次未解析权的
+    std::string _buf; // 上一次未解析全的
 
-    unsigned _sendCnt = 0;     // 写入计数
+    unsigned _sendCnt = 0; // 写入计数
 
     // @brief 是否解析完成响应头
     bool _completeResponseHeader = false;
@@ -89,75 +91,6 @@ class Response {
      */
     void createResponseBuffer();
 public:
-
-    /**
-     * @brief 响应状态码
-     */
-    enum class Status : int {
-        CODE_100 = 100, // Continue
-        CODE_101 = 101, // Switching Protocols
-        CODE_102 = 102, // Processing
-        CODE_200 = 200, // OK
-        CODE_201 = 201, // Created
-        CODE_202 = 202, // Accepted
-        CODE_203 = 203, // Non-Authoritative Information
-        CODE_204 = 204, // No Content
-        CODE_205 = 205, // Reset Content
-        CODE_206 = 206, // Partial Content
-        CODE_207 = 207, // Multi-Status
-        CODE_226 = 226, // IM Used
-        CODE_300 = 300, // Multiple Choices
-        CODE_301 = 301, // Moved Permanently
-        CODE_302 = 302, // Moved Temporarily
-        CODE_303 = 303, // See Other
-        CODE_304 = 304, // Not Modified
-        CODE_305 = 305, // Use Proxy
-        CODE_306 = 306, // Reserved
-        CODE_307 = 307, // Temporary Redirect
-        CODE_400 = 400, // Bad Request
-        CODE_401 = 401, // Unauthorized
-        CODE_402 = 402, // Payment Required
-        CODE_403 = 403, // Forbidden
-        CODE_404 = 404, // Not Found
-        CODE_405 = 405, // Method Not Allowed
-        CODE_406 = 406, // Not Acceptable
-        CODE_407 = 407, // Proxy Authentication Required
-        CODE_408 = 408, // Request Timeout
-        CODE_409 = 409, // Conflict
-        CODE_410 = 410, // Gone
-        CODE_411 = 411, // Length Required
-        CODE_412 = 412, // Precondition Failed
-        CODE_413 = 413, // Request Entity Too Large
-        CODE_414 = 414, // Request-URI Too Large
-        CODE_415 = 415, // Unsupported Media Type
-        CODE_416 = 416, // Requested Range Not Satisfiable
-        CODE_417 = 417, // Expectation Failed
-        CODE_422 = 422, // Unprocessable Entity
-        CODE_423 = 423, // Locked
-        CODE_424 = 424, // Failed Dependency
-        CODE_425 = 425, // Unordered Collection
-        CODE_426 = 426, // Upgrade Required
-        CODE_428 = 428, // Precondition Required
-        CODE_429 = 429, // Too Many Requests
-        CODE_431 = 431, // Request Header Fields Too Large
-        CODE_434 = 434, // Requested host unavailable
-        CODE_444 = 444, // Close connection without sending headers
-        CODE_449 = 449, // Retry With
-        CODE_451 = 451, // Unavailable For Legal Reasons
-        CODE_500 = 500, // Internal Server Error
-        CODE_501 = 501, // Not Implemented
-        CODE_502 = 502, // Bad Gateway
-        CODE_503 = 503, // Service Unavailable
-        CODE_504 = 504, // Gateway Timeout
-        CODE_505 = 505, // HTTP Version Not Supported
-        CODE_506 = 506, // Variant Also Negotiates
-        CODE_507 = 507, // Insufficient Storage
-        CODE_508 = 508, // Loop Detected
-        CODE_509 = 509, // Bandwidth Limit Exceeded
-        CODE_510 = 510, // Not Extended
-        CODE_511 = 511, // Network Authentication Required
-    };
-
     explicit Response() : _statusLine()
                         , _responseHeaders()
                         , _body()
@@ -203,13 +136,14 @@ public:
      * @brief 获取状态信息
      * @return std::string 
      */
-    std::string geStatusMessage() const {
+    std::string getStatusMessage() const {
         return _statusLine[ResponseLineDataType::StatusMessage];
     }
 
     /**
      * @brief 获取响应头键值对
      * @return 响应头键值对 (键均为小写)
+     * @todo 无用的std::move!
      */
     std::unordered_map<std::string, std::string> getResponseHeaders() const {
         return std::move(_responseHeaders);
@@ -225,6 +159,28 @@ public:
 
     // ===== ↑客户端使用↑ =====
 
+    // ===== ↓服务端使用の更加人性化API↓ =====
+
+    /**
+     * @brief 设置响应码和正文(html)
+     * @param status 
+     * @param content 
+     */
+    void setStatusAndContent(Status status, std::string const& content) {
+        setResponseLine(status).setContentType(TEXT).setBodyData(content);
+    }
+
+    /**
+     * @brief 设置索引分块编码的文件路径
+     * @param filePath 
+     */
+    void setUseChunkedEncodingFilePath(std::string const& filePath) {
+        // todo
+        static_cast<void>(filePath);
+    }
+
+    // ===== ↑服务端使用の更加人性化API上 =====
+
     // ===== ↓服务端使用↓ =====
     /**
      * @brief 设置状态行 (协议使用HTTP/1.1)
@@ -232,7 +188,7 @@ public:
      * @param describe 状态码描述: 如果为`""`则会使用该状态码对应默认的描述
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setResponseLine(Response::Status statusCode, std::string_view describe = "");
+    Response& setResponseLine(Status statusCode, std::string_view describe = "");
 
     /**
      * @brief 设置响应头部: 设置响应类型, 如果响应体是文本, 你需要指定字符编码(不指定则留空`""`)
@@ -241,13 +197,10 @@ public:
      * @return [this&] 可以链式调用
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setContentType(const std::string& type, const std::string& encoded = "") {
-        if (encoded.empty()) // Content-Type: text/html
-            _responseHeaders["Content-Type"] = type;
-        else // Content-Type: text/html; charset=UTF-8
-            _responseHeaders["Content-Type"] = type + ";charset=" + encoded;
+    Response& setContentType(ResContentType type) {
+        _responseHeaders["Content-Type"] = getContentTypeStrView(type);
         _responseHeaders["Connection"] = "keep-alive"; // 长连接
-        _responseHeaders["Server"] = "HX_Net";
+        _responseHeaders["Server"] = "HX-Net";
         return *this;
     }
 

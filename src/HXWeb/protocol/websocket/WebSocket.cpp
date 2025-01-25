@@ -47,15 +47,15 @@ HX::STL::coroutine::task::Task<bool> WebSocket::httpUpgradeToWebSocket(
     auto wsKey = headMap.find("sec-websocket-key");
     if (wsKey == headMap.end()) {
         // 怎么会有这种错误?! 什么乐色客户端?!
-        io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE_400)
-                        .setContentType("text/html", "UTF-8")
+        io.getResponse().setResponseLine(HX::web::protocol::http::Status::CODE_400)
+                        .setContentType(http::ResContentType::html)
                         .setBodyData("Not Find: sec-websocket-key");
         co_return false;
     }
 
     auto wsNewKey = _webSocketSecretHash(wsKey->second);
 
-    io.getResponse().setResponseLine(HX::web::protocol::http::Response::Status::CODE_101)
+    io.getResponse().setResponseLine(HX::web::protocol::http::Status::CODE_101)
                     .addHeader("connection", "Upgrade")
                     .addHeader("upgrade", "websocket")
                     .addHeader("sec-websocket-accept", wsNewKey)

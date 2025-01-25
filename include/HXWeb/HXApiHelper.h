@@ -88,13 +88,12 @@ HX::web::router::Router::getRouter().setErrorEndpointFunc
  * @brief 将数据写入响应体, 并且指定状态码
  * @param CODE 状态码 (如`200`)
  * @param DATA 写入`响应体`的字符串数据
- * @param __VA_ARGS__ 响应类型(第一个是响应类型(必选), 第二个是响应编码(可选)), 
- * 如 `"text/html", "UTF-8"`, `"image/x-icon"`
+ * @param TYPE 响应类型, 如`html, json`
  */
-#define RESPONSE_DATA(CODE, DATA, ...) \
-res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
-   .setBodyData(DATA) \
-   .setContentType(__VA_ARGS__)
+#define RESPONSE_DATA(CODE, TYPE, DATA)                             \
+res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE)   \
+   .setContentType(HX::web::protocol::http::ResContentType::TYPE)   \
+   .setBodyData(DATA)
 
 /**
  * @brief 使用`Transfer-Encoding`分块编码响应, 以传输文件
@@ -104,7 +103,7 @@ res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
  * 如 `"text/html", "UTF-8"`, `"image/x-icon"`
  */
 #define RESPONSE_FILE(CODE, PATH, ...) \
-res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE) \
+res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE) \
    .setContentType(__VA_ARGS__); \
 co_await io.sendResponseWithChunkedEncoding(PATH)
 
@@ -113,7 +112,7 @@ co_await io.sendResponseWithChunkedEncoding(PATH)
  * @param 状态码 (如`200`)
  */
 #define RESPONSE_STATUS(CODE) \
-res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_##CODE)
+res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE)
 
 /**
  * @brief 开始解析请求路径参数

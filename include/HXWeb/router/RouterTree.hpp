@@ -45,8 +45,8 @@ public:
                               protocol::http::Response &res) 
         -> HX::STL::coroutine::task::Task<> {
             static_cast<void>(req);
-            res.setResponseLine(protocol::http::Response::Status::CODE_404)
-               .setContentType("text/html", "UTF-8")
+            res.setResponseLine(protocol::http::Status::CODE_404)
+               .setContentType(protocol::http::HTML)
                .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
             co_return;
         })

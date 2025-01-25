@@ -22,8 +22,6 @@
 
 #include <string_view>
 
-using namespace std::string_view_literals;
-
 namespace HX { namespace web { namespace protocol { namespace http {
 
 class Http {};
@@ -49,6 +47,7 @@ inline constexpr auto PUT = HttpMethod::PUT;
 inline constexpr auto CONNECT = HttpMethod::CONNECT;
 
 inline constexpr std::string_view getMethodStringView(HttpMethod mthd) {
+    using namespace std::string_view_literals;
     switch (mthd) {
     case HttpMethod::DEL:     return "DELETE"sv;
     case HttpMethod::GET:     return "GET"sv;

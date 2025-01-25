@@ -58,29 +58,30 @@ class ChatController {
     };
 
     ROUTER
-        .on<GET>("/"sv, [log = LogPrint{}] ENDPOINT {
+        .on<GET>("/", [log = LogPrint{}] ENDPOINT {
             RESPONSE_DATA(
                 200,
-                co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html"),
-                "text/html", "UTF-8"
+                html,
+                co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html")
             );
             log.print();
         })
         .on<GET, POST>("/nowTime", [] ENDPOINT {
             RESPONSE_DATA(
                 200,
-                HX::STL::utils::DateTimeFormat::formatWithMilli(),
-                "text/html", "UTF-8"
+                html,
+                HX::STL::utils::DateTimeFormat::formatWithMilli()
             );
             co_return;
         })
-        .on<GET>("/favicon.ico", [] ENDPOINT {
-            RESPONSE_DATA(
-                200, 
-                co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
-                "image/x-icon"
-            );
-        })
+        // todo
+        // .on<GET>("/favicon.ico", [] ENDPOINT {
+        //     RESPONSE_DATA(
+        //         200, 
+        //         co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
+        //         "image/x-icon"
+        //     );
+        // })
     ROUTER_END;
 
     ROUTER
@@ -94,7 +95,7 @@ class ChatController {
                 printf("解析客户端出错\n");
             }
             
-            RESPONSE_STATUS(200).setContentType("text/plain", "UTF-8").setBodyData("OK");
+            RESPONSE_STATUS(200).setContentType(HX::web::protocol::http::ResContentType::text).setBodyData("OK");
             co_return;
         })
         .on<POST>("/recv", [] ENDPOINT {
@@ -106,11 +107,11 @@ class ChatController {
                 if (len < (int)msgArr.arr.size()) {
                     RESPONSE_DATA(
                         200,
+                        text,
                         MsgArrConst(std::span<const MsgArr::Message> {
                             msgArr.arr.begin() + len, 
                             msgArr.arr.end()
-                        }).toJson(),
-                        "text/plain", "UTF-8"
+                        }).toJson()
                     );
                     co_return;
                 }
@@ -122,16 +123,16 @@ class ChatController {
 
                     RESPONSE_DATA(
                         200,
+                        text,
                         MsgArrConst(std::span<const MsgArr::Message> {
                             msgArr.arr.begin() + std::min(static_cast<long>(len), static_cast<long>(msgArr.arr.size())), 
                             msgArr.arr.end()
-                        }).toJson(),
-                        "text/plain", "UTF-8"
+                        }).toJson()
                     );
                     co_return;
                 }
             } else {
-                printf("啥也没有...\n");
+                RESPONSE_STATUS(500).setContentType(HX::web::protocol::http::ResContentType::text).setBodyData("No");
             }
         })
     ROUTER_END;
@@ -152,8 +153,8 @@ int main() {
     // 设置路由失败时候的端点
     ROUTER_ERROR_ENDPOINT([] ENDPOINT {
         static_cast<void>(req);
-        res.setResponseLine(HX::web::protocol::http::Response::Status::CODE_404)
-           .setContentType("text/html", "UTF-8")
+        res.setResponseLine(HX::web::protocol::http::Status::CODE_404)
+           .setContentType(HX::web::protocol::http::ResContentType::html)
            .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#990099}p{font-size:24px;color:gold}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
         co_return;
     });

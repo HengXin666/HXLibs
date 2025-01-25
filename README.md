@@ -33,6 +33,8 @@
 
 - 编写端点 (提供了简化使用的 API 宏)
 
+- 注: api已经被重构, 查看 [链接](examples/ChatServer/ChatServer.cpp) 以查看最新的api写法 (支持面向切面编程) [@todo 尽快完全定档]
+
 ```C
 #include <HXWeb/HXApiHelper.h> // 使用简化的api
 

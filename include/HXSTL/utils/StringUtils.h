@@ -102,11 +102,36 @@ struct StringUtil final {
      * @brief 将字符串转为小写字母
      * @param str [in, out] 待处理字符串
      */
-    inline static void toSmallLetter(std::string& str) {
-        const std::size_t n = str.size();
-        for (std::size_t i = 0; i < n; ++i)
-            if ('A' <= str[i] && str[i] <= 'Z')
-                str[i] ^= ' ';
+    inline static void toLower(std::string& str) {
+        size_t len = str.size();
+        size_t ec = len / 8;
+        uint64_t *p8 = (uint64_t *)str.data();
+        for (size_t i = 0; i < ec; ++i) {
+            p8[i] |= 0x2020'2020'2020'2020;
+        }
+        uint8_t *p1 = (uint8_t *)(p8 + ec);
+        len %= 8;
+        for (size_t i = 0; i < len; ++i) {
+            p1[i] |= 0x20;
+        }
+    }
+
+    /**
+     * @brief 将字符串转为大写字母
+     * @param str [in, out] 待处理字符串
+     */
+    inline static void toUpper(std::string& str) {
+        if (str.empty())
+            return;
+        size_t len = str.size() + 1;
+        size_t alignlen = len + 8 - (len % 8);
+        str.resize(alignlen);
+        size_t ec = alignlen / 8;
+        uint64_t *p8 = (uint64_t *)str.data();
+        for (size_t i = 0; i < ec; ++i) {
+            p8[i] &= 0xDFDF'DFDF'DFDF'DFDF;
+        }
+        str.resize(len - 1);
     }
 
     /**
