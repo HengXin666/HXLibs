@@ -19,12 +19,13 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm gcc clang cmake ninja
+          pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl
 
       - name: Confirm tool versions
         run: |
           g++ --version
           clang++ --version
+          openssl version
 
       - name: Configure
         run: cmake -B ${{github.workspace}}/build -G Ninja
