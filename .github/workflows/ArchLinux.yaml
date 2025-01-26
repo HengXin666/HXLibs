@@ -1,4 +1,4 @@
-name: C++20 Build (Arch Linux)
+name: Bazel-GCC Build (Arch Linux)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Actions 运行环境，实际工作在容器中完成
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -17,12 +17,32 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: archlinux:latest
-          options: --privileged  # 如果需要安装复杂依赖，可添加权限
-          run: |
-            pacman -Syu --noconfirm  # 更新系统
-            pacman -S --noconfirm gcc clang cmake make  # 安装工具链
-            g++ --version  # 验证 GCC
-            clang++ --version  # 验证 Clang
-            mkdir build && cd build
-            cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_STANDARD=20
-            make
+          options: --privileged
+          args: "-v ${{ github.workspace }}:/workspace"
+      - run: |
+          cd /workspace
+          # 更新系统并安装 Bazel 和依赖工具
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm gcc clang cmake make bazel
+
+          # 确认工具版本
+          g++ --version
+          clang++ --version
+          bazel --version
+
+          # 构建目标
+          bazel build --config=gcc-cl //...
+
+      - name: Test
+        run: |
+          cd /workspace
+          # 运行 Bazel 测试目标
+          bazel test --config=gcc-cl --test_output=errors //... 
+
+      - name: Cache Bazel
+        uses: actions/cache@v3
+        with:
+          path: /root/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('**/WORKSPACE', '**/BUILD') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
