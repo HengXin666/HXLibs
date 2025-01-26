@@ -28,6 +28,16 @@ Response& Response::setResponseLine(Status statusCode, std::string_view describe
     return *this;
 }
 
+STL::coroutine::task::Task<> Response::useChunkedEncodingTransferFile(std::string const& filePath) {
+    auto fileType = HX::web::protocol::http::getMimeType(
+        HX::STL::utils::FileUtils::getExtension(filePath)
+    );
+    setResponseLine(Status::CODE_200);
+    addHeader("Content-Type", std::string{fileType});
+    addHeader("Transfer-Encoding", "chunked");
+    co_return co_await _io->sendResponseWithChunkedEncoding(filePath);
+}
+
 std::size_t Response::parserResponse(std::string_view buf) {
     if (_buf.size()) {
         _buf += buf;

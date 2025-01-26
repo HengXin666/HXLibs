@@ -44,7 +44,7 @@ private:
 #endif
 public:
     /// @brief 读取文件buf数组的缓冲区大小
-    static constexpr std::size_t kBufMaxSize = 4096U * 2;
+    inline static constexpr std::size_t kBufMaxSize = 1024 * 1024 * 8ULL;
 
     enum class OpenMode : int {
         Read = O_RDONLY | kOpenModeDefaultFlags,                        // 只读模式 (r)
@@ -53,6 +53,19 @@ public:
         Append = O_WRONLY | O_APPEND | O_CREAT | kOpenModeDefaultFlags, // 追加模式 (w+)
         Directory = O_RDONLY | O_DIRECTORY | kOpenModeDefaultFlags,     // 目录
     };
+
+    /**
+     * @brief 获取文件拓展名 (如`loli.png`->`.png`)
+     * @param name 文件名
+     * @return std::string_view 
+     */
+    inline static std::string_view getExtension(std::string_view name) {
+        size_t pos = name.rfind('.');
+        if (pos == std::string_view::npos) {
+            return {};
+        }
+        return name.substr(pos);
+    }
 
     /**
      * @brief [同步的]读取文件内容

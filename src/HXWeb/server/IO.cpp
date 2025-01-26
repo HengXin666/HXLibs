@@ -51,7 +51,6 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
 ) const {
     // 本次请求使用结束, 清空, 复用
     _request->clear();
-    _response->addHeader("Transfer-Encoding", "chunked");
     _response->_buildResponseLineAndHeaders();
     co_await _sendResponse(_response->_buf);
     HX::STL::utils::FileUtils::AsyncFile file;

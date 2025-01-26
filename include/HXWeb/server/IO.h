@@ -82,7 +82,6 @@ protected:
     friend HX::web::protocol::websocket::WebSocket;
     friend HX::web::protocol::http::Request;
     friend HX::web::protocol::http::Response;
-
 private:
     HX::STL::coroutine::task::Task<> __sendResponse() const;
 };

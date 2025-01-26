@@ -74,14 +74,9 @@ class ChatController {
             );
             co_return;
         })
-        // todo
-        // .on<GET>("/favicon.ico", [] ENDPOINT {
-        //     RESPONSE_DATA(
-        //         200, 
-        //         co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
-        //         "image/x-icon"
-        //     );
-        // })
+        .on<GET>("/favicon.ico", [] ENDPOINT {
+            co_await res.useChunkedEncodingTransferFile("favicon.ico");
+        })
     ROUTER_END;
 
     ROUTER

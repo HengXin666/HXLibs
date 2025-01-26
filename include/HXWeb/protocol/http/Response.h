@@ -29,13 +29,7 @@
 #include <HXWeb/protocol/http/Status.hpp>
 #include <HXWeb/protocol/http/MimeType.hpp>
 #include <HXSTL/coroutine/task/Task.hpp>
-
-namespace HX { namespace web { namespace server {
-
-template <class T>
-class IO;
-
-}}} // HX::web::server
+#include <HXWeb/server/IO.h>
 
 namespace HX { namespace web { namespace protocol { namespace http {
 
@@ -126,15 +120,12 @@ public:
     }
 
     /**
-     * @brief 设置索引分块编码的文件路径
-     * @param filePath 
+     * @brief 使用分块编码传输文件
+     * @param filePath 文件路径
      */
-    void setUseChunkedEncodingFilePath(std::string const& filePath) {
-        // todo
-        static_cast<void>(filePath);
-    }
+    STL::coroutine::task::Task<> useChunkedEncodingTransferFile(std::string const& filePath);
 
-    // ===== ↑服务端使用の更加人性化API上 =====
+    // ===== ↑服务端使用の更加人性化API↑ =====
 
     // ===== ↓服务端使用↓ =====
     /**
