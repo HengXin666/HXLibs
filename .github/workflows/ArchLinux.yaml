@@ -1,4 +1,4 @@
-name: Bazel-GCC Build (Arch Linux)
+name: Clang Build (Arch Linux)
 
 on:
   push:
@@ -19,30 +19,25 @@ jobs:
           image: archlinux:latest
           options: --privileged
           args: "-v ${{ github.workspace }}:/workspace"
+        
       - run: |
-          cd /workspace
-          # 更新系统并安装 Bazel 和依赖工具
+          echo "Workspace is located at ${{ github.workspace }}"
+
+          # 更新系统并安装 依赖工具
           pacman -Syu --noconfirm
-          pacman -S --noconfirm gcc clang cmake make bazel
+          pacman -S --noconfirm gcc clang cmake make
 
           # 确认工具版本
           g++ --version
           clang++ --version
-          bazel --version
 
-          # 构建目标
-          bazel build --config=gcc-cl //...
+      - name: Configure
+        run: |
+          cmake -B ${{github.workspace}}/build -G Ninja
+           
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config
 
       - name: Test
-        run: |
-          cd /workspace
-          # 运行 Bazel 测试目标
-          bazel test --config=gcc-cl --test_output=errors //... 
-
-      - name: Cache Bazel
-        uses: actions/cache@v3
-        with:
-          path: /root/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('**/WORKSPACE', '**/BUILD') }}
-          restore-keys: |
-            ${{ runner.os }}-bazel-
+        working-directory: ${{github.workspace}}/build
+        run: ctest -j 1 -V
