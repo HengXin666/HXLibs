@@ -9,34 +9,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Arch container
-        uses: addnab/docker-run-action@v3
-        with:
-          image: archlinux:latest
-          options: --privileged
-          args: "-v ${{ github.workspace }}:/workspace"
-        
-      - run: |
-          echo "Workspace is located at ${{ github.workspace }}"
-
-          # 更新系统并安装 依赖工具
+      - name: Install dependencies
+        run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm gcc clang cmake make
+          pacman -S --noconfirm gcc clang cmake ninja
 
-          # 确认工具版本
+      - name: Confirm tool versions
+        run: |
           g++ --version
           clang++ --version
 
       - name: Configure
-        run: |
-          cmake -B ${{github.workspace}}/build -G Ninja
-           
+        run: cmake -B ${{github.workspace}}/build -G Ninja
+
       - name: Build
-        run: cmake --build ${{github.workspace}}/build --config
+        run: cmake --build ${{github.workspace}}/build
 
       - name: Test
         working-directory: ${{github.workspace}}/build
