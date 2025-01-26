@@ -26,8 +26,11 @@
 #include <HXWeb/protocol/http/Request.h>
 #include <HXWeb/protocol/http/Response.h>
 #include <HXWeb/router/RouterTree.hpp>
+#include <HXWeb/router/RequestParsing.h>
 #include <HXSTL/coroutine/task/Task.hpp>
 #include <HXSTL/utils/StringUtils.h>
+
+#include <HXprint/print.h>
 
 namespace HX { namespace web { namespace router {
 
@@ -88,12 +91,16 @@ public:
         std::string_view method,
         std::string_view path
     ) const {
-        return _routerTree.find(
-            HX::STL::utils::StringUtil::split<std::string_view>(
+        auto findLink = HX::STL::utils::StringUtil::split<std::string_view>(
                 path, 
                 "/", 
                 {method}
-        ));
+        );
+        if (path.back() == '/') { // 为了适配 /** 的情况
+            findLink.emplace_back("");
+            return _routerTree.find<true>(findLink);
+        }
+        return _routerTree.find(findLink);
     }
 
     /**
@@ -184,22 +191,116 @@ private:
         typename Func,
         typename... Interceptors>
     void _addEndpoint(std::string_view path, Func&& endpoint, Interceptors&&... interceptors) {
+        using namespace std::string_view_literals;
+        auto isResolvePathVariable = path.find_first_of("{"sv) != std::string_view::npos;
+        auto isParseWildcardPath = path.find("**"sv) != std::string_view::npos;
         std::function<HX::STL::coroutine::task::Task<>(
-            protocol::http::Request &, protocol::http::Response &)>
-            realEndpoint =
-                [this, endpoint = std::move(endpoint),
-                 ... interceptors = interceptors] (protocol::http::Request &req,
-                                                  protocol::http::Response &res) mutable
-            -> HX::STL::coroutine::task::Task<> {
-            static_cast<void>(this);
-            bool ok = true;
-            (doBefore(interceptors, ok, req, res), ...);
-            if (ok) {
-                co_await endpoint(req, res);
+            protocol::http::Request &, protocol::http::Response &)> realEndpoint;
+        switch (isResolvePathVariable | (isParseWildcardPath << 1)) {
+            case 0x0: // 不解析任何参数
+                realEndpoint = [this, endpoint = std::move(endpoint),
+                                ... interceptors = interceptors](
+                                   protocol::http::Request &req,
+                                   protocol::http::Response &res) mutable
+                    -> HX::STL::coroutine::task::Task<> {
+                    static_cast<void>(this);
+                    bool ok = true;
+                    (doBefore(interceptors, ok, req, res), ...);
+                    if (ok) {
+                        co_await endpoint(req, res);
+                    }
+                    ok = true;
+                    (doAfter(interceptors, ok, req, res), ...);
+                };
+                break;
+            case 0x1: { // 仅解析{}参数
+                auto indexArr = HX::web::router::RequestTemplateParsing::getPathWildcardAnalysisArr(path);
+                realEndpoint = [this, endpoint = std::move(endpoint),
+                                indexArr = std::move(indexArr),
+                                ... interceptors = interceptors](
+                                   protocol::http::Request &req,
+                                   protocol::http::Response &res) mutable
+                    -> HX::STL::coroutine::task::Task<> {
+                    static_cast<void>(this);
+                    bool ok = true;
+                    auto pureRequesPath = req.getPureRequesPath();
+                    auto pathSplitArr = HX::STL::utils::StringUtil::split<std::string_view>(pureRequesPath, "/");
+                    std::vector<std::string_view> wildcarArr;
+                    for (auto idx : indexArr) {
+                        wildcarArr.emplace_back(pathSplitArr[idx]);
+                    }
+                    HX::web::protocol::http::PathVariable pathVar {req, wildcarArr};
+                    (doBefore(interceptors, ok, req, res), ...);
+                    if (ok) {
+                        co_await endpoint(req, res);
+                    }
+                    ok = true;
+                    (doAfter(interceptors, ok, req, res), ...);
+                };
+                break;
             }
-            ok = true;
-            (doAfter(interceptors, ok, req, res), ...);
-        };
+            case 0x2: {// 仅解析通配符
+                auto UWPIndex = HX::web::router::RequestTemplateParsing::getUniversalWildcardPathBeginIndex(path);
+                realEndpoint = [this, endpoint = std::move(endpoint), UWPIndex,
+                                ... interceptors = interceptors](
+                                   protocol::http::Request &req,
+                                   protocol::http::Response &res) mutable
+                    -> HX::STL::coroutine::task::Task<> {
+                    static_cast<void>(this);
+                    bool ok = true;
+                    auto pureRequesPath = req.getPureRequesPath();
+                    std::string_view pureRequesPathView = pureRequesPath;
+                    auto pathSplitArr = HX::STL::utils::StringUtil::split<std::string_view>(pureRequesPathView, "/");
+                    HX::web::protocol::http::PathVariable pathVar {
+                        req,
+                        pathSplitArr.size() <= UWPIndex 
+                            ? "" 
+                            : pureRequesPathView.substr(pureRequesPathView.find(pathSplitArr[UWPIndex]))
+                    };
+                    (doBefore(interceptors, ok, req, res), ...);
+                    if (ok) {
+                        co_await endpoint(req, res);
+                    }
+                    ok = true;
+                    (doAfter(interceptors, ok, req, res), ...);
+                };
+                break;
+            }
+            case 0x3: { // 全都要解析
+                auto indexArr = HX::web::router::RequestTemplateParsing::getPathWildcardAnalysisArr(path);
+                auto UWPIndex = HX::web::router::RequestTemplateParsing::getUniversalWildcardPathBeginIndex(path);
+                realEndpoint = [this, endpoint = std::move(endpoint),
+                                indexArr = std::move(indexArr), UWPIndex,
+                                ... interceptors = interceptors](
+                                   protocol::http::Request &req,
+                                   protocol::http::Response &res) mutable
+                    -> HX::STL::coroutine::task::Task<> {
+                    static_cast<void>(this);
+                    bool ok = true;
+                    auto pureRequesPath = req.getPureRequesPath();
+                    std::string_view pureRequesPathView = pureRequesPath;
+                    auto pathSplitArr = HX::STL::utils::StringUtil::split<std::string_view>(pureRequesPathView, "/");
+                    std::vector<std::string_view> wildcarArr;
+                    for (auto idx : indexArr) {
+                        wildcarArr.emplace_back(pathSplitArr[idx]);
+                    }
+                    HX::web::protocol::http::PathVariable pathVar {
+                        req,
+                        wildcarArr,
+                        pathSplitArr.size() <= UWPIndex 
+                            ? "" 
+                            : pureRequesPathView.substr(pureRequesPathView.find(pathSplitArr[UWPIndex]))
+                    };
+                    (doBefore(interceptors, ok, req, res), ...);
+                    if (ok) {
+                        co_await endpoint(req, res);
+                    }
+                    ok = true;
+                    (doAfter(interceptors, ok, req, res), ...);
+                };
+                break;
+            }
+        }
         auto buildLink = HX::STL::utils::StringUtil::split<std::string_view>(
             path, 
             "/",

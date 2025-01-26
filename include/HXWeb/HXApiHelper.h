@@ -115,36 +115,28 @@ co_await io.sendResponseWithChunkedEncoding(PATH)
 res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE)
 
 /**
- * @brief 开始解析请求路径参数
- * @warning 接下来请使用`PARSE_PARAM`宏
- */
-#define START_PARSE_PATH_PARAMS \
-static const auto wildcarIndexArr = HX::web::router::RequestTemplateParsing::getPathWildcardAnalysisArr(templatePath); \
-auto pathSplitArr = HX::STL::utils::StringUtil::split(req.getPureRequesPath(), "/")
-
-/**
  * @brief 用于解析指定索引的路径参数, 并将其转换为指定类型的变量
  * @param INDEX 模版路径的第几个通配参数 (从`0`开始计算)
  * @param TYPE 需要解析成的类型, 如`bool`/`int32_t`/`double`/`std::string`/`std::string_view`等
  * @param NAME 变量名称
- * @param __VA_ARGS__ (`bool`类型): 是否复用连接 (默认复用)
  * @return NAME, 类型是`std::optional<TYPE>`
  * @warning 如果解析不到(出错), 则会直接返回错误给客户端
  */
-#define PARSE_PARAM(INDEX, TYPE, NAME, ...) \
-auto NAME = HX::web::router::TypeInterpretation<TYPE>::wildcardElementTypeConversion(pathSplitArr[static_cast<std::size_t>(wildcarIndexArr[static_cast<std::size_t>(INDEX)])]); \
-if (!NAME) { \
-    RESPONSE_DATA(400, "Missing PATH parameter '"#NAME"'", "application/json", "UTF-8"); \
-    co_return; \
+#define PARSE_PARAM(INDEX, TYPE, NAME)                                                  \
+auto NAME = HX::web::router::TypeInterpretation<TYPE>::wildcardElementTypeConversion(   \
+    req.getPathParam(INDEX)                                                             \
+);                                                                                      \
+if (!NAME) {                                                                            \
+    RESPONSE_DATA(400, json, "Missing PATH parameter '"#NAME"'");                       \
+    co_return;                                                                          \
 }
 
 /**
  * @brief 解析多级通配符的宏, 如 `/home/ **` 这种
  * @param NAME 解析结果字符串(`std::string`)的变量名称
  */
-#define PARSE_MULTI_LEVEL_PARAM(NAME) \
-static const auto UWPIndex = HX::web::router::RequestTemplateParsing::getUniversalWildcardPathBeginIndex(templatePath); \
-std::string NAME = req.getPureRequesPath().substr(UWPIndex)
+#define PARSE_MULTI_LEVEL_PARAM(NAME)                           \
+std::string NAME = std::string{req.getUniversalWildcardPath()}  \
 
 /**
  * @brief 解析查询参数键值对Map (解析如: `?name=loli&awa=ok&hitori`)

@@ -6,51 +6,26 @@
 #include <HXWeb/server/Server.h>
 
 class HttpsController {
-    ENDPOINT_BEGIN(API_GET, "/", root) {
-        RESPONSE_DATA(
-            200,
-            "<h1>Hello This Heng_Xin 自主研发的 Https 文件服务器!</h1>",
-            "text/html", "UTF-8"
-        );
-        co_return true;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/favicon.ico", faviconIco) {
-        RESPONSE_DATA(
-            200, 
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("static/favicon.ico"),
-            "image/x-icon"
-        );
-        co_return false;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/files/**", files) {
-        // 使用分块编码
-        RESPONSE_FILE(
-            200,                 // 状态码
-            "static/test/github.html",  // 分块读写的文件
-            "text/html", "UTF-8" // 文件类型, 编码
-        );
-        co_return true;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/test", test) {
-        RESPONSE_DATA(
-            200, 
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("static/test/github.html"),
-            "text/html", "UTF-8"
-        );
-        co_return true;
-    } ENDPOINT_END;
-
-    ENDPOINT_BEGIN(API_GET, "/brack", break) { // 断开连接
-        RESPONSE_DATA(
-            200, 
-            "ok",
-            "text/html", "UTF-8"
-        );
-        co_return false;
-    } ENDPOINT_END;
+    ROUTER
+        .on<GET>("/", [] ENDPOINT {
+            co_return res.setStatusAndContent(
+                Status::CODE_200, "<h1>Hello This Heng_Xin 自主研发的 Https 文件服务器!</h1>");
+        })
+        .on<GET>("/favicon.ico", [] ENDPOINT {
+            co_await res.useChunkedEncodingTransferFile("static/favicon.ico");
+        })
+        .on<GET>("/files/**", [] ENDPOINT {
+            // 使用分块编码
+            co_await res.useChunkedEncodingTransferFile("static/test/github.html");
+        })
+        .on<GET>("/test", [] ENDPOINT {
+            // 不使用分块编码
+            res.setStatusAndContent(
+                Status::CODE_200, 
+                co_await HX::STL::utils::FileUtils::asyncGetFileContent("static/test/github.html")
+            );
+        })
+    ROUTER_END;
 };
 
 HX::STL::coroutine::task::Task<> test();

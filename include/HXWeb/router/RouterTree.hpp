@@ -82,13 +82,14 @@ public:
         node->val = endpoint;
     }
 
+    template <bool IsWildcard = false>
     const EndpointFunc& find(const std::vector<std::string_view>& findLink) const {
         const std::size_t n = findLink.size();
+        std::size_t i = 0;
         std::stack<std::tuple<std::shared_ptr<Node>, std::size_t>> st;
         st.push({_root, static_cast<std::size_t>(0)});
         auto node = _root;
-        while (st.size()) {
-            std::size_t i = 0;
+        while (st.size() && i < n) {
             auto& top = st.top();
             node = std::move(std::get<0>(top));
             i = std::get<1>(top);
@@ -103,11 +104,17 @@ public:
                     // 以 {} 尝试
                     findIt = node->child.find("*");
                     if (findIt != node->child.end()) {
+                        if constexpr (IsWildcard) { // 注意`/`
+                            if (findLink[i].empty()) [[unlikely]] {
+                                // 特殊的尾部标记, 表示 `/home/**`中
+                                // 访问了`/home/`的情况
+                                goto End;
+                            }
+                        }
                         st.push({node, n});
                         node = findIt->second;
                         continue;
                     }
-
                 End:
                     // 只能看看是否有**了
                     findIt = node->child.find("**");

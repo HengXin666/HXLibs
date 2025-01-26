@@ -40,14 +40,14 @@ struct RequestTemplateParsing {
      * @warning 只能解析如`{id}`的匹配, 不能解析`**`!
      * @throw 如果解析不到如`{id}`的通配符, 则会抛出异常
      */
-    static std::vector<int> getPathWildcardAnalysisArr(std::string_view path);
+    static std::vector<std::size_t> getPathWildcardAnalysisArr(std::string_view path);
 
     /**
      * @brief 获取万用通配符前缀索引, 如: `/home/ **` -> `/home/`
      * @param path 模版路径, 如: `/home/ **`
-     * @return `**`位置之前一个单位的索引
+     * @return `**`数组索引映射, 如: 1, 因为 [home, **]
      * @warning 只能解析`**`!
-     * @throw 如果解析不到如`**`的通配符, 则会抛出异常
+     * @throw 如果解析不到`**`的通配符或者位置不位于末尾, 则会抛出异常
      */
     static std::size_t getUniversalWildcardPathBeginIndex(std::string_view path);
 };
@@ -180,8 +180,8 @@ struct TypeInterpretation<long double> {
 
 template <>
 struct TypeInterpretation<std::string> {
-    static std::optional<std::string> wildcardElementTypeConversion(std::string& we) {
-        return we; // 这里是非严格的模版特化, 单纯为了提高性能
+    static std::optional<std::string> wildcardElementTypeConversion(std::string_view we) {
+        return std::string{we};
     }
 };
 

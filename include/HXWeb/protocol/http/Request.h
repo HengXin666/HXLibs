@@ -25,13 +25,21 @@
 #include <string>
 #include <string_view>
 #include <optional>
+#include <stdexcept>
 
+#include <HXWeb/protocol/http/PathVariable.h>
 namespace HX { namespace web { namespace client {
 
 template <class T>
 class IO;
 
 }}} // namespace HX::web::client
+
+namespace HX { namespace web { namespace router {
+
+class Router;
+
+}}} // namespace HX::web::router
 
 namespace HX { namespace web { namespace protocol { namespace http {
 
@@ -199,6 +207,33 @@ public:
     std::string getRequesProtocolVersion() const noexcept {
         return _requestLine[RequestLineDataType::ProtocolVersion];
     }
+
+    /**
+     * @brief 获取第`index`个路径参数的内容
+     * @param index 路径参数索引, 如`/home/{name}/id`, `index = 0` => {name}
+     * @throw std::runtime_error 如果路径参数未初始化则抛出 (端点函数必须为`{val}`格式)
+     * @throw std::out_of_range 如果 `index` 超出可用路径参数范围时抛出
+     * @note 调用前需要确保路径参数已正确初始化
+     * @return std::string_view 
+     */
+    std::string_view getPathParam(std::size_t index) const {
+        if (!_pathVariable) [[unlikely]] {
+            throw std::runtime_error("No path parameters available to parse.");
+        }
+        return _pathVariable->wildcarDataArr[index];
+    }
+
+    /**
+     * @brief 获取通配符路径参数的内容
+     * @throw std::runtime_error 如果路径参数未初始化则抛出 (端点函数必须为`{val}`格式)
+     * @return std::string_view 
+     */
+    std::string_view getUniversalWildcardPath() const {
+        if (!_pathVariable) [[unlikely]] {
+            throw std::runtime_error("No path parameters available to parse.");
+        }
+        return _pathVariable->UWPData;
+    }
     // ===== ↑服务端使用↑ =====
 
     /**
@@ -244,9 +279,13 @@ private:
     // @brief 是否解析完成请求头
     bool _completeRequestHeader = false;
 
+    // @brief 用于存储解析的路径参数, 无需理会它的生命周期, 它的生命周期在[服务端]`端点函数`内
+    PathVariable* _pathVariable = nullptr;
+
     HX::web::client::IO<void>* _io;
 
     friend HX::web::client::IO<void>;
+    friend PathVariable;
 
     /**
      * @brief [仅客户端] 生成请求字符串, 用于写入

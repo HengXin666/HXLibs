@@ -54,6 +54,10 @@ public:
     Response(Response&& response) = default;
     Response& operator=(Response&& response) = default;
 
+    const HX::web::server::IO<void>& getIo() const {
+        return *_io;
+    }
+
     // ===== ↓客户端使用↓ =====
     /**
      * @brief 解析响应
