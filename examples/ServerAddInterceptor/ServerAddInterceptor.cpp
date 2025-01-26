@@ -1,4 +1,4 @@
-#include <HXWeb/HXApiHelper.h>
+#include <HXWeb/HXApi.hpp>
 #include <HXWeb/interceptor/RequestInterceptor.h>
 #include <HXprint/print.h>
 
@@ -53,28 +53,6 @@ public:
             co_return;
         })
     ROUTER_END;
-
-
-    // int __init___ = [] {
-    //     using namespace HX::web::protocol::http;
-    //     HX::web::router::Router::getRouter().addEndpoint<GET, POST>("/", [](
-    //         Request& req,
-    //         Response& res
-    //     ) -> HX::STL::coroutine::task::Task<> {
-    //         auto map = req.getParseQueryParameters();
-    //         if (map.find("loli") == map.end()) {
-    //             res.setResponseLine(Status::CODE_200)
-    //                .setContentType("text/html")
-    //                .setBodyData("<h1>You is no good!</h1>");
-    //             co_return;
-    //         }
-    //         res.setResponseLine(Status::CODE_200)
-    //             .setContentType("text/html")
-    //             .setBodyData("<h1>yo si yo si!</h1>");
-    //     }, Log{});
-
-    //     return 0;
-    // } ();
 };
 
 int main() {

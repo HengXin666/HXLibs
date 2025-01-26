@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 # 定义工程名称, 并指定语言为C++
 project(HXLibs
-    VERSION 0.0.1
+    VERSION 0.1.1
     DESCRIPTION "HXLibs"
     HOMEPAGE_URL "https://github.com/HengXin666/HXLibs"
     LANGUAGES CXX

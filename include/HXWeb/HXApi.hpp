@@ -17,8 +17,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_API_HELPER_H_
-#define _HX_API_HELPER_H_
+#ifndef _HX_API_H_
+#define _HX_API_H_
 
 #include <HXWeb/router/Router.hpp>
 #include <HXWeb/router/RequestParsing.h>
@@ -30,21 +30,13 @@
 #include <HXSTL/utils/StringUtils.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wpedantic"
-    #pragma GCC diagnostic ignored "-Wunused-parameter"
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#   pragma GCC diagnostic ignored "-Wunused-parameter"
 #elif defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 4100 4101)
+#   pragma warning(push)
+#   pragma warning(disable : 4100 4101)
 #endif
-
-// #if defined(__GNUC__) || defined(__clang__)
-//     #pragma GCC diagnostic pop
-//     #pragma GCC diagnostic pop
-// #elif defined(_MSC_VER)
-//     #pragma warning(pop)
-//     #pragma warning(pop)
-// #endif
 
 /* 简化用户编写的 API 宏 */
 
@@ -96,18 +88,6 @@ res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE)   \
    .setBodyData(DATA)
 
 /**
- * @brief 使用`Transfer-Encoding`分块编码响应, 以传输文件
- * @param CODE 状态码 (如`200`)
- * @param PATH 需要传输的文件的文件路径
- * @param __VA_ARGS__ 响应类型(第一个是响应类型(必选), 第二个是响应编码(可选)), 
- * 如 `"text/html", "UTF-8"`, `"image/x-icon"`
- */
-#define RESPONSE_FILE(CODE, PATH, ...) \
-res.setResponseLine(HX::web::protocol::http::Status::CODE_##CODE) \
-   .setContentType(__VA_ARGS__); \
-co_await io.sendResponseWithChunkedEncoding(PATH)
-
-/**
  * @brief 设置状态码 (接下来可以继续操作)
  * @param 状态码 (如`200`)
  */
@@ -152,4 +132,4 @@ auto NAME = req.getParseQueryParameters()
 #define ROUTER_BIND(NAME) \
 {static_cast<void>(NAME {});}
 
-#endif // _HX_API_HELPER_H_
+#endif // _HX_API_H_

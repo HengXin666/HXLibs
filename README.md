@@ -16,7 +16,7 @@
 ## 构建要求
 
 - Linux 5.1+ 
-- GCC 编译器 (推荐)
+- GCC / Clang 编译器
 - C++20
 
 ## 快速开始
@@ -27,104 +27,89 @@
 >   - [基于轮询的聊天室](examples/ChatServer/ChatServer.cpp)
 >   - [WebSocket服务端](examples/WsServer/WsServer.cpp)
 >   - [使用`Transfer-Encoding`分块编码传输文件的服务端](examples/FileServer/FileServer.cpp)
+>   - [服务端`面向切面`编程(拦截器)](examples/ServerAddInterceptor/ServerAddInterceptor.cpp)
 >   - [支持`socks5`代理的`Http/Https`客户端](examples/Client/Client.cpp)
 >   - [自实现のJson解析、结构体静态反射到Json和Json赋值到反射注册的结构体的示例(只需要一个`宏`即可实现!) / 支持对`聚合类`进行序列化、反序列化! **不需要宏定义!**](tests/JsonTest.cpp)
 >   - [LRUCache/LFUCache的示例](tests/CacheTest.cpp)
 
 - 编写端点 (提供了简化使用的 API 宏)
 
-- 注: api已经被重构, 查看 [链接](examples/ChatServer/ChatServer.cpp) 以查看最新的api写法 (支持面向切面编程) [@todo 尽快完全定档]
-
-```C
-#include <HXWeb/HXApiHelper.h> // 使用简化的api
+```C++
+#include <HXWeb/HXApi.hpp> // 使用简化的api
 
 // 用户定义的控制器
 class MyWebController {
+    ROUTER
+        .on<GET, POST /*一个端点函数 挂载多种请求方式(GET, DEL ...) (这是一个`可变参数`)*/>("/", [] ENDPOINT {
+            co_return res.setStatusAndContent(
+                Status::CODE_200, "<h1>Hello! this Heng_Xin 自主研发的 Http 服务器!</h1>");
+        })
+        .on<GET>("/home/{id}/{name}/**", [] ENDPOINT {
+            // 获取第一个(index = 0)路径参数 {id}, 并且解析为`u_int32_t`类型, 局部变量命名为:`id`
+            PARSE_PARAM(0, u_int32_t, id);
 
-    // 定义端点函数
-    ENDPOINT_BEGIN(API_GET, "/", root) { // 注册get请求, 接收`/`路径请求
-        RESPONSE_DATA( // 响应数据
-            200, // 状态码
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("index.html"), // (body数据) 异步(协程)读取文件
-            "text/html", "UTF-8" // (响应类型), 以及响应编码
-        );
-        co_return true; // 注意, 端点函数是协程, 得使用 co_return 而不是return (返回值是 bool)
-                        // bool 的意思是是否复用连接 (HTTP/1.1 是推荐复用连接的)
-    } ENDPOINT_END;
+            // 获取第一个(index = 1)路径参数 {name}, 并且解析为`std::string`类型, 局部变量命名为:`name`
+            PARSE_PARAM(1, std::string, name);
 
-    ENDPOINT_BEGIN(API_GET, "/favicon.ico", faviconIco) {
-        RESPONSE_DATA(
-            200, 
-            co_await HX::STL::utils::FileUtils::asyncGetFileContent("favicon.ico"),
-            "image/x-icon" // 响应编码 可以不写
-        );
-        co_return true;
-    } ENDPOINT_END;
+            // 解析通配符**路径, 保存到 std::string uwp 这个局部变量中
+            PARSE_MULTI_LEVEL_PARAM(uwp);
+            // 注意, 一般的url对于尾部是否有`/`是全部当做没有的
+            // 如: /home/id == /home/id/
+            // 而通配符**路径是需要当做有的:
+            // 如: /files/**
+            // 不解析 /files
+            // 但是解析 /files/ 为 ""
 
-    ENDPOINT_BEGIN(API_GET, "/files/**", files) {
-        PARSE_MULTI_LEVEL_PARAM(path);
-        RESPONSE_STATUS(200).setContentType("text/html", "UTF-8")
-                            .setBodyData("<h1> files URL is " + path + "</h1>"); 
-        // 支持直接在端点里面响应 (记得co_await)
-        // 响应后, 不会再次在 ConnectionHandler 中再次响应!
-        co_await io.sendResponse(); // 立即发送响应
-        co_return true;
-    } ENDPOINT_END;
+            // 解析查询参数为键值对; url?awa=xxx 这种
+            GET_PARSE_QUERY_PARAMETERS(queryMap);
 
-    ENDPOINT_BEGIN(API_GET, "/home/{id}/{name}", getIdAndNameByHome) {
-        START_PARSE_PATH_PARAMS; // 开始解析请求路径参数
-        PARSE_PARAM(0, u_int32_t, id, false); // 解析第一个路径参数{id}, 解析为 u_int32_t类型, 命名为 id
-                                              // 并且如果解析失败则不复用连接 (false)
+            if (queryMap.count("loli")) // 如果解析到 ?loli=xxx
+                std::cout << queryMap["loli"] << '\n'; // xxx 的值
 
-        PARSE_PARAM(1, std::string, name);    // 解析第二个路径参数{name} (不写, 则默认复用连接)
-
-        // 解析查询参数为键值对; ?awa=xxx 这种
-        GET_PARSE_QUERY_PARAMETERS(queryMap);
-
-        if (queryMap.count("loli")) // 如果解析到 ?loli=xxx
-            std::cout << queryMap["loli"] << '\n'; // xxx 的值
-
-        RESPONSE_DATA(
-            200, 
-            "<h1> Home id 是 " + std::to_string(*id) + ", 而名字是 " 
-            + *name + "</h1><h2> 来自 URL: " 
-            + io.getRequest().getRequesPath()  + " 的解析</h2>", // 默认`ENDPOINT_BEGIN`会传入 const HX::web::server::IO<>& io, 您可以对其进行更细致的操作
-            "text/html", "UTF-8"
-        );
-        co_return true;
-    } ENDPOINT_END;
-
-public: // 控制器成员函数 (请写成`static`方法)
-    // todo...
+            RESPONSE_DATA(
+                200,
+                html,
+                "<h1> Home id 是 " + std::to_string(*id) + ", "
+                "而名字是 " + *name + "</h1>"
+                "<h2> 来自 URL: " + req.getRequesPath() + " 的解析</h2>"
+                "<h3>[通配符]参数为: " + uwp + "</h3>"
+            );
+        })
+        .on<GET>("/favicon.ico", [] ENDPOINT {
+            // 支持分块编码 (内部自动识别文件拓展名, 以选择对应的`Content-Type`)
+            co_return co_await res.useChunkedEncodingTransferFile("favicon.ico");
+        })
+    ROUTER_END;
 };
 ```
 
 - 绑定控制器到全局路由
 
-```C
-#include <HXWeb/HXApiHelper.h> // 宏所在头文件
+```C++
+#include <HXWeb/HXApi.hpp> // 宏所在头文件
 
 ROUTER_BIND(MyWebController); // 这个类在上面声明过了
 ```
 
 - 启动服务器, 并且监听 127.0.0.1:28205, 并且设置路由失败时候返回的界面
     - 可选: 可以设置线程数和超时时间 | 每个线程独享一个`uring`, 但是绑定同一个端口, 由操作系统进行负载均衡
-```C
-#include <HXWeb/HXApiHelper.h> // 宏所在头文件
+
+```C++
+#include <HXWeb/HXApi.hpp> // 宏所在头文件
 #include <HXWeb/server/Server.h>
 
 int main() {
     chdir("../static");
     setlocale(LC_ALL, "zh_CN.UTF-8");
     ROUTER_BIND(WSChatController);
-    ERROR_ENDPOINT_BEGIN { // 自定义: 设置路由失败时候返回的界面
-        RESPONSE_DATA(
-            404,
-            "<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:red}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXNet</p>",
-            "text/html", "UTF-8"
-        );
-        co_return false;
-    } ERROR_ENDPOINT_END;
+    // 设置路由失败时候的端点
+    ROUTER_ERROR_ENDPOINT([] ENDPOINT {
+        static_cast<void>(req);
+        res.setResponseLine(HX::web::protocol::http::Status::CODE_404)
+           .setContentType(HX::web::protocol::http::ResContentType::html)
+           .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#990099}p{font-size:24px;color:gold}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
+        co_return;
+    });
 
     // 启动Http服务 [阻塞于此]
     HX::web::server::Server::startHttp("127.0.0.1", "28205", 16 /*可选 线程数(互不相关)*/, 10s /*可选 超时时间*/);
@@ -134,6 +119,101 @@ int main() {
     return 0;
 }
 ```
+
+---
+
+进阶的, 实际上端点的`ENDPOINT`宏, 是:
+
+```cpp
+#define ENDPOINT  \
+(                 \
+    Request& req, \
+    Response& res \
+) -> Task<>
+```
+
+也就是`lambda`表达式, 因此您可以捕获一些变量, 例如:
+
+```cpp
+class ChatController {
+    struct LogPrint {
+        void print() const {
+            HX::print::println("欢迎光临~");
+        }
+    };
+
+    ROUTER
+        .on<GET, POST>("/", [log = LogPrint{}] ENDPOINT {
+            RESPONSE_DATA(
+                200,
+                html,
+                co_await HX::STL::utils::FileUtils::asyncGetFileContent("indexByJson.html")
+            );
+            log.print();
+        })
+    ROUTER_END;
+};
+```
+
+(一般场景下没啥用), 但是下面的功能可以让您`面向切面`编程`端点`(类似于`拦截器`):
+
+*下面并没有使用`ENDPOINT`, 可以发现, 代码略有复杂和重复.*
+
+```cpp
+class ServerAddInterceptorTestController {
+public:
+    struct Log {
+        decltype(std::chrono::steady_clock::now()) t;
+
+        bool before(HX::web::protocol::http::Request& req, HX::web::protocol::http::Response& res) {
+            HX::print::println("请求了: ", req.getPureRequesPath());
+            static_cast<void>(res);
+            t = std::chrono::steady_clock::now();
+            return true;
+        }
+
+        bool after(HX::web::protocol::http::Request& req, HX::web::protocol::http::Response& res) {
+            auto t1 = std::chrono::steady_clock::now();
+            auto dt = t1 - t;
+            int64_t us = std::chrono::duration_cast<std::chrono::milliseconds>(dt).count();
+            HX::print::println("已响应: ", req.getPureRequesPath(), "花费: ", us, " us");
+            static_cast<void>(res);
+            return true;
+        }
+    };
+
+    ROUTER
+        .on<GET, POST>("/", [](
+            Request& req,
+            Response& res
+        ) -> Task<> {
+            auto map = req.getParseQueryParameters();
+            if (map.find("loli") == map.end()) {
+                res.setResponseLine(Status::CODE_200)
+                .setContentType(HX::web::protocol::http::ResContentType::html)
+                .setBodyData("<h1>You is no good!</h1>");
+                co_return;
+            }
+            res.setResponseLine(Status::CODE_200)
+            .setContentType(HX::web::protocol::http::ResContentType::html)
+            .setBodyData("<h1>yo si yo si!</h1>");
+        }, Log{})
+        .on<GET, POST>("/home/{id}/**", [](
+            Request& req,
+            Response& res
+        ) -> Task<> {
+            static_cast<void>(req);
+            res.setResponseLine(Status::CODE_200)
+            .setContentType(HX::web::protocol::http::ResContentType::html)
+            .setBodyData("<h1>This is Home</h1>");
+            co_return;
+        })
+    ROUTER_END;
+};
+```
+
+> [!TIP]
+> 为了防止api宏带来的命名空间污染, 特别是在头文件中声明`控制器端点`的, 建议在尾部添加`#include <HXWeb/UnHXApi.hpp>`以`undef`那些宏.
 
 ## 相关依赖
 
