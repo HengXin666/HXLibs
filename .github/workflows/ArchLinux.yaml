@@ -1,24 +1,24 @@
 name: C++20 Build (Arch Linux)
 
 on:
-push:
+  push:
     branches:
-    - main
-pull_request:
+      - main
+  pull_request:
 
 jobs:
-build:
-    runs-on: ubuntu-latest  # Actions 运行环境, 实际工作在容器中完成
+  build:
+    runs-on: ubuntu-latest  # Actions 运行环境，实际工作在容器中完成
     steps:
-    - name: Checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-    - name: Set up Arch container
+      - name: Set up Arch container
         uses: addnab/docker-run-action@v3
         with:
-        image: archlinux:latest
-        options: --privileged  # 如果需要安装复杂依赖, 可添加权限
-        run: |
+          image: archlinux:latest
+          options: --privileged  # 如果需要安装复杂依赖，可添加权限
+          run: |
             pacman -Syu --noconfirm  # 更新系统
             pacman -S --noconfirm gcc clang cmake make  # 安装工具链
             g++ --version  # 验证 GCC
