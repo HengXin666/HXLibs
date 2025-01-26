@@ -15,6 +15,13 @@
 
 namespace HX { namespace web { namespace client {
 
+IO<>::IO(int fd) 
+    : HX::web::socket::IO(fd)
+{
+    _request = std::make_unique<HX::web::protocol::http::Request>(this);
+    _response = std::make_unique<HX::web::protocol::http::Response>(nullptr);
+}
+
 HX::STL::coroutine::task::Task<bool> IO<void>::recvResponse(
     std::chrono::milliseconds timeout
 ) {

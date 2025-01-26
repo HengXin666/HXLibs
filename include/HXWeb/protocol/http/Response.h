@@ -43,60 +43,15 @@ namespace HX { namespace web { namespace protocol { namespace http {
  * @brief 响应类(Response)
  */
 class Response {
-    /**
-     * @brief 响应行数据分类
-     */
-    enum ResponseLineDataType {
-        ProtocolVersion = 0,   // 协议版本
-        StatusCode = 1,        // 状态码
-        StatusMessage = 2,     // 请求路径
-    };
-
-    // 注意: 他们的末尾并没有事先包含 \r\n, 具体在to_string才提供
-    std::vector<std::string> _statusLine; // 状态行
-    std::unordered_map<std::string, std::string> _responseHeaders; // 响应头部
-    // 空行
-    std::string _body; // 响应体
-
-    // 指向上一次解析的响应头的键值对; 无效时候指向 `.end()`
-    std::unordered_map<std::string, std::string>::iterator _responseHeadersIt; 
-
-    std::string _buf; // 上一次未解析全的
-
-    unsigned _sendCnt = 0; // 写入计数
-
-    // @brief 是否解析完成响应头
-    bool _completeResponseHeader = false;
-
-    // @brief 仍需读取的请求体长度
-    std::optional<std::size_t> _remainingBodyLen;
-
-    friend HX::web::server::IO<void>;
-
-    /**
-     * @brief [仅服务端] 生成响应行和响应头
-     */
-    void _buildResponseLineAndHeaders();
-
-    /**
-     * @brief [仅服务端] 将`buf`转化为`ChunkedEncoding`的Body, 放入`_body`以分片发送
-     * @param buf 
-     * @warning 内部会清空 `_buf`, 再以`ChunkedEncoding`格式写入 buf 到 `_buf`!
-     */
-    void _buildToChunkedEncoding(std::string_view buf);
-
-    /**
-     * @brief [仅服务端] 生成完整的响应字符串, 用于写入
-     * @warning 本方法子适用于`Content-Length`的短消息, 无法使用分块编码
-     */
-    void createResponseBuffer();
 public:
-    explicit Response() : _statusLine()
-                        , _responseHeaders()
-                        , _body()
-                        , _responseHeadersIt(_responseHeaders.end())
-                        , _buf()
-                        , _sendCnt(0)
+    explicit Response(HX::web::server::IO<void>* io) 
+        : _statusLine()
+        , _responseHeaders()
+        , _body()
+        , _responseHeadersIt(_responseHeaders.end())
+        , _buf()
+        , _sendCnt(0)
+        , _io(io)
     {}
 
     Response(const Response& response) = delete;
@@ -239,6 +194,48 @@ public:
         _buf.clear();
         _completeResponseHeader = false;
     }
+private:
+    /**
+     * @brief 响应行数据分类
+     */
+    enum ResponseLineDataType {
+        ProtocolVersion = 0,   // 协议版本
+        StatusCode = 1,        // 状态码
+        StatusMessage = 2,     // 状态信息
+    };
+
+    // 注意: 他们的末尾并没有事先包含 \r\n, 具体在to_string才提供
+    std::vector<std::string> _statusLine; // 状态行
+    std::unordered_map<std::string, std::string> _responseHeaders; // 响应头
+    std::string _body; // 响应体
+
+    // 指向上一次解析的响应头的键值对; 无效时候指向 `.end()`
+    std::unordered_map<std::string, std::string>::iterator _responseHeadersIt; 
+    std::string _buf; // 上一次未解析全的
+    unsigned _sendCnt = 0; // 写入计数
+    bool _completeResponseHeader = false; //是否解析完成响应头
+    std::optional<std::size_t> _remainingBodyLen; // 仍需读取的请求体长度
+    HX::web::server::IO<void>* _io;
+
+    friend HX::web::server::IO<void>;
+
+    /**
+     * @brief [仅服务端] 生成响应行和响应头
+     */
+    void _buildResponseLineAndHeaders();
+
+    /**
+     * @brief [仅服务端] 将`buf`转化为`ChunkedEncoding`的Body, 放入`_body`以分片发送
+     * @param buf 
+     * @warning 内部会清空 `_buf`, 再以`ChunkedEncoding`格式写入 buf 到 `_buf`!
+     */
+    void _buildToChunkedEncoding(std::string_view buf);
+
+    /**
+     * @brief [仅服务端] 生成完整的响应字符串, 用于写入
+     * @warning 本方法子适用于`Content-Length`的短消息, 无法使用分块编码
+     */
+    void createResponseBuffer();
 };
 
 }}}} // namespace HX::web::protocol::http

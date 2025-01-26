@@ -51,8 +51,7 @@ class IO {
 template <>
 class IO<void> : public HX::web::socket::IO {
 public:
-    explicit IO(int fd) : HX::web::socket::IO(fd)
-    {}
+    explicit IO(int fd);
 
     virtual ~IO() noexcept
     {}

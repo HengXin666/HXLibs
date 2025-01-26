@@ -39,42 +39,6 @@ namespace HX { namespace web { namespace protocol { namespace http {
  * @brief 请求类(Request)
  */
 class Request {
-    /**
-     * @brief 请求行数据分类
-     */
-    enum RequestLineDataType {
-        RequestType = 0,        // 请求类型
-        RequestPath = 1,        // 请求路径
-        ProtocolVersion = 2,    // 协议版本
-    };
-
-    /**
-     * @brief 服务端: 之前未解析全的数据
-     *        客户端: 待写入的内容
-     */
-    std::string _buf;
-
-    std::vector<std::string> _requestLine; // 请求行
-    std::unordered_map<std::string, std::string> _requestHeaders; // 请求头
-
-    // 上一次解析的请求头
-    std::unordered_map<std::string, std::string>::iterator _requestHeadersIt;
-
-    // 请求体
-    std::string _body;
-
-    // @brief 仍需读取的请求体长度
-    std::optional<std::size_t> _remainingBodyLen;
-
-    // @brief 是否解析完成请求头
-    bool _completeRequestHeader = false;
-
-    friend HX::web::client::IO<void>;
-
-    /**
-     * @brief [仅客户端] 生成请求字符串, 用于写入
-     */
-    void createRequestBuffer();
 public:
     /**
      * @brief 请求类型枚举
@@ -92,11 +56,13 @@ public:
     //     CONNECT = 8, // 要求用隧道协议连接代理
     // };
 
-    explicit Request() : _requestLine()
-                       , _requestHeaders()
-                       , _requestHeadersIt(_requestHeaders.end())
-                       , _body()
-                       , _remainingBodyLen(std::nullopt)
+    explicit Request(HX::web::client::IO<void>* io) 
+        : _requestLine()
+        , _requestHeaders()
+        , _requestHeadersIt(_requestHeaders.end())
+        , _body()
+        , _remainingBodyLen(std::nullopt)
+        , _io(io)
     {}
     // ===== ↓客户端使用↓ =====
     /**
@@ -247,6 +213,45 @@ public:
         _completeRequestHeader = false;
         _remainingBodyLen.reset();
     }
+private:
+    /**
+     * @brief 请求行数据分类
+     */
+    enum RequestLineDataType {
+        RequestType = 0,        // 请求类型
+        RequestPath = 1,        // 请求路径
+        ProtocolVersion = 2,    // 协议版本
+    };
+
+    /**
+     * @brief 服务端: 之前未解析全的数据
+     *        客户端: 待写入的内容
+     */
+    std::string _buf;
+
+    std::vector<std::string> _requestLine; // 请求行
+    std::unordered_map<std::string, std::string> _requestHeaders; // 请求头
+
+    // 上一次解析的请求头
+    std::unordered_map<std::string, std::string>::iterator _requestHeadersIt;
+
+    // 请求体
+    std::string _body;
+
+    // @brief 仍需读取的请求体长度
+    std::optional<std::size_t> _remainingBodyLen;
+
+    // @brief 是否解析完成请求头
+    bool _completeRequestHeader = false;
+
+    HX::web::client::IO<void>* _io;
+
+    friend HX::web::client::IO<void>;
+
+    /**
+     * @brief [仅客户端] 生成请求字符串, 用于写入
+     */
+    void createRequestBuffer();
 };
 
 }}}} // namespace HX::web::protocol::http

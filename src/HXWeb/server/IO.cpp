@@ -14,6 +14,13 @@
 
 namespace HX { namespace web { namespace server {
 
+IO<>::IO(int fd)
+    : HX::web::socket::IO(fd)
+{
+    _request = std::make_unique<HX::web::protocol::http::Request>(nullptr);
+    _response = std::make_unique<HX::web::protocol::http::Response>(this);
+}
+
 HX::STL::coroutine::task::Task<> IO<>::sendResponse() const {
     co_await __sendResponse();
     ++_response->_sendCnt;
