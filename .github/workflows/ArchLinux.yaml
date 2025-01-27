@@ -17,7 +17,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Debug workspace
-        run: ls -R ${{ github.workspace }}
+        run: |
+          pwd
+          ls -al
 
       - name: 安装环境
         run: |
@@ -26,16 +28,27 @@ jobs:
 
       - name: 确认工具版本
         run: |
+          pwd
+          ls -l
           g++ --version
           clang++ --version
           openssl version
 
       - name: Configure
-        run: cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }} -G Ninja
+        run: |
+          pwd
+          ls -l
+          cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }} -G Ninja
 
       - name: Build
-        run: cmake --build ${{ github.workspace }}/build
+        run: |
+          pwd
+          ls -l
+          cmake --build ${{ github.workspace }}/build
 
       - name: Test
         working-directory: ${{ github.workspace }}/build
-        run: ctest -T test
+        run: |
+          pwd
+          ls -l
+          ctest -T test
