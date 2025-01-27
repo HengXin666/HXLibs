@@ -47,8 +47,10 @@ jobs:
           cmake --build $(pwd)/build
 
       - name: Test
-        working-directory: $(pwd)/build
         run: |
+          pwd
+          ls -l
+          cd ./build
           pwd
           ls -l
           ctest -T test
