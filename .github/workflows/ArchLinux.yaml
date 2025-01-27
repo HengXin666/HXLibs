@@ -37,18 +37,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: 确认工具版本
+        run: |
+          pwd
+          ls -l
+          g++ --version
+          clang++ --version
+          openssl version
+
       - name: Configure with GCC
         run: |
+          pwd
+          ls -l
           CXX=g++ CC=gcc 
           cmake -B $(pwd)/build -S $(pwd) -G Ninja
 
       - name: Build with GCC
         run: |
+          pwd
+          ls -l
           cmake --build $(pwd)/build
 
       - name: Test with GCC
         run: |
+          pwd
+          ls -l
           cd ./build
+          pwd
+          ls -l
           ctest -T test
 
   clang-test:
