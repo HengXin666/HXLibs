@@ -7,11 +7,14 @@ on:
   pull_request:
 
 jobs:
-  setup:
+  build-and-test:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
       options: --privileged
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -27,65 +30,15 @@ jobs:
           clang++ --version
           openssl version
 
-  gcc-test:
-    runs-on: ubuntu-latest
-    needs: setup
-    container:
-      image: archlinux:latest
-      options: --privileged
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: 确认工具版本
+      - name: Configure
         run: |
-          pwd
-          ls -l
-          g++ --version
-          clang++ --version
-          openssl version
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}++
 
-      - name: Configure with GCC
-        run: |
-          pwd
-          ls -l
-          CXX=g++ CC=gcc 
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja
-
-      - name: Build with GCC
-        run: |
-          pwd
-          ls -l
-          cmake --build $(pwd)/build
-
-      - name: Test with GCC
-        run: |
-          pwd
-          ls -l
-          cd ./build
-          pwd
-          ls -l
-          ctest -T test
-
-  clang-test:
-    runs-on: ubuntu-latest
-    needs: setup
-    container:
-      image: archlinux:latest
-      options: --privileged
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure with Clang
-        run: |
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja
-
-      - name: Build with Clang
+      - name: Build
         run: |
           cmake --build $(pwd)/build
 
-      - name: Test with Clang
+      - name: Test
         run: |
           cd ./build
           ctest -T test
