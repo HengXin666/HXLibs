@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  Arch-Clang:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
@@ -15,8 +15,6 @@ jobs:
     strategy:
       matrix:
         mode: [Release, Debug]
-        c_compiler: [gcc, clang]
-        cpp_compiler: [g++, clang++]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,9 +34,43 @@ jobs:
         run: |
           cmake -B $(pwd)/build -S $(pwd) -G Ninja \
             -DCMAKE_BUILD_TYPE=${{matrix.mode}}
-            -CMAKE_C_COMPILER=${{ matrix.c_compiler }}
-            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+      - name: Build
+        run: |
+          cmake --build $(pwd)/build
 
+      - name: Test
+        run: |
+          cd ./build
+          ctest -T test
+
+  Arch-GCC:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    strategy:
+      matrix:
+        mode: [Release, Debug]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: 安装环境
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl
+
+      - name: 确认工具版本
+        run: |
+          g++ --version
+          clang++ --version
+          openssl version
+
+      - name: Configure
+        run: |
+          CXX=g++ CC=gcc
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{matrix.mode}}
       - name: Build
         run: |
           cmake --build $(pwd)/build
