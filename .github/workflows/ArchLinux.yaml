@@ -28,11 +28,11 @@ jobs:
           openssl version
 
       - name: Configure
-        run: cmake -B ${{github.workspace}}/build -G Ninja
+        run: cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }} -G Ninja
 
       - name: Build
-        run: cmake --build ${{github.workspace}}/build
+        run: cmake --build ${{ github.workspace }}/build
 
       - name: Test
-        working-directory: ${{github.workspace}}/build
+        working-directory: ${{ github.workspace }}/build
         run: ctest -T test
