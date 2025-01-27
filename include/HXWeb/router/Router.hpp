@@ -193,7 +193,7 @@ private:
     void _addEndpoint(std::string_view path, Func&& endpoint, Interceptors&&... interceptors) {
         using namespace std::string_view_literals;
         auto isResolvePathVariable = path.find_first_of("{"sv) != std::string_view::npos;
-        auto isParseWildcardPath = path.find("**"sv) != std::string_view::npos;
+        auto isParseWildcardPath = path.find("/**"sv) != std::string_view::npos;
         std::function<HX::STL::coroutine::task::Task<>(
             protocol::http::Request &, protocol::http::Response &)> realEndpoint;
         switch (isResolvePathVariable | (isParseWildcardPath << 1)) {
@@ -240,7 +240,7 @@ private:
                 break;
             }
             case 0x2: {// 仅解析通配符
-                auto UWPIndex = HX::web::router::RequestTemplateParsing::getUniversalWildcardPathBeginIndex(path);
+                auto UWPIndex = path.find("/**"sv);
                 realEndpoint = [this, endpoint = std::move(endpoint), UWPIndex,
                                 ... interceptors = interceptors](
                                    protocol::http::Request &req,
@@ -250,12 +250,9 @@ private:
                     bool ok = true;
                     auto pureRequesPath = req.getPureRequesPath();
                     std::string_view pureRequesPathView = pureRequesPath;
-                    auto pathSplitArr = HX::STL::utils::StringUtil::split<std::string_view>(pureRequesPathView, "/");
                     HX::web::protocol::http::PathVariable pathVar {
                         req,
-                        pathSplitArr.size() <= UWPIndex 
-                            ? "" 
-                            : pureRequesPathView.substr(pureRequesPathView.find(pathSplitArr[UWPIndex]))
+                        pureRequesPathView.substr(UWPIndex)
                     };
                     (doBefore(interceptors, ok, req, res), ...);
                     if (ok) {
@@ -279,17 +276,17 @@ private:
                     bool ok = true;
                     auto pureRequesPath = req.getPureRequesPath();
                     std::string_view pureRequesPathView = pureRequesPath;
-                    auto pathSplitArr = HX::STL::utils::StringUtil::split<std::string_view>(pureRequesPathView, "/");
+                    auto pathSplitArr = HX::STL::utils::StringUtil::splitWithPos<std::string_view>(pureRequesPathView, "/");
                     std::vector<std::string_view> wildcarArr;
                     for (auto idx : indexArr) {
-                        wildcarArr.emplace_back(pathSplitArr[idx]);
+                        wildcarArr.emplace_back(pathSplitArr[idx].second);
                     }
                     HX::web::protocol::http::PathVariable pathVar {
                         req,
                         wildcarArr,
-                        pathSplitArr.size() <= UWPIndex 
-                            ? "" 
-                            : pureRequesPathView.substr(pureRequesPathView.find(pathSplitArr[UWPIndex]))
+                        pathSplitArr.size() > UWPIndex 
+                            ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
+                            : ""sv
                     };
                     (doBefore(interceptors, ok, req, res), ...);
                     if (ok) {

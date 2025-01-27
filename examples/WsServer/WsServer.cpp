@@ -43,7 +43,7 @@ class WSChatController {
                 "<h2> 来自 URL: " + req.getRequesPath() + " 的解析</h2>"
             );
         })
-        .on<GET>("files/**", [] ENDPOINT {
+        .on<GET>("/files/**", [] ENDPOINT {
             PARSE_MULTI_LEVEL_PARAM(uwp);
             RESPONSE_DATA(
                 200,

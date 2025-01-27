@@ -78,6 +78,51 @@ struct StringUtil final {
     }
 
     /**
+     * @brief 将字符串按`delimiter`分割为`<索引, 字符串>`数组
+     * @tparam Str 字符串类型, 可以是`std::string`或者`std::string_view`等
+     * @tparam SkipEmpty 是否跳过切割出来的空的字符串
+     * @param str 需要分割的字符串
+     * @param delim 分割字符串
+     * @param res 待返回数组, 你可以事先在前面插入元素
+     * @return std::vector<std::pair<std::size_t, Str>> 数组<<该首字母在原字符串的索引, 字符串>>
+     */
+    template <typename Str, bool SkipEmpty = true>
+    inline static std::vector<std::pair<std::size_t, Str>> splitWithPos(
+        std::string_view str,
+        std::string_view delim, 
+        std::vector<std::pair<std::size_t, Str>> res = std::vector<std::pair<std::size_t, Str>>{}
+    ) {
+        if (str.empty()) 
+            return res;
+
+        std::size_t start = 0;
+        std::size_t end = str.find(delim, start);
+        while (end != std::string_view::npos) {
+            if constexpr (SkipEmpty) {
+                auto tk = str.substr(start, end - start);
+                if (tk.size()) {
+                    res.emplace_back(start, std::move(tk));
+                }
+            } else {
+                res.emplace_back(start, str.substr(start, end - start));
+            }
+            start = end + delim.size();
+            end = str.find(delim, start);
+        }
+
+        // 添加最后一个分割的部分
+        if constexpr (SkipEmpty) {
+            auto tk = str.substr(start);
+            if (tk.size()) {
+                res.emplace_back(start, std::move(tk));
+            }
+        } else {
+            res.emplace_back(start, str.substr(start));
+        }
+        return res;
+    }
+
+    /**
      * @brief 将字符串按从左到右第一个`delimiter`分割为两半
      * @param str 需要分割的字符串
      * @param delimiter 分割字符

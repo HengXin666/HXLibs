@@ -113,6 +113,14 @@ public:
                         }
                         st.push({node, n});
                         node = findIt->second;
+                        if constexpr (IsWildcard) {
+                            // 为了剔除`/`在末尾的影响
+                            // 这时候如果存在 /files 与 /files/**
+                            // 那么就会冲突
+                            if (i == n - 2 && node->val.has_value()) {
+                                return *node->val;
+                            }
+                        }
                         continue;
                     }
                 End:
@@ -127,6 +135,14 @@ public:
                     return *findIt->second->val;
                 } else {
                     node = findIt->second;
+                    if constexpr (IsWildcard) {
+                        // 为了剔除`/`在末尾的影响
+                        // 这时候如果存在 /files 与 /files/**
+                        // 那么就会冲突
+                        if (i == n - 2 && node->val.has_value()) {
+                            return *node->val;
+                        }
+                    }
                 }
             }
         }

@@ -16,12 +16,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install dependencies
+      - name: 安装环境
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl
 
-      - name: Confirm tool versions
+      - name: 确认工具版本
         run: |
           g++ --version
           clang++ --version
@@ -35,4 +35,4 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ctest -j 1 -V
+        run: ctest -T test
