@@ -14,7 +14,9 @@ jobs:
       options: --privileged
     strategy:
       matrix:
-        compiler: [gcc, clang]
+        mode: [Release, Debug]
+        c_compiler: [gcc, clang]
+        cpp_compiler: [g++, clang++]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -32,7 +34,10 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}++
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{matrix.mode}}
+            -CMAKE_C_COMPILER=${{ matrix.c_compiler }}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
 
       - name: Build
         run: |
