@@ -38,16 +38,16 @@ jobs:
         run: |
           pwd
           ls -l
-          cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }} -G Ninja
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja
 
       - name: Build
         run: |
           pwd
           ls -l
-          cmake --build ${{ github.workspace }}/build
+          cmake --build $(pwd)/build
 
       - name: Test
-        working-directory: ${{ github.workspace }}/build
+        working-directory: $(pwd)/build
         run: |
           pwd
           ls -l
