@@ -39,7 +39,8 @@ jobs:
 
       - name: Configure with GCC
         run: |
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja -DCMAKE_CXX_COMPILER=g++
+          CXX=g++ CC=gcc 
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja
 
       - name: Build with GCC
         run: |
@@ -62,7 +63,7 @@ jobs:
 
       - name: Configure with Clang
         run: |
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja -DCMAKE_CXX_COMPILER=clang++
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja
 
       - name: Build with Clang
         run: |
