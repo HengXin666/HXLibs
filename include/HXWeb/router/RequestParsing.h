@@ -26,6 +26,7 @@
 #include <optional>
 #include <charconv>  // for std::from_chars
 #include <cstdlib>   // for std::strtod
+#include <stdint.h>
 
 namespace HX { namespace web { namespace router {
 
@@ -107,9 +108,9 @@ struct TypeInterpretation<int64_t> {
 };
 
 template <>
-struct TypeInterpretation<u_int32_t> {
-    static std::optional<u_int32_t> wildcardElementTypeConversion(std::string_view we) {
-        u_int32_t value;
+struct TypeInterpretation<uint32_t> {
+    static std::optional<uint32_t> wildcardElementTypeConversion(std::string_view we) {
+        uint32_t value;
         auto result = std::from_chars(we.data(), we.data() + we.size(), value);
         if (result.ec == std::errc() && result.ptr == we.data() + we.size()) {
             return value;
@@ -119,9 +120,9 @@ struct TypeInterpretation<u_int32_t> {
 };
 
 template <>
-struct TypeInterpretation<u_int16_t> {
-    static std::optional<u_int16_t> wildcardElementTypeConversion(std::string_view we) {
-        u_int16_t value;
+struct TypeInterpretation<uint16_t> {
+    static std::optional<uint16_t> wildcardElementTypeConversion(std::string_view we) {
+        uint16_t value;
         auto result = std::from_chars(we.data(), we.data() + we.size(), value);
         if (result.ec == std::errc() && result.ptr == we.data() + we.size()) {
             return value;
@@ -131,9 +132,9 @@ struct TypeInterpretation<u_int16_t> {
 };
 
 template <>
-struct TypeInterpretation<u_int64_t> {
-    static std::optional<u_int64_t> wildcardElementTypeConversion(std::string_view we) {
-        u_int64_t value;
+struct TypeInterpretation<uint64_t> {
+    static std::optional<uint64_t> wildcardElementTypeConversion(std::string_view we) {
+        uint64_t value;
         auto result = std::from_chars(we.data(), we.data() + we.size(), value);
         if (result.ec == std::errc() && result.ptr == we.data() + we.size()) {
             return value;
