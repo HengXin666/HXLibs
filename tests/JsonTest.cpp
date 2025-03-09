@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
+#include <list>
+
 #include <HXJson/Json.h>
 #include <HXprint/print.h>
 #include <HXSTL/utils/ToString.hpp>
