@@ -20,24 +20,17 @@
 #ifndef _HX_SINGLE_ELEMENT_CONTAINER_H_
 #define _HX_SINGLE_ELEMENT_CONTAINER_H_
 
-#include <type_traits>
-#include <vector>
-#include <deque>
-#include <list>
-#include <set>
-#include <unordered_set>
+#include <HXSTL/concepts/StringType.hpp>
+#include <HXSTL/concepts/KeyValueContainer.hpp>
 
 namespace HX { namespace STL { namespace concepts {
 
 // 概念: 判断类型 T 是否是单元素容器
 template <typename T>
-concept SingleElementContainer = std::is_same_v<T, std::set<typename T::value_type>> ||
-                                 std::is_same_v<T, std::multiset<typename T::value_type>> ||
-                                 std::is_same_v<T, std::vector<typename T::value_type>> ||
-                                 std::is_same_v<T, std::list<typename T::value_type>> ||
-                                 std::is_same_v<T, std::deque<typename T::value_type>> ||
-                                 std::is_same_v<T, std::unordered_multiset<typename T::value_type>> ||
-                                 std::is_same_v<T, std::unordered_set<typename T::value_type>>;
+concept SingleElementContainer = requires(T t) {
+    typename T::value_type;
+} && !KeyValueContainer<T>
+  && !(HX::STL::concepts::StringType<T> || HX::STL::concepts::WStringType<T>);
 
 }}} // HX::STL::concepts
 

@@ -39,6 +39,17 @@ TEST_CASE("测试 toSring -> C风格数组") {
     CHECK(res == R"([{"id":1,"name":"大一"},{"id":2,"name":"小两"},{"id":3,"name":"三带一"}])");
 }
 
+TEST_CASE("测试 toString -> std::wstring / const wchar_t*") {
+    std::cout << "输出: ";
+    std::wstring wstr{L"你好, 我是wstring🚀"};
+    auto res = HX::STL::utils::toString(wstr);
+    std::cout << res << "\n";
+    CHECK(res == R"("你好, 我是wstring🚀")");
+    res = HX::STL::utils::toString(L"我是wchar_t😂😂😂");
+    std::cout << res << '\n';
+    CHECK(res == R"(我是wchar_t😂😂😂)");
+}
+
 TEST_CASE("测试 toString -> std::tuple") {
     std::cout << "输出: ";
     std::tuple<int, double, std::string> t{1, 3.14, "0x3f"};
@@ -48,6 +59,7 @@ TEST_CASE("测试 toString -> std::tuple") {
 }
 
 TEST_CASE("测试 toString By Stream") {
+    std::cout << "输出: ";
     std::string res;
     std::tuple<int, double, std::string> t{1, 3.14, "0x3f"};
     HX::STL::utils::toString(t, res);

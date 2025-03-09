@@ -17,7 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cstddef>
 #ifndef _HX_TO_STRING_H_
 #define _HX_TO_STRING_H_
 
@@ -56,7 +55,63 @@ namespace HX { namespace STL { namespace utils {
 
 // 内部使用的命名空间啊喂!
 namespace internal {
-    
+
+/**
+ * @brief wstring -> string (UTF-16/UTF-32 -> UTF-8)
+ * @param input 
+ * @return std::string 
+ */
+inline std::string toByteString(const std::wstring& input) {
+    std::string res;
+    res.reserve(input.size() * 4); // 预分配最大可能空间
+    for (size_t i = 0; i < input.size(); ++i) {
+        char32_t codepoint;
+        // 处理UTF-16代理对（Windows环境）
+        if constexpr (sizeof(wchar_t) == 2) {
+            char16_t high_surrogate = static_cast<char16_t>(input[i]);
+            if (high_surrogate >= 0xD800 && high_surrogate <= 0xDBFF) {
+                // 需要低代理项
+                if (++i >= input.size()) {
+                    throw std::runtime_error("Invalid UTF-16: truncated surrogate pair");
+                }
+                char16_t low_surrogate = static_cast<char16_t>(input[i]);
+                if (low_surrogate < 0xDC00 || low_surrogate > 0xDFFF) {
+                    throw std::runtime_error("Invalid UTF-16: malformed surrogate pair");
+                }
+                codepoint = 0x10000
+                    + ((static_cast<char32_t>(high_surrogate) - 0xD800) * 0x400
+                    + (static_cast<char32_t>(low_surrogate) - 0xDC00));
+            } else {
+                codepoint = high_surrogate;
+            }
+        } else { // 处理UTF-32（Linux/macOS环境）
+            codepoint = static_cast<char32_t>(input[i]);
+            // 验证码点有效性
+            if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+                throw std::runtime_error("Invalid UTF-32 code point");
+            }
+        }
+
+        // 转换为UTF-8
+        if (codepoint <= 0x7F) {
+            res += static_cast<char>(codepoint);
+        } else if (codepoint <= 0x7FF) {
+            res += static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F));
+            res += static_cast<char>(0x80 | (codepoint & 0x3F));
+        } else if (codepoint <= 0xFFFF) {
+            res += static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F));
+            res += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+            res += static_cast<char>(0x80 | (codepoint & 0x3F));
+        } else {
+            res += static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07));
+            res += static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F));
+            res += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+            res += static_cast<char>(0x80 | (codepoint & 0x3F));
+        }
+    }
+    return res;
+}
+
 // 概念: 鸭子类型: 只需要满足有一个成员函数是toString的, 即可
 template <typename T>
 concept ToStringClassType = requires(T t) {
@@ -417,31 +472,78 @@ struct ToString<ST> {
     }
 };
 
-// C风格字符串
+// wstr相关的类型
+template <HX::STL::concepts::WStringType ST>
+struct ToString<ST> {
+    static std::string toString(const ST& t) {
+        std::string res;
+        res += '"';
+        res += toByteString(t);
+        res += '"';
+        return res;
+    }
+
+    template <typename Stream>
+    static void toString(const ST& t, Stream& s) {
+        s.push_back('"');
+        s.append(toByteString(t));
+        s.push_back('"');
+    }
+};
+
+// C风格字符串 char
 template <typename T, std::size_t N>
     requires (std::same_as<T, char>)
 struct ToString<T[N]> {
     static std::string toString(const T (&str)[N]) {
-        return std::string {str, N - 1}; // - 1 是为了去掉 '\0'
+        return std::string{str, N - 1}; // - 1 是为了去掉 '\0'
     }
 
     template <typename Stream>
     static void toString(const T (&str)[N], Stream& s) {
-        s.append(std::string {str, N - 1}); // - 1 是为了去掉 '\0'
+        s.append(std::string{str, N - 1}); // - 1 是为了去掉 '\0'
     }
 };
 
-// C风格字符串指针
+// C风格字符串 wchar_t
+template <typename T, std::size_t N>
+    requires (std::same_as<T, wchar_t>)
+struct ToString<T[N]> {
+    static std::string toString(const T (&str)[N]) {
+        return toByteString(std::wstring{str, N - 1}); // - 1 是为了去掉 '\0'
+    }
+
+    template <typename Stream>
+    static void toString(const T (&str)[N], Stream& s) {
+        s.append(toByteString(std::wstring{str, N - 1})); // - 1 是为了去掉 '\0'
+    }
+};
+
+// C风格字符串指针 char
 template <typename T>
     requires (std::same_as<const T*, const char*>)
 struct ToString<const T*> {
     static std::string toString(const T* const& str) {
-        return std::string {str}; // - 1 是为了去掉 '\0'
+        return std::string{str};
     }
 
     template <typename Stream>
     static void toString(const T* const& str, Stream& s) {
-        s.append(std::string {str}); // - 1 是为了去掉 '\0'
+        s.append(std::string{str});
+    }
+};
+
+// C风格字符串指针 wchar_t
+template <typename T>
+    requires (std::same_as<const T*, const wchar_t*>)
+struct ToString<const T*> {
+    static std::string toString(const T* const& str) {
+        return toByteString(std::wstring{str});
+    }
+
+    template <typename Stream>
+    static void toString(const T* const& str, Stream& s) {
+        s.append(toByteString(std::wstring{str}));
     }
 };
 

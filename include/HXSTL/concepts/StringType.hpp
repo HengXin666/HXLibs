@@ -20,22 +20,35 @@
 #ifndef _HX_STRING_TYPE_H_
 #define _HX_STRING_TYPE_H_
 
-#include <type_traits>
-#include <string>
-#include <string_view>
+#include <iostream>
 
 namespace HX { namespace STL { namespace concepts {
 
-// 概念: 如果这个类型和str沾边, 那么使用""包裹, 注: 普通的const char * 是不会包裹的qwq
+// 定义概念: 可输出到 std::ostream
 template <typename T>
-concept StringType = std::is_same_v<T, std::string> ||
-                     std::is_same_v<T, std::string_view>;
+concept OStreamWritable = requires(std::ostream& os, T t) {
+    { os << t } -> std::same_as<std::ostream&>;
+};
 
-// 概念: 如果这个类型和wstr沾边, 那么使用""包裹 [不支持...]
-// template <typename T>
-// concept WStringType = std::is_same_v<T, const wchar_t *> ||
-//                      std::is_same_v<T, std::wstring_view> ||
-//                      std::is_same_v<T, std::wstring>;
+// 概念: 如果这个类型和str沾边, 那么使用""包裹, 注: 普通的const char * 是不会包裹的
+template <typename T>
+concept StringType = OStreamWritable<T> && (requires(T t) {
+    t.substr();                 // 大部分字符串类都有这个方法
+} || requires(T t) {
+    t.c_str();                  // std::string_view 没有这个
+} || requires(T t) {
+    typename T::traits_type;    // 标准库的字符串均有这个
+});
+
+// 概念: 如果这个类型和wstr沾边, 那么使用""包裹, 注: 普通的const w_char * 是不会包裹的
+template <typename T>
+concept WStringType = !OStreamWritable<T> && (requires(T t) {
+    t.substr();                 // 大部分字符串类都有这个方法
+} || requires(T t) {
+    t.c_str();                  // std::wstring_view 没有这个
+} || requires(T t) {
+    typename T::traits_type;    // 标准库的字符串均有这个
+});
 
 }}} // HX::STL::concepts
 

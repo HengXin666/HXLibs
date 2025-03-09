@@ -570,6 +570,7 @@ inline std::string_view getContentTypeStrView(ResContentType type) {
     case ResContentType::xml: return "application/xml"sv;
     case ResContentType::none: return ""sv;
     }
+    return ""sv;
 }
 
 /**

@@ -163,6 +163,7 @@ inline constexpr std::string_view getStatusCodeDataStrView(Status statusCode) {
     case Status::CODE_510: return "Not Extended"sv;
     case Status::CODE_511: return "Network Authentication Required"sv;
     }
+    return ""sv;
 }
 
 }}}} // namespace HX::web::protocol::http
