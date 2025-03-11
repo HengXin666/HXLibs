@@ -64,6 +64,15 @@ public:
     HX::STL::coroutine::task::Task<> sendResponseWithChunkedEncoding(
         const std::string& path
     ) const;
+
+    /**
+     * @brief 使用`断点续传`, 以传输读取的文件. 内部会自动处理.
+     * @param path 需要读取的文件的路径
+     * @warning 在此之前都不需要使用`setBodyData` 
+     */
+    HX::STL::coroutine::task::Task<> sendResponseWithRange(
+        const std::string& path
+    ) const;
 protected:
     /**
      * @brief 解析一条完整的客户端请求

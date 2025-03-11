@@ -44,7 +44,7 @@ private:
 #endif
 public:
     /// @brief 读取文件buf数组的缓冲区大小
-    inline static constexpr std::size_t kBufMaxSize = 1024 * 1024 * 8ULL;
+    inline static constexpr std::size_t kBufMaxSize = 1024 * 64ULL;
 
     enum class OpenMode : int {
         Read = O_RDONLY | kOpenModeDefaultFlags,                        // 只读模式 (r)

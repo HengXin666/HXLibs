@@ -51,8 +51,17 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
 ) const {
     // 本次请求使用结束, 清空, 复用
     _request->clear();
+    auto fileType = HX::web::protocol::http::getMimeType(
+        HX::STL::utils::FileUtils::getExtension(path)
+    );
+    _response->setResponseLine(HX::web::protocol::http::Status::CODE_200);
+    _response->addHeader("Content-Type", std::string{fileType});
+    _response->addHeader("Transfer-Encoding", "chunked");
+    // 生成响应行和响应头
     _response->_buildResponseLineAndHeaders();
+    // 先发送一版, 告知我们是分块编码
     co_await _sendResponse(_response->_buf);
+    
     HX::STL::utils::FileUtils::AsyncFile file;
     co_await file.open(path);
     std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
@@ -62,6 +71,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
         _response->_buildToChunkedEncoding({buf.data(), size});
         co_await _sendResponse(_response->_buf);
         if (size != buf.size()) {
+            // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
             _response->_buildToChunkedEncoding("");
             co_await _sendResponse(_response->_buf);
             break;
@@ -69,6 +79,35 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
     }
     // 全部写入啦
     _response->clear();
+}
+
+HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
+    const std::string& path
+) const {
+    using namespace std::string_view_literals;
+    // 解析请求的范围
+    auto type = _request->getRequesType();
+    if (type == "HEAD"sv) {
+        // 返回文件大小
+        /*
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 10737418240\r\n"
+            "Accept-Ranges: bytes\r\n"
+            "\r\n"
+        */
+        _response->setResponseLine(protocol::http::Status::CODE_200);
+        _response->addHeader("Accept-Ranges", "bytes");
+    } else {
+        // 开始传输, 先发一下头
+        _response->setResponseLine(protocol::http::Status::CODE_206);
+        _response->addHeader("Accept-Ranges", "bytes");
+    }
+
+    // 本次请求使用结束, 清空, 复用
+    _request->clear();
+    // 全部写入啦
+    _response->clear();
+    co_return;
 }
 
 HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::http::Http>::_recvRequest() {

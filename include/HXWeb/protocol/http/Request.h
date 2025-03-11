@@ -160,7 +160,7 @@ public:
      * @brief 获取请求类型
      * @return 请求类型 (如: "GET", "POST"...)
      */
-    std::string getRequesType() const noexcept {
+    std::string_view getRequesType() const noexcept {
         return _requestLine[RequestLineDataType::RequestType];
     }
 
