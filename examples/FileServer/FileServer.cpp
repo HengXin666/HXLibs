@@ -25,6 +25,14 @@ class HttpsController {
                 co_await HX::STL::utils::FileUtils::asyncGetFileContent("static/test/github.html")
             );
         })
+        .on<HEAD, GET>("/test/range", [] ENDPOINT {
+            try {
+                co_return co_await res.useRangeTransferFile("static/index.html");
+            } catch (...) {
+                co_return res.setStatusAndContent(
+                    Status::CODE_500, "<h1>没有这个文件</h1>");
+            }
+        })
     ROUTER_END;
 };
 
@@ -45,7 +53,8 @@ int main() {
     ROUTER_BIND(HttpsController);
     // HX::STL::coroutine::task::runTask(HX::STL::coroutine::loop::AsyncLoop::getLoop(), test());
     // 启动服务
-    HX::web::server::ServerRun::startHttps("127.0.0.1", "28205", "certs/cert.pem", "certs/key.pem");
+    // HX::web::server::ServerRun::startHttps("127.0.0.1", "28205", "certs/cert.pem", "certs/key.pem");
+    HX::web::server::ServerRun::startHttp("127.0.0.1", "28205");
     return 0;
 }
 

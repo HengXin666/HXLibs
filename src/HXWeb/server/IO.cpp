@@ -10,12 +10,14 @@
 #include <HXWeb/protocol/http/Response.h>
 #include <HXWeb/protocol/https/Context.h>
 #include <HXSTL/utils/FileUtils.h>
+#include <HXSTL/utils/StringUtils.h>
 #include <HXSTL/tools/ErrorHandlingTools.h>
 
 namespace HX { namespace web { namespace server {
 
 IO<>::IO(int fd)
     : HX::web::socket::IO(fd)
+    , _isReuseConnection(true)
 {
     _request = std::make_unique<HX::web::protocol::http::Request>(nullptr);
     _response = std::make_unique<HX::web::protocol::http::Response>(this);
@@ -79,6 +81,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
     }
     // 全部写入啦
     _response->clear();
+    ++_response->_sendCnt;
 }
 
 HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
@@ -87,6 +90,12 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
     using namespace std::string_view_literals;
     // 解析请求的范围
     auto type = _request->getRequesType();
+    auto fileType = HX::web::protocol::http::getMimeType(
+        HX::STL::utils::FileUtils::getExtension(path)
+    );
+    auto fileSize = HX::STL::utils::FileUtils::getFileSize(path);
+    auto fileSizeStr = std::to_string(fileSize);
+    auto headMap = _request->getRequestHeaders();
     if (type == "HEAD"sv) {
         // 返回文件大小
         /*
@@ -96,18 +105,85 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
             "\r\n"
         */
         _response->setResponseLine(protocol::http::Status::CODE_200);
+        _response->addHeader("Content-Length", fileSizeStr);
+        _response->addHeader("Content-Type", std::string{fileType});
         _response->addHeader("Accept-Ranges", "bytes");
-    } else {
-        // 开始传输, 先发一下头
+        _response->_buildResponseLineAndHeaders();
+        co_await _sendResponse(_response->_buf);
+    } else if (auto it = headMap.find("Range"); it != headMap.end()) {
+        // 开始[断点续传]传输, 先发一下头
+        /*
+            "HTTP/1.1 206 Partial Content\r\n"
+            "Content-Range: bytes X-Y/Z\r\n"
+            "Content-Length: Y-X+1\r\n"
+            "Accept-Ranges: bytes\r\n"
+            "\r\n"
+
+            其中Content-Range为: 本次传输的文件的起始位置-结束位置/总大小
+            而Content-Length是 [X, Y] 包含X, 包含Y, 所以是 Y - X + 1个字节
+        */
+        // 解析范围, 如果访问不合法, 应该返回416
+        std::string_view rangeVals = it->second;
+        // Range: bytes=<range-start>-<range-end>
+        auto rangeNumArr = HX::STL::utils::StringUtil::split<std::string>(rangeVals.substr(6), ",");
         _response->setResponseLine(protocol::http::Status::CODE_206);
         _response->addHeader("Accept-Ranges", "bytes");
+
+        if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
+            auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-");
+            if (begin.empty()) {
+                begin += '0';
+            }
+            if (end.empty()) {
+                end = std::to_string(fileSize - 1);
+            }
+            u_int64_t beginPos = std::stoull(begin);
+            u_int64_t endPos = std::stoull(end);
+            u_int64_t remaining = endPos - beginPos + 1;
+            _response->addHeader("Content-Type", std::string{fileType});
+            _response->addHeader("Content-Length", std::to_string(remaining));
+            _response->addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
+            _response->_buildResponseLineAndHeaders();
+            co_await _sendResponse(_response->_buf); // 先发一个头
+
+            HX::STL::utils::FileUtils::AsyncFile file;
+            co_await file.open(path);
+            file.setOffset(beginPos);
+            std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+            // 需要支持偏移量
+            while (remaining > 0) {
+                // 读取文件
+                std::size_t size = static_cast<std::size_t>(
+                    co_await file.read(
+                        buf,
+                        std::min(remaining, buf.size())
+                    )
+                );
+                if (size == 0) 
+                    break;
+                co_await _sendResponse(buf);
+                remaining -= size;
+            }
+        } else {
+            _response->addHeader("Content-Type", "multipart/byteranges; boundary=BOUNDARY_STRING");
+            // todo
+        }
+    } else {
+        // 普通的传输文件
     }
 
     // 本次请求使用结束, 清空, 复用
     _request->clear();
     // 全部写入啦
     _response->clear();
-    co_return;
+    ++_response->_sendCnt;
+}
+
+void IO<>::updateReuseConnection() noexcept {
+    auto& headMap = _request->getRequestHeaders();
+    if (auto it = headMap.find("Connection"); it != headMap.end()) {
+        _isReuseConnection = it->second == "keep-alive";
+    }
 }
 
 HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::http::Http>::_recvRequest() {

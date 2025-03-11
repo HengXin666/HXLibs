@@ -73,6 +73,21 @@ public:
     HX::STL::coroutine::task::Task<> sendResponseWithRange(
         const std::string& path
     ) const;
+
+    /**
+     * @brief 是否复用连接
+     * @return true 复用
+     * @return false 不复用
+     */
+    bool isReuseConnection() const noexcept {
+        return _isReuseConnection;
+    }
+
+    /**
+     * @brief 从请求头更新是否复用连接
+     * @param isReuseConnection 
+     */
+    void updateReuseConnection() noexcept;
 protected:
     /**
      * @brief 解析一条完整的客户端请求
@@ -93,6 +108,7 @@ protected:
     friend HX::web::protocol::http::Response;
 private:
     HX::STL::coroutine::task::Task<> __sendResponse() const;
+    bool _isReuseConnection;
 };
 
 template <>

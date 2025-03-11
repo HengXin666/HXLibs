@@ -28,10 +28,6 @@ Response& Response::setResponseLine(Status statusCode, std::string_view describe
     return *this;
 }
 
-STL::coroutine::task::Task<> Response::useChunkedEncodingTransferFile(std::string const& filePath) {
-    co_return co_await _io->sendResponseWithChunkedEncoding(filePath);
-}
-
 std::size_t Response::parserResponse(std::string_view buf) {
     if (_buf.size()) {
         _buf += buf;

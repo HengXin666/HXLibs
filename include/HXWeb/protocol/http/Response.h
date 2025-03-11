@@ -127,7 +127,17 @@ public:
      * @brief 使用分块编码传输文件
      * @param filePath 文件路径
      */
-    STL::coroutine::task::Task<> useChunkedEncodingTransferFile(std::string const& filePath);
+    STL::coroutine::task::Task<> useChunkedEncodingTransferFile(std::string const& filePath) const {
+        co_return co_await _io->sendResponseWithChunkedEncoding(filePath);
+    }
+
+    /**
+     * @brief 使用断点续传传输文件
+     * @param filePath 文件路径
+     */
+     STL::coroutine::task::Task<> useRangeTransferFile(std::string const& filePath) const {
+        co_return co_await _io->sendResponseWithRange(filePath);
+    }
 
     // ===== ↑服务端使用の更加人性化API↑ =====
 

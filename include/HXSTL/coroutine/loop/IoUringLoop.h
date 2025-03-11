@@ -279,6 +279,24 @@ public:
     }
 
     /**
+     * @brief 异步读取文件
+     * @param fd 文件描述符
+     * @param buf [out] 读取到的数据
+     * @param size 读取的长度
+     * @param offset 文件偏移量
+     * @return IoUringTask&& 
+     */
+    [[nodiscard]] IoUringTask&& prepRead(
+        int fd,
+        std::span<char> buf,
+        unsigned int size,
+        std::uint64_t offset
+    ) && {
+        ::io_uring_prep_read(_sqe, fd, buf.data(), size, offset);
+        return std::move(*this);
+    }
+
+    /**
      * @brief 异步写入文件
      * @param fd 文件描述符
      * @param buf [in] 写入的数据

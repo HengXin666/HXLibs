@@ -74,7 +74,7 @@ std::size_t Request::parserRequest(
                 _completeRequestHeader = true;
             }
         } else {
-            HX::STL::utils::StringUtil::toLower(p.first);
+            HX::STL::utils::StringUtil::toLower(p.second);
             _requestHeadersIt = _requestHeaders.insert(p).first;
         }
         buf = buf.substr(pos + 2);

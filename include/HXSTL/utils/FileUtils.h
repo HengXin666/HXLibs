@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <string>
 #include <string_view>
+#include <filesystem>
 #include <span>
 
 #include <HXSTL/coroutine/task/Task.hpp>
@@ -65,6 +66,17 @@ public:
             return {};
         }
         return name.substr(pos);
+    }
+
+    /**
+     * @brief 获取文件的大小
+     * @param filePath 文件路径
+     * @return std::uintmax_t 大小 (单位: 字节)
+     */
+    inline static std::uintmax_t getFileSize(std::string_view filePath) {
+        return std::filesystem::file_size(
+            std::filesystem::path{filePath}
+        );
     }
 
     /**
@@ -137,16 +149,32 @@ public:
         HX::STL::coroutine::task::Task<int> read(std::span<char> buf);
 
         /**
+         * @brief 读取文件内容到 buf
+         * @param buf [out] 读取到的数据
+         * @param size 读取的长度
+         * @return int 读取的字节数
+         */
+        HX::STL::coroutine::task::Task<int> read(std::span<char> buf, unsigned int size);
+
+        /**
          * @brief 将 buf 写入到文件中
          * @param buf [in] 需要写入的数据
          * @return int 写入的字节数
          */
         HX::STL::coroutine::task::Task<int> write(std::span<char> buf);
 
+        /**
+         * @brief 设置偏移量
+         * @param offset 
+         */
+        void setOffset(u_int64_t offset) {
+            _offset = offset;
+        }
+
         ~AsyncFile() noexcept;
     protected:
         int _fd = -1;
-        uint64_t _offset = 0;
+        u_int64_t _offset = 0;
     };
 
     /**

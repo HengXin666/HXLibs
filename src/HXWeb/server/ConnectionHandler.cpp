@@ -25,8 +25,6 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::http::H
 ) {
     {
         HX::web::server::IO<HX::web::protocol::http::Http> io {fd};
-        bool endpointRes = 0; // 是否复用连接
-
         while (true) {
             // === 读取 ===
             // LOG_INFO("读取中...");
@@ -48,16 +46,17 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::http::H
             // 交给路由处理
             // LOG_INFO("路由解析中...");
             try {
+                io.updateReuseConnection();
                 // printf("cli -> url: %s\n", _request.getRequesPath().c_str());
                 co_await HX::web::router::Router::getRouter().getEndpoint(
                     io._request->getRequesType(),
                     io._request->getPureRequesPath()
                 )(io.getRequest(), io.getResponse());
 
-                // === 响应 ===
+                // === 保底响应 ===
                 // LOG_INFO("响应中...");
                 co_await io.sendResponse(HX::STL::container::NonVoidHelper<>{});
-                if (!endpointRes)
+                if (!io.isReuseConnection())
                     break;
             } catch (const std::exception& e) {
                 LOG_ERROR("向客户端 %d 发送消息时候出错 (e): %s", fd, e.what());
@@ -82,8 +81,6 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::https::
 ) {
     {
         HX::web::server::IO<HX::web::protocol::https::Https> io {fd};
-        bool endpointRes = 0; // 是否复用连接
-
         {    
             // SSL 握手
             auto&& res = co_await HX::STL::coroutine::task::WhenAny::whenAny(
@@ -116,6 +113,7 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::https::
             // 交给路由处理
             // LOG_INFO("路由解析中...");
             try {
+                io.updateReuseConnection();
                 co_await HX::web::router::Router::getRouter().getEndpoint(
                     io._request->getRequesType(),
                     io._request->getPureRequesPath()
@@ -125,7 +123,7 @@ HX::STL::coroutine::task::TimerTask ConnectionHandler<HX::web::protocol::https::
                 // === 响应 ===
                 // LOG_INFO("响应中...");
                 co_await io.sendResponse(HX::STL::container::NonVoidHelper<>{});
-                if (!endpointRes)
+                if (!io.isReuseConnection())
                     break;
             } catch (const std::exception& e) {
                 LOG_ERROR("向客户端 %d 发送消息时候出错 (e): %s", fd, e.what());

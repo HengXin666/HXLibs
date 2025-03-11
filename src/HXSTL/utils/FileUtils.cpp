@@ -87,6 +87,14 @@ HX::STL::coroutine::task::Task<int> FileUtils::AsyncFile::read(std::span<char> b
     co_return len;
 }
 
+HX::STL::coroutine::task::Task<int> FileUtils::AsyncFile::read(std::span<char> buf, unsigned int size) {
+    int len = HX::STL::tools::UringErrorHandlingTools::throwingError(
+        co_await HX::STL::coroutine::loop::IoUringTask().prepRead(_fd, buf, size, _offset)
+    );
+    _offset += len;
+    co_return len;
+}
+
 HX::STL::coroutine::task::Task<int> FileUtils::AsyncFile::write(std::span<char> buf) {
     co_return HX::STL::tools::UringErrorHandlingTools::throwingError(
         co_await HX::STL::coroutine::loop::IoUringTask().prepWrite(
