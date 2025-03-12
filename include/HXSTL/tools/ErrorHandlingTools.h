@@ -125,7 +125,7 @@ public:
      * @return 当没有`Except`时只是转发`res`, 如果`erron == Except`则会返回`-1`而不会终止程序
      */
     template <int Except = 0, class T>
-    static T checkError(const char *what, T res) {
+    inline static T checkError(const char *what, T res) {
         if (res == -1) {
             if constexpr (Except != 0) {
                 if (errno == Except) {
@@ -143,7 +143,7 @@ public:
      * @return 
      */
     template <class U, class T>
-    static Expected<U> convertError(T res) {
+    inline static Expected<U> convertError(T res) {
         if (res == -1) {
             return -errno;
         }
@@ -153,7 +153,7 @@ public:
     /**
      * @brief 获取错误码: 为了将`getaddrinfo`的错误与标准库的错误处理机制结合起来, 使得处理网络错误更为方便和一致
      */
-    static const std::error_category& gaiCategory() {
+    inline static const std::error_category& gaiCategory() {
         static struct final : std::error_category {
             char const *name() const noexcept override {
                 return "getaddrinfo";
@@ -177,9 +177,10 @@ struct UringErrorHandlingTools {
     /**
      * @brief 如果`res`是负数, 则抛出`-res`为错误码的错误
      * @param res 可能的错误码
+     * @throw std::system_error(-res, std::system_category())
      * @return int 显然不是错误的值(原正常的返回值)
      */
-    static int throwingError(int res) {
+    inline static int throwingError(int res) {
         if (res < 0) [[unlikely]] {
             throw std::system_error(-res, std::system_category());
         }

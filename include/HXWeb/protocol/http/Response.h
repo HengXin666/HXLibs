@@ -159,8 +159,6 @@ public:
      */
     Response& setContentType(ResContentType type) {
         _responseHeaders["Content-Type"] = getContentTypeStrView(type);
-        _responseHeaders["Connection"] = "keep-alive"; // 长连接
-        _responseHeaders["Server"] = "HX-Net";
         return *this;
     }
 

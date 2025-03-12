@@ -137,6 +137,9 @@ std::size_t Response::parserResponse(std::string_view buf) {
 }
 
 void Response::_buildResponseLineAndHeaders() {
+    _responseHeaders["Connection"] = "keep-alive"; // 长连接
+    _responseHeaders["Server"] = "HX-Net";
+    
     _buf.append(_statusLine[ResponseLineDataType::ProtocolVersion]);
     _buf.append(" ");
     _buf.append(_statusLine[ResponseLineDataType::StatusCode]);

@@ -150,7 +150,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
             co_await file.open(path);
             file.setOffset(beginPos);
             std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
-            // 需要支持偏移量
+            // 支持偏移量
             while (remaining > 0) {
                 // 读取文件
                 std::size_t size = static_cast<std::size_t>(
@@ -159,7 +159,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
                         std::min(remaining, buf.size())
                     )
                 );
-                if (size == 0) 
+                if (!size)
                     break;
                 co_await _sendResponse(buf);
                 remaining -= size;
@@ -170,6 +170,27 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
         }
     } else {
         // 普通的传输文件
+        _response->setResponseLine(protocol::http::Status::CODE_200);
+        _response->addHeader("Content-Type", std::string{fileType});
+        _response->addHeader("Content-Length", fileSizeStr);
+        _response->_buildResponseLineAndHeaders();
+        co_await _sendResponse(_response->_buf); // 先发一个头
+
+        HX::STL::utils::FileUtils::AsyncFile file;
+        co_await file.open(path);
+        std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+        u_int64_t remaining = fileSize;
+        while (remaining > 0) {
+            std::size_t size = static_cast<std::size_t>(
+                co_await file.read(buf)
+            );
+            if (!size) {
+                printf("end!\n");
+                break;
+            }
+            co_await _sendResponse(buf);
+            remaining -= size;
+        }
     }
 
     // 本次请求使用结束, 清空, 复用
