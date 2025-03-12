@@ -179,7 +179,7 @@ void Response::createResponseBuffer() {
     _buf.append(HX::web::protocol::http::CRLF);
 
     _buf.append(HX::web::protocol::http::CRLF);
-    _buf.append(_body);
+    _buf.append(std::move(_body));
 }
 
 }}}} // namespace HX::web::protocol::http
