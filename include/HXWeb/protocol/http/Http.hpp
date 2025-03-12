@@ -62,6 +62,8 @@ inline constexpr std::string_view getMethodStringView(HttpMethod const mthd) {
     }
 }
 
+inline constexpr std::string_view CRLF{"\r\n", 2};
+
 }}}} // namespace HX::web::protocol::http
 
 #endif // !_HX_HTTP_H_

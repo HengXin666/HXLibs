@@ -129,45 +129,128 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
         _response->setResponseLine(protocol::http::Status::CODE_206);
         _response->addHeader("Accept-Ranges", "bytes");
 
-        if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
-            auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-");
-            if (begin.empty()) {
-                begin += '0';
-            }
-            if (end.empty()) {
-                end = std::to_string(fileSize - 1);
-            }
-            u_int64_t beginPos = std::stoull(begin);
-            u_int64_t endPos = std::stoull(end);
-            u_int64_t remaining = endPos - beginPos + 1;
-            _response->addHeader("Content-Type", std::string{fileType});
-            _response->addHeader("Content-Length", std::to_string(remaining));
-            _response->addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
-            _response->_buildResponseLineAndHeaders();
-            co_await _sendResponse(_response->_buf); // 先发一个头
-
-            HX::STL::utils::FileUtils::AsyncFile file;
-            co_await file.open(path);
-            file.setOffset(beginPos);
-            std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
-            // 支持偏移量
-            while (remaining > 0) {
-                // 读取文件
-                std::size_t size = static_cast<std::size_t>(
-                    co_await file.read(
-                        buf,
-                        std::min(remaining, buf.size())
-                    )
-                );
-                if (!size)
+        do {
+            if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
+                auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-");
+                if (begin.empty()) {
+                    begin += '0';
+                }
+                if (end.empty()) {
+                    end = std::to_string(fileSize - 1);
+                }
+                u_int64_t beginPos = std::stoull(begin);
+                u_int64_t endPos = std::stoull(end);
+                // 范围不合法
+                if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
+                    _response->setResponseLine(protocol::http::Status::CODE_416);
+                    _response->_buildResponseLineAndHeaders();
+                    co_await _sendResponse(_response->_buf);
                     break;
-                co_await _sendResponse(buf);
-                remaining -= size;
+                }
+                u_int64_t remaining = endPos - beginPos + 1;
+                _response->addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
+                _response->addHeader("Content-Type", std::string{fileType});
+                _response->addHeader("Content-Length", std::to_string(remaining));
+                _response->_buildResponseLineAndHeaders();
+                co_await _sendResponse(_response->_buf); // 先发一个头
+                
+                HX::STL::utils::FileUtils::AsyncFile file;
+                co_await file.open(path);
+                file.setOffset(beginPos);
+                std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+                // 支持偏移量
+                while (remaining > 0) {
+                    // 读取文件
+                    std::size_t size = static_cast<std::size_t>(
+                    co_await file.read(
+                            buf,
+                            std::min(remaining, buf.size())
+                        )
+                    );
+                    if (!size) [[unlikely]] {
+                        break;
+                    }
+                    co_await _sendResponse(buf);
+                    remaining -= size;
+                }
+            } else {
+                /*
+                    HTTP/1.1 206 Partial Content\r\n
+                    Content-Type: multipart/byteranges; boundary=BOUNDARY_STRING\r\n
+                    \r\n
+                    --BOUNDARY_STRING\r\n
+                    Content-Range: bytes X1-Y1/Z\r\n
+                    Content-Length: L1\r\n
+                    Content-Type: application/octet-stream\r\n
+                    \r\n
+                    [BINARY DATA PART 1]\r\n
+                    --BOUNDARY_STRING\r\n
+                    Content-Range: bytes X2-Y2/Z\r\n
+                    Content-Length: L2\r\n
+                    Content-Type: application/octet-stream\r\n
+                    \r\n
+                    [BINARY DATA PART 2]\r\n
+                    --BOUNDARY_STRING--\r\n
+                */
+                _response->addHeader("Content-Type", "multipart/byteranges; boundary=BOUNDARY_STRING");
+                _response->_buildResponseLineAndHeaders();
+                co_await _sendResponse(_response->_buf); // 先发一个头
+                for (auto& ragen : rangeNumArr) {
+                    auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(ragen, "-");
+                    if (begin.empty()) {
+                        begin += '0';
+                    }
+                    if (end.empty()) {
+                        end = std::to_string(fileSize - 1);
+                    }
+                    u_int64_t beginPos = std::stoull(begin);
+                    u_int64_t endPos = std::stoull(end);
+                    // 范围不合法
+                    if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
+                        continue;
+                    }
+                    _response->_buf.clear();
+
+                    u_int64_t remaining = endPos - beginPos + 1;
+                    _response->_buf.append("--BOUNDARY_STRING\r\n"sv);
+                    _response->_buf.append("Content-Range: bytes "sv);
+                    _response->_buf.append(begin);
+                    _response->_buf.append("-"sv);
+                    _response->_buf.append(end);
+                    _response->_buf.append("/"sv);
+                    _response->_buf.append(fileSizeStr);
+                    _response->_buf.append(HX::web::protocol::http::CRLF);
+                    _response->_buf.append("Content-Length: "sv);
+                    _response->_buf.append(std::to_string(remaining));
+                    _response->_buf.append(HX::web::protocol::http::CRLF);
+                    _response->_buf.append("Content-Type: application/octet-stream\r\n"sv);
+                    _response->_buf.append(HX::web::protocol::http::CRLF);
+                    co_await _sendResponse(_response->_buf); // 先发头
+
+                    HX::STL::utils::FileUtils::AsyncFile file;
+                    co_await file.open(path);
+                    file.setOffset(beginPos);
+                    std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+                    // 支持偏移量
+                    while (remaining > 0) {
+                        // 读取文件
+                        std::size_t size = static_cast<std::size_t>(
+                        co_await file.read(
+                                buf,
+                                std::min(remaining, buf.size())
+                            )
+                        );
+                        if (!size) [[unlikely]] {
+                            break;
+                        }
+                        co_await _sendResponse(buf);
+                        co_await _sendResponse(HX::web::protocol::http::CRLF);
+                        remaining -= size;
+                    }
+                }
+                co_await _sendResponse("--BOUNDARY_STRING--\r\n"sv);
             }
-        } else {
-            _response->addHeader("Content-Type", "multipart/byteranges; boundary=BOUNDARY_STRING");
-            // todo
-        }
+        } while (0);
     } else {
         // 普通的传输文件
         _response->setResponseLine(protocol::http::Status::CODE_200);
@@ -184,8 +267,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
             std::size_t size = static_cast<std::size_t>(
                 co_await file.read(buf)
             );
-            if (!size) {
-                printf("end!\n");
+            if (!size) [[unlikely]] {
                 break;
             }
             co_await _sendResponse(buf);
@@ -229,7 +311,7 @@ HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::http::Http>::_recvReq
 }
 
 HX::STL::coroutine::task::Task<> IO<HX::web::protocol::http::Http>::_sendResponse(
-    std::span<char> buf
+    std::span<char const> buf
 ) const {
     std::size_t n = HX::STL::tools::UringErrorHandlingTools::throwingError(
         co_await HX::STL::coroutine::loop::IoUringTask().prepSend(_fd, buf, 0)
@@ -342,7 +424,7 @@ HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::https::Https>::_recvR
 }
 
 HX::STL::coroutine::task::Task<> IO<HX::web::protocol::https::Https>::_sendResponse(
-    std::span<char> buf
+    std::span<char const> buf
 ) const {
     std::size_t n = buf.size();
     while (true) {

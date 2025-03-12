@@ -109,7 +109,16 @@ HX::STL::coroutine::task::Task<> taskMain() {
     co_return;
 }
 
+#include <string_view>
+
+using namespace std::string_view_literals;
+
+constexpr std::string_view sv = "123"sv;
+
 int main() {
+    std::string s;
+    s.append(sv);
+    return 0;
     chdir("../static");
     HX::STL::coroutine::task::runTask(
         HX::STL::coroutine::loop::AsyncLoop::getLoop(),

@@ -26,7 +26,7 @@
 > - 其他示例:
 >   - [基于轮询的聊天室](examples/ChatServer/ChatServer.cpp)
 >   - [WebSocket服务端](examples/WsServer/WsServer.cpp)
->   - [使用`Transfer-Encoding`分块编码传输文件的服务端](examples/FileServer/FileServer.cpp)
+>   - [使用`Transfer-Encoding`分块编码/`断点续传`传输文件的服务端](examples/FileServer/FileServer.cpp)
 >   - [服务端`面向切面`编程(拦截器)](examples/ServerAddInterceptor/ServerAddInterceptor.cpp)
 >   - [支持`socks5`代理的`Http/Https`客户端](examples/Client/Client.cpp)
 >   - [自实现のJson解析、结构体静态反射到Json和Json赋值到反射注册的结构体的示例(只需要一个`宏`即可实现!) / 支持对`聚合类`进行序列化、反序列化! **不需要宏定义!**](tests/JsonTest.cpp)
@@ -214,6 +214,27 @@ public:
 
 > [!TIP]
 > 为了防止api宏带来的命名空间污染, 特别是在头文件中声明`控制器端点`的, 建议在尾部添加`#include <HXWeb/UnHXApi.hpp>`以`undef`那些宏.
+
+- 断点续传api
+
+```cpp
+class RangeController {
+    ROUTER
+        .on<HEAD, GET>("/test/range", [] ENDPOINT {
+            try {
+                // 使用断点续传, 如果客户端请求头没有要求使用断点续传, 那么只是退化为普通的http传输
+                // 无其他额外的性能影响
+                co_return co_await res.useRangeTransferFile("static/test/github.html");
+            } catch (...) {
+                co_return res.setStatusAndContent(
+                    Status::CODE_500, "<h1>没有这个文件</h1>");
+            }
+        })
+    ROUTER_END;
+};
+```
+
+- []()
 
 ## 相关依赖
 

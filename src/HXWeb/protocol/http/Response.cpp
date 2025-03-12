@@ -1,7 +1,6 @@
 #include <HXWeb/protocol/http/Response.h>
 
 #include <sys/socket.h>
-#include <cstring>
 
 #ifndef HEXADECIMAL_CONVERSION
 #   include <format>
@@ -137,22 +136,23 @@ std::size_t Response::parserResponse(std::string_view buf) {
 }
 
 void Response::_buildResponseLineAndHeaders() {
-    _responseHeaders["Connection"] = "keep-alive"; // 长连接
-    _responseHeaders["Server"] = "HX-Net";
+    using namespace std::string_view_literals;
+    _responseHeaders["Connection"] = "keep-alive"sv; // 长连接
+    _responseHeaders["Server"] = "HX-Net"sv;
     
     _buf.append(_statusLine[ResponseLineDataType::ProtocolVersion]);
-    _buf.append(" ");
+    _buf.append(" "sv);
     _buf.append(_statusLine[ResponseLineDataType::StatusCode]);
-    _buf.append(" ");
+    _buf.append(" "sv);
     _buf.append(_statusLine[ResponseLineDataType::StatusMessage]);
-    _buf.append("\r\n");
+    _buf.append(HX::web::protocol::http::CRLF);
     for (const auto& [key, val] : _responseHeaders) {
         _buf.append(key);
-        _buf.append(": ");
+        _buf.append(": "sv);
         _buf.append(val);
-        _buf.append("\r\n");
+        _buf.append(HX::web::protocol::http::CRLF);
     }
-    _buf.append("\r\n");
+    _buf.append(HX::web::protocol::http::CRLF);
 }
 
 void Response::_buildToChunkedEncoding(std::string_view buf) {
@@ -162,20 +162,23 @@ void Response::_buildToChunkedEncoding(std::string_view buf) {
 #else
     _buf.append(std::format("{:X}", buf.size())); // 需要十六进制嘞
 #endif // HEXADECIMAL_CONVERSION
-    _buf.append("\r\n");
+    _buf.append(HX::web::protocol::http::CRLF);
     _buf.append(buf);
-    _buf.append("\r\n");
+    _buf.append(HX::web::protocol::http::CRLF);
 }
 
 void Response::createResponseBuffer() {
+    using namespace std::string_view_literals;
     _buf.clear();
     _buildResponseLineAndHeaders();
     _buf.pop_back(); // 去掉\n
     _buf.pop_back(); // 去掉\r
     // 补充这个
-    _buf.append("Content-Length: ");
+    _buf.append("Content-Length: "sv);
     _buf.append(std::to_string(_body.size()));
-    _buf.append("\r\n\r\n");
+    _buf.append(HX::web::protocol::http::CRLF);
+
+    _buf.append(HX::web::protocol::http::CRLF);
     _buf.append(_body);
 }
 

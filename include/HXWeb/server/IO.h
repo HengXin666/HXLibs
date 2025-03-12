@@ -100,7 +100,7 @@ protected:
      * @param buf 需要写入的数据
      */
     virtual HX::STL::coroutine::task::Task<> _sendResponse(
-        std::span<char> buf
+        std::span<char const> buf
     ) const = 0;
 
     friend HX::web::protocol::websocket::WebSocket;
@@ -123,7 +123,7 @@ protected:
     virtual HX::STL::coroutine::task::Task<bool> _recvRequest() override;
 
     virtual HX::STL::coroutine::task::Task<> _sendResponse(
-        std::span<char> buf
+        std::span<char const> buf
     ) const override;
 
     friend ConnectionHandler<HX::web::protocol::http::Http>;
@@ -147,7 +147,7 @@ protected:
     virtual HX::STL::coroutine::task::Task<bool> _recvRequest() override;
 
     virtual HX::STL::coroutine::task::Task<> _sendResponse(
-        std::span<char> buf
+        std::span<char const> buf
     ) const override;
 
     friend ConnectionHandler<HX::web::protocol::https::Https>;
