@@ -66,19 +66,24 @@ void ServerRun::startHttps(
 
     for (std::size_t i = 0; i < threadNum; ++i) {
         threadArr.emplace_back([&entry, timeout, &certificate, &privateKey]() {
-            HX::web::protocol::https::Context::getContext().initServerSSL( 
-                HX::web::protocol::https::HttpsVerifyBuilder {
-                    .certificate = certificate,
-                    .privateKey = privateKey
-                }
-            );
+            try {
+                HX::web::protocol::https::Context::getContext().initServerSSL( 
+                    HX::web::protocol::https::HttpsVerifyBuilder {
+                        .certificate = certificate,
+                        .privateKey = privateKey
+                    }
+                );
+            } catch (const std::exception& ec) {
+                std::cerr << ec.what() << '\n';
+                return ;
+            }
             HX::STL::coroutine::task::runTask(
                 HX::STL::coroutine::loop::AsyncLoop::getLoop(),
                 [&entry, timeout]() -> HX::STL::coroutine::task::Task<> {
                     try {
                         auto ptr = HX::web::server::Acceptor<HX::web::protocol::https::Https>::make();
                         co_await ptr->start(entry, timeout);
-                    } catch(const std::system_error &e) {
+                    } catch (const std::system_error &e) {
                         std::cerr << e.what() << '\n';
                     }
                     co_return;

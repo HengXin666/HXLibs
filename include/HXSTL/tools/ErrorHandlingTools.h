@@ -145,9 +145,9 @@ public:
     template <class U, class T>
     inline static Expected<U> convertError(T res) {
         if (res == -1) {
-            return -errno;
+            return Expected<U>{-errno};
         }
-        return res;
+        return Expected<U>{res};
     }
 
     /**

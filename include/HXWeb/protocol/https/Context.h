@@ -29,7 +29,6 @@
 #endif
 
 // 前置声明
-
 typedef struct bio_st BIO;
 typedef struct ssl_ctx_st SSL_CTX;
 
@@ -39,8 +38,8 @@ namespace HX { namespace web { namespace protocol { namespace https {
  * @brief Https验证模式设置参数包
  */
 struct HttpsVerifyBuilder {
-    std::string certificate = "";
-    std::string privateKey = "";
+    std::string certificate;
+    std::string privateKey;
 
     /**
      * @brief 校验模式
@@ -49,17 +48,13 @@ struct HttpsVerifyBuilder {
      * SSL_VERIFY_FAIL_IF_NO_PEER_CERT: 如果对方证书不存在, 则验证失败
      */
     int verifyMod = 0x01; // = SSL_VERIFY_PEER
-
-    // HttpsVerifyBuilder();
-
-    // HttpsVerifyBuilder() = default;
 };
 
 /**
  * @brief Https 上下文, 用于管理公钥/秘钥, 以及提供`sslCtx`
  */
 class Context {
-    Context() {};
+    explicit Context() {};
     Context& operator=(Context&&) = delete;
 public:
     /**

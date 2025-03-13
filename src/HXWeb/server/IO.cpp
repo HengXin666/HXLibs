@@ -297,11 +297,9 @@ HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::http::Http>::_recvReq
             co_return true;
         }
 
-        // LOG_INFO("读取一次结束... (%llu)", n);
         if (std::size_t size = _request->parserRequest(
             std::string_view {_recvBuf.data(), n}
         )) {
-            // LOG_INFO("二次读取中..., 还需要读取 size = %llu", size);
             n = co_await recvN(_recvBuf, std::min(size, _recvBuf.size()));
             continue;
         }
@@ -342,14 +340,12 @@ HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::https::Https>::handsh
     ).expect("setNonBlock");
 
     if (POLLERR == co_await _pollAdd(POLLIN | POLLOUT | POLLERR)) {
-        // printf("发生错误! err: %s\n", strerror(errno));
         co_return false;
     }
 
     _ssl = ::SSL_new(HX::web::protocol::https::Context::getContext().getSslCtx());
 
     if (_ssl == nullptr) [[unlikely]] {
-        // printf("ssl == nullptr\n");
         co_return false;
     }
 
