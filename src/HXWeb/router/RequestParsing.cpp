@@ -13,8 +13,9 @@ std::vector<std::size_t> RequestTemplateParsing::getPathWildcardAnalysisArr(std:
             res.push_back(i);
         }
     }
-    if (res.empty())
-        throw "The path does not have wildcard characters ({?})";
+    if (res.empty()) [[unlikely]] {
+        throw std::runtime_error{"The path does not have wildcard characters ({?})"};
+    }
     return res;
 }
 

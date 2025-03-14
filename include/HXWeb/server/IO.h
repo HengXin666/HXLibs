@@ -26,7 +26,6 @@
 #include <HXWeb/socket/IO.h>
 
 // 前置声明
-
 typedef struct ssl_st SSL;
 
 namespace HX { namespace web { namespace server {

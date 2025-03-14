@@ -71,11 +71,11 @@ HX::STL::coroutine::task::Task<> Client::start(
         HX::STL::utils::UrlUtils::extractProtocol(url)
     );
     // 如何重构?
-    if (port == 80)
+    if (port == 80) {
         _io = std::make_shared<HX::web::client::IO<HX::web::protocol::http::Http>>(
             _clientFd
         );
-    else if (port == 443) {
+    } else if (port == 443) {
         _io = std::make_shared<HX::web::client::IO<HX::web::protocol::https::Https>>(
             _clientFd
         );
@@ -88,14 +88,15 @@ HX::STL::coroutine::task::Task<> Client::start(
                 HX::web::protocol::https::Context::getContext().initClientSSL({});
             }
         }
+    } else [[unlikely]] {
+        throw std::runtime_error{"Protocol is no in http(s)"};
     }
-    else
-        throw "Protocol is no in http(s)";
     if (proxy.size()) { // 进行代理连接
         co_await HX::web::protocol::proxy::ProxyBash::connect(proxy, url, *_io);
     }
-    if (!co_await _io->init(timeout))
-        throw "init Client Error";
+    if (!co_await _io->init(timeout)) [[unlikely]] {
+        throw std::runtime_error{"init Client Error"};
+    }
 }
 
 HX::STL::coroutine::task::Task<bool> Client::read(std::chrono::milliseconds timeout) {

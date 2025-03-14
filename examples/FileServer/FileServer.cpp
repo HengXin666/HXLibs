@@ -28,9 +28,9 @@ class HttpsController {
         .on<HEAD, GET>("/test/range", [] ENDPOINT {
             try {
                 co_return co_await res.useRangeTransferFile("static/test/github.html");
-            } catch (...) {
+            } catch (std::exception const& ec) {
                 co_return res.setStatusAndContent(
-                    Status::CODE_500, "<h1>没有这个文件</h1>");
+                    Status::CODE_500, ec.what());
             }
         })
     ROUTER_END;

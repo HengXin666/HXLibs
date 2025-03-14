@@ -12,6 +12,7 @@
 #include <HXWeb/protocol/https/Context.h>
 #include <HXSTL/tools/ErrorHandlingTools.h>
 #include <HXSTL/utils/FileUtils.h>
+#include <HXSTL/exception/SslException.hpp>
 
 namespace HX { namespace web { namespace client {
 
@@ -176,7 +177,7 @@ HX::STL::coroutine::task::Task<bool> IO<HX::web::protocol::https::Https>::_recvR
                 continue;
             }
             break;
-        } else if (readLen == 0) { // 客户端断开连接
+        } else if (readLen == 0) { // 服务端断开连接
             co_return true;
         } else if (err == SSL_ERROR_WANT_READ) {
             if (POLLIN != co_await _pollAdd(POLLIN | POLLERR)) {
@@ -197,24 +198,27 @@ HX::STL::coroutine::task::Task<> IO<HX::web::protocol::https::Https>::_sendReque
     std::size_t n = buf.size();
     while (true) {
         int writeLen = SSL_write(_ssl, buf.data(), n); // 从 SSL 连接中读取数据
-        int err = SSL_get_error(_ssl, writeLen);
         if (writeLen > 0) {
             n -= writeLen;
             if (n > 0) {
                 if (POLLOUT != co_await _pollAdd(POLLOUT | POLLERR)) {
-                    throw "SSL_write: (n > 0) POLLOUT error!";
+                    throw HX::STL::exception::SslException{"SSL_write: (n > 0) POLLOUT error!"};
                 }
                 continue;
             }
             break;
-        } else if (writeLen == 0) { // 客户端断开连接
-            throw "writeLen == 0";
-        } else if (err == SSL_ERROR_WANT_WRITE) {
-            if (POLLOUT != co_await _pollAdd(POLLOUT | POLLERR)) {
-                throw "SSL_write: POLLOUT error!";
+        } else if (writeLen == 0) { // 服务端断开连接
+            throw HX::STL::exception::SslException{"SSL_write: writeLen == 0 (Client Disconnected)"};
+        } else  {
+            if (int err = SSL_get_error(_ssl, writeLen); err == SSL_ERROR_WANT_WRITE) {
+                if (POLLOUT != co_await _pollAdd(POLLOUT | POLLERR)) {
+                    throw HX::STL::exception::SslException{"SSL_write: POLLOUT error!"};
+                }
+            } else {
+                throw HX::STL::exception::SslException{
+                    "SSL_write: Err: " + std::to_string(err) + " is " + strerror(errno)
+                };
             }
-        } else {
-            throw "SSL_write: Err: " + std::to_string(err) + " is " + strerror(errno);
         }
     }
 }

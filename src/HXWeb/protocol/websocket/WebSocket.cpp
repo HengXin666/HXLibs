@@ -100,7 +100,7 @@ HX::STL::coroutine::task::Task<std::optional<WebSocketPacket>> WebSocket::recvPa
         std::size_t payloadLen;
 
         if (packet._opCode >= 8 && packet._opCode <= 10 && payloadLen8 >= 0x7E) [[unlikely]] {
-            throw "packet._opCode >= 8 && packet._opCode <= 10 && payloadLen8 >= 0x7E";
+            throw std::runtime_error{"packet._opCode >= 8 && packet._opCode <= 10 && payloadLen8 >= 0x7E"};
         }
 
         // 解析包的长度
@@ -114,7 +114,7 @@ HX::STL::coroutine::task::Task<std::optional<WebSocketPacket>> WebSocket::recvPa
             payloadLen = static_cast<size_t>(payloadLen64);
             if constexpr (sizeof(uint64_t) > sizeof(size_t)) {
                 if (payloadLen64 > std::numeric_limits<size_t>::max()) {
-                    throw "payloadLen64 > std::numeric_limits<size_t>::max()";
+                    throw std::runtime_error{"payloadLen64 > std::numeric_limits<size_t>::max()"};
                 }
             }
             payloadLen = static_cast<size_t>(payloadLen64);
@@ -273,7 +273,7 @@ HX::STL::coroutine::task::Task<> WebSocket::start(
 
 HX::STL::coroutine::task::Task<> WebSocket::send(const std::string& text) {
     if (_halfClosed) [[unlikely]] {
-        throw "WebSocket is halfClosed";
+        throw std::runtime_error{"WebSocket is halfClosed"};
     }
     co_await sendPacket(WebSocketPacket {
         ._opCode = WebSocketPacket::Text,
