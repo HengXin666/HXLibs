@@ -80,10 +80,11 @@ public:
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
     Request& setRequestLine(const std::string& method, const std::string& url) {
+        using namespace std::string_literals;
         _requestLine.resize(3);
         _requestLine[RequestLineDataType::RequestType] = method;
         _requestLine[RequestLineDataType::RequestPath] = url;
-        _requestLine[RequestLineDataType::ProtocolVersion] = "HTTP/1.1";
+        _requestLine[RequestLineDataType::ProtocolVersion] = "HTTP/1.1"s;
         return *this;
     }
 

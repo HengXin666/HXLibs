@@ -108,7 +108,7 @@ aria2c -c -x 16 -s 16 --check-certificate=false -o misaka.mp4.part "https://127.
 ```
 
 ```sh
- root@Loli  ~ raria2cka.mp4                                                       "https://127.0.0.1:28205/range/misaka.mp4"  
+ root@Loli  ~ aria2c -c -x 16 -s 16 --check-certificate=false -o misaka.mp4.part "https://127.0.0.1:28205/range/misaka.mp4"
 
 03/14 15:41:26 [NOTICE] Downloading 1 item(s)
 ^C
@@ -166,6 +166,5 @@ Status Legend:
 > ```
 >
 > 最终: `Download complete: /root/misaka.mp4.part`
-
 
 </details>

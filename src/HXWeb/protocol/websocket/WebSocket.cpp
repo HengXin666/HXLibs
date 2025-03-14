@@ -27,8 +27,9 @@ inline std::string _webSocketSecretHash(std::string userKey) {
  * 如此操作，可以尽量避免普通HTTP请求被误认为Websocket协议。
  * By https://zh.wikipedia.org/wiki/WebSocket
  */
+    using namespace std::string_literals;
     SHA1 sha1;
-    std::string inKey = userKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    std::string inKey = userKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"s;
     sha1.add(inKey.data(), inKey.size());
     uint8_t buf[SHA1::HashBytes];
     sha1.getHash(buf);
@@ -38,27 +39,28 @@ inline std::string _webSocketSecretHash(std::string userKey) {
 HX::STL::coroutine::task::Task<bool> WebSocket::httpUpgradeToWebSocket(
     const HX::web::server::IO<void>& io
 ) {
+    using namespace std::string_literals;
     auto& headMap = io.getRequest().getRequestHeaders();
-    if (auto it = headMap.find("upgrade"); it == headMap.end() || it->second != "websocket") {
+    if (auto it = headMap.find("upgrade"s); it == headMap.end() || it->second != "websocket"s) {
         co_return false;
     }
 
     // 是 ws:// 请求
-    auto wsKey = headMap.find("sec-websocket-key");
+    auto wsKey = headMap.find("sec-websocket-key"s);
     if (wsKey == headMap.end()) {
         // 怎么会有这种错误?! 什么乐色客户端?!
         io.getResponse().setResponseLine(HX::web::protocol::http::Status::CODE_400)
                         .setContentType(http::ResContentType::html)
-                        .setBodyData("Not Find: sec-websocket-key");
+                        .setBodyData("Not Find: sec-websocket-key"s);
         co_return false;
     }
 
     auto wsNewKey = _webSocketSecretHash(wsKey->second);
 
     io.getResponse().setResponseLine(HX::web::protocol::http::Status::CODE_101)
-                    .addHeader("connection", "Upgrade")
-                    .addHeader("upgrade", "websocket")
-                    .addHeader("sec-websocket-accept", wsNewKey)
+                    .addHeader("connection"s, "Upgrade"s)
+                    .addHeader("upgrade"s, "websocket"s)
+                    .addHeader("sec-websocket-accept"s, wsNewKey)
                     .setBodyData("");
     co_await io.sendResponse();
     co_return true;

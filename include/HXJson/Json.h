@@ -288,6 +288,7 @@ struct JsonObject {
  */
 template <bool analysisKey = false>
 std::pair<JsonObject, std::size_t> parse(std::string_view json) {
+    using namespace std::string_literals;
     if (json.empty()) { // 如果没有内容则返回空
         return {JsonObject{std::nullptr_t{}}, 0};
     } else if (std::size_t off = json.find_first_not_of(" \n\r\t\v\f\0"); off != 0 && off != json.npos) { // 去除空行
@@ -295,7 +296,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
         return {std::move(obj), eaten + off};
     } else if ((json[0] >= '0' && json[0] <= '9') || json[0] == '+' || json[0] == '-') { // 如果为数字
         // std::regex num_re{"[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?"};
-        std::regex num_re{"[-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?"}; // 一个支持识别内容是否为数字的: 1e-12, 114.514, -666
+        std::regex num_re{"[-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?"s}; // 一个支持识别内容是否为数字的: 1e-12, 114.514, -666
         std::cmatch match; // 匹配结果
         if (std::regex_search(json.data(), json.data() + json.size(), match, num_re)) { // re解析成功
             std::string str = match.str();
@@ -391,7 +392,7 @@ std::pair<JsonObject, std::size_t> parse(std::string_view json) {
         }
         return {JsonObject{std::move(res)}, i};
     } else if constexpr (analysisKey) { // 解析Key不带 ""
-        if (std::size_t off = json.find_first_of(": \n\r\t\v\f\0"); off != json.npos)
+        if (std::size_t off = json.find_first_of(": \n\r\t\v\f\0"s); off != json.npos)
             return {JsonObject{std::string{json.substr(0, off)}}, off};
     } else if (json.size() > 3) { // 解析 null, false, true
         switch (json[0]) {

@@ -346,7 +346,7 @@ void setVal(Container& val, HX::json::JsonObject& json) {
 
 // 实际上的JSON序列化实现
 #define _REFLECT_TO_JSON(name)                  \
-        res += "\""#name"\":";                  \
+        res += "\""#name"\":"s;                 \
         res += HX::STL::utils::toString(name);  \
         res += ',';
 
@@ -396,6 +396,7 @@ _REFLECT_PP_FOREACH(EndFun, _GET_LAST_ARG(__VA_ARGS__))
 // 反射: 将成员反射以序列化成JSON字符串, 支持`const auto&`成员
 #define REFLECT(...)                                    \
 std::string toJson() const {                            \
+    using namespace std::string_literals;               \
     std::string res;                                    \
     res += '{';                                         \
     _REFLECT_PP_FOREACH(_REFLECT_TO_JSON, __VA_ARGS__)  \

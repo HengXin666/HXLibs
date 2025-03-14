@@ -52,14 +52,15 @@ HX::STL::coroutine::task::Task<> IO<>::__sendResponse() const {
 HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
     const std::string& path
 ) const {
+    using namespace std::string_literals;
     // 本次请求使用结束, 清空, 复用
     _request->clear();
     auto fileType = HX::web::protocol::http::getMimeType(
         HX::STL::utils::FileUtils::getExtension(path)
     );
     _response->setResponseLine(HX::web::protocol::http::Status::CODE_200);
-    _response->addHeader("Content-Type", std::string{fileType});
-    _response->addHeader("Transfer-Encoding", "chunked");
+    _response->addHeader("Content-Type"s, std::string{fileType});
+    _response->addHeader("Transfer-Encoding"s, "chunked"s);
     // 生成响应行和响应头
     _response->_buildResponseLineAndHeaders();
     // 先发送一版, 告知我们是分块编码
@@ -88,6 +89,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
 HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
     const std::string& path
 ) const {
+    using namespace std::string_literals;
     using namespace std::string_view_literals;
     // 解析请求的范围
     auto type = _request->getRequesType();
@@ -106,12 +108,12 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
             "\r\n"
         */
         _response->setResponseLine(protocol::http::Status::CODE_200);
-        _response->addHeader("Content-Length", fileSizeStr);
-        _response->addHeader("Content-Type", std::string{fileType});
-        _response->addHeader("Accept-Ranges", "bytes");
+        _response->addHeader("Content-Length"s, fileSizeStr);
+        _response->addHeader("Content-Type"s, std::string{fileType});
+        _response->addHeader("Accept-Ranges"s, "bytes"s);
         _response->_buildResponseLineAndHeaders();
         co_await _sendResponse(_response->_buf);
-    } else if (auto it = headMap.find("Range"); it != headMap.end()) {
+    } else if (auto it = headMap.find("Range"s); it != headMap.end()) {
         // 开始[断点续传]传输, 先发一下头
         /*
             "HTTP/1.1 206 Partial Content\r\n"
@@ -126,12 +128,12 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
         // 解析范围, 如果访问不合法, 应该返回416
         std::string_view rangeVals = it->second;
         // Range: bytes=<range-start>-<range-end>
-        auto rangeNumArr = HX::STL::utils::StringUtil::split<std::string>(rangeVals.substr(6), ",");
+        auto rangeNumArr = HX::STL::utils::StringUtil::split<std::string>(rangeVals.substr(6), ","sv);
         _response->setResponseLine(protocol::http::Status::CODE_206);
-        _response->addHeader("Accept-Ranges", "bytes");
+        _response->addHeader("Accept-Ranges"s, "bytes"s);
 
         if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
-            auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-");
+            auto [begin, end] = HX::STL::utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-"sv);
             if (begin.empty()) {
                 begin += '0';
             }
@@ -253,8 +255,8 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
     } else {
         // 普通的传输文件
         _response->setResponseLine(protocol::http::Status::CODE_200);
-        _response->addHeader("Content-Type", std::string{fileType});
-        _response->addHeader("Content-Length", fileSizeStr);
+        _response->addHeader("Content-Type"s, std::string{fileType});
+        _response->addHeader("Content-Length"s, fileSizeStr);
         _response->_buildResponseLineAndHeaders();
         co_await _sendResponse(_response->_buf); // 先发一个头
 
@@ -282,9 +284,10 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
 }
 
 void IO<>::updateReuseConnection() noexcept {
+    using namespace std::string_literals;
     using namespace std::string_view_literals;
     auto& headMap = _request->getRequestHeaders();
-    if (auto it = headMap.find("Connection"); it != headMap.end()) {
+    if (auto it = headMap.find("Connection"s); it != headMap.end()) {
         _isReuseConnection = std::string_view{it->second} == "keep-alive"sv;
     }
 }

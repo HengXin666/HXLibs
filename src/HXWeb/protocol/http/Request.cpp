@@ -5,6 +5,7 @@
 
 #include <HXSTL/utils/StringUtils.h>
 #include <HXSTL/utils/FileUtils.h>
+#include <HXWeb/protocol/http/Http.hpp>
 
 namespace HX { namespace web { namespace protocol { namespace http {
 
@@ -35,19 +36,21 @@ void Request::createRequestBuffer() {
 std::size_t Request::parserRequest(
     std::string_view buf
 ) {
+    using namespace std::string_literals;
+    using namespace std::string_view_literals;
     if (_buf.size()) {
         _buf += buf;
         buf = _buf;
     }
 
     if (_requestLine.empty()) { // 请求行还未解析
-        std::size_t pos = buf.find("\r\n");
+        std::size_t pos = buf.find(HX::web::protocol::http::CRLF);
         if (pos == std::string_view::npos) [[unlikely]] { // 不可能事件
             return HX::STL::utils::FileUtils::kBufMaxSize;
         }
 
         // 解析请求行
-        _requestLine = HX::STL::utils::StringUtil::split<std::string>(buf.substr(0, pos), " ");
+        _requestLine = HX::STL::utils::StringUtil::split<std::string>(buf.substr(0, pos), " "sv);
         if (_requestLine.size() != 3)
             return HX::STL::utils::FileUtils::kBufMaxSize;
         buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
@@ -60,13 +63,13 @@ std::size_t Request::parserRequest(
      * -  否则即请求头解析完毕!
      */
     while (!_completeRequestHeader) { // 请求头未解析完
-        std::size_t pos = buf.find("\r\n");
+        std::size_t pos = buf.find(HX::web::protocol::http::CRLF);
         if (pos == std::string_view::npos) { // 没有读取完
             _buf = buf;
             return HX::STL::utils::FileUtils::kBufMaxSize;
         }
         std::string_view subStr = buf.substr(0, pos);
-        auto p = HX::STL::utils::StringUtil::splitAtFirst(subStr, ": ");
+        auto p = HX::STL::utils::StringUtil::splitAtFirst(subStr, ": "sv);
         if (p.first.empty()) { // 找不到 ": "
             if (subStr.size()) [[unlikely]] { // 很少会有分片传输请求头的
                 _requestHeadersIt->second.append(subStr);
@@ -80,11 +83,11 @@ std::size_t Request::parserRequest(
         buf = buf.substr(pos + 2);
     }
 
-    if (_requestHeaders.count("content-length")) { // 存在content-length模式接收的响应体
+    if (_requestHeaders.count("content-length"s)) { // 存在content-length模式接收的响应体
         // 是 空行之后 (\r\n\r\n) 的内容大小(char)
         if (!_remainingBodyLen.has_value()) {
             _body = buf;
-            _remainingBodyLen = std::stoll(_requestHeaders["content-length"]) 
+            _remainingBodyLen = std::stoll(_requestHeaders["content-length"s]) 
                               - _body.size();
         } else {
             *_remainingBodyLen -= buf.size();
@@ -95,7 +98,7 @@ std::size_t Request::parserRequest(
             _buf.clear();
             return *_remainingBodyLen;
         }
-    } else if (_requestHeaders.count("transfer-encoding")) { // 存在请求体以`分块传输编码`
+    } else if (_requestHeaders.count("transfer-encoding"s)) { // 存在请求体以`分块传输编码`
         /**
          * TODO: 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
          * */
@@ -111,7 +114,7 @@ std::size_t Request::parserRequest(
             }
         }
         while (true) {
-            std::size_t posLen = buf.find("\r\n");
+            std::size_t posLen = buf.find(HX::web::protocol::http::CRLF);
             if (posLen == std::string_view::npos) { // 没有读完
                 _buf = buf;
                 return HX::STL::utils::FileUtils::kBufMaxSize;
