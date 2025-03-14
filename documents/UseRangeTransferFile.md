@@ -143,7 +143,6 @@ Status Legend:
 (OK):download completed.
 ```
 
-> [!NOTE]
 > **操作说明**: 运行下载后, 马上 ctrl + c 断开了
 >
 > aria2c 记录了未完成的部分:
@@ -167,5 +166,6 @@ Status Legend:
 > ```
 >
 > 最终: `Download complete: /root/misaka.mp4.part`
+
 
 </details>
