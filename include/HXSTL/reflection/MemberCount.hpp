@@ -20,7 +20,6 @@
 #ifndef _HX_MEMBER_COUNT_H_
 #define _HX_MEMBER_COUNT_H_
 
-#include <type_traits>
 #include <HXSTL/utils/TypeTraits.hpp>
 
 namespace HX { namespace STL { namespace reflection {

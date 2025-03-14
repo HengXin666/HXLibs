@@ -24,6 +24,9 @@ certs/**
 # 只提供生成脚本
 !certs/GenerateCerts.sh
 
+# 屏蔽本地大文件
+static/bigFile/**
+
 # Sensitive or high-churn files
 .idea/**/dataSources/
 .idea/**/dataSources.ids

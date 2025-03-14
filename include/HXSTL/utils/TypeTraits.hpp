@@ -47,7 +47,6 @@ using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
 /**
  * @brief 判断`variant<Ts...>`中是否含有`T`类型
- * 
  * @tparam T 
  * @tparam Ts 
  */

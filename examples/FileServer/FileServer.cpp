@@ -33,6 +33,18 @@ class HttpsController {
                     Status::CODE_500, ec.what());
             }
         })
+        .on<HEAD, GET>("/range/**", [] ENDPOINT {
+            /*
+                警告! 需要自己在 ./static 中创建bigFile文件夹, 因为github中并没有上传, 因为太大了
+            */
+            PARSE_MULTI_LEVEL_PARAM(path);
+            try {
+                co_return co_await res.useRangeTransferFile("static/bigFile/" + path);
+            } catch (std::exception const& ec) {
+                co_return res.setStatusAndContent(
+                    Status::CODE_500, ec.what());
+            }
+        })
     ROUTER_END;
 };
 
