@@ -24,7 +24,7 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
         target_include_directories(HXLibs PUBLIC "${LIBURING_INCLUDE_DIRS}")
     else()
         # 使用项目内置的 liburing
-        target_sources(HXLibs PRIVATE lib/liburing/liburing.cpp)
-        target_include_directories(HXLibs PUBLIC lib/liburing/include)
+        add_subdirectory(lib/liburing)                 # 先添加 liburing 库
+        target_link_libraries(HXLibs PUBLIC liburing) # 链接 liburing 静态库
     endif()
 endif()

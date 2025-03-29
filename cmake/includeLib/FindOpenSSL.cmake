@@ -2,7 +2,7 @@
 find_package(OpenSSL REQUIRED)
 
 # 链接 OpenSSL 库
-target_link_libraries(HXLibs OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(HXLibs PUBLIC OpenSSL::SSL OpenSSL::Crypto)
 
 # 可选: 如果需要明确添加 OpenSSL 的头文件路径
 # 一般情况下, find_package 已经会自动添加头文件路径到目标中
