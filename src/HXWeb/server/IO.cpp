@@ -113,7 +113,7 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
         _response->addHeader("Accept-Ranges"s, "bytes"s);
         _response->_buildResponseLineAndHeaders();
         co_await _sendResponse(_response->_buf);
-    } else if (auto it = headMap.find("Range"s); it != headMap.end()) {
+    } else if (auto it = headMap.find("range"s); it != headMap.end()) {
         // 开始[断点续传]传输, 先发一下头
         /*
             "HTTP/1.1 206 Partial Content\r\n"

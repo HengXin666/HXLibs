@@ -1,5 +1,4 @@
 #include <HXWeb/HXApi.hpp>
-#include <HXWeb/interceptor/RequestInterceptor.h>
 #include <HXprint/print.h>
 
 #include <chrono>

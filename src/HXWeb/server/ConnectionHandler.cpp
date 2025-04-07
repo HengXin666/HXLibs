@@ -11,7 +11,6 @@
 #include <HXSTL/tools/ErrorHandlingTools.h>
 #include <HXSTL/utils/FileUtils.h>
 #include <HXWeb/router/Router.hpp>
-#include <HXWeb/interceptor/RequestInterceptor.h>
 #include <HXWeb/protocol/http/Request.h>
 #include <HXWeb/protocol/http/Response.h>
 #include <HXWeb/server/IO.h>

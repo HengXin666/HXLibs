@@ -124,6 +124,7 @@ public:
      * @param val 值
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
+     * @warning 并且内部所有解析的键都是小写存储的
      */
     Request& addHeader(const std::string& key, const std::string& val) {
         _requestHeaders[key] = val;
