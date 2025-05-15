@@ -35,8 +35,9 @@ namespace HX { namespace STL { namespace coroutine { namespace loop {
  * @brief 异步循环
  */
 class AsyncLoop {
-    explicit AsyncLoop() : _timerLoop()
-                         , _ioUringLoop()
+    explicit AsyncLoop() 
+        : _timerLoop()
+        , _ioUringLoop()
     {}
 public:
 

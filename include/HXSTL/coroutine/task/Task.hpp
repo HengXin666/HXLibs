@@ -70,7 +70,7 @@ struct [[nodiscard]] Task {
         return _coroutine;
     }
 
-// private:
+private:
     std::coroutine_handle<promise_type> _coroutine; // 当前协程句柄
 };
 

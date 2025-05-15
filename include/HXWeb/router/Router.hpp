@@ -117,16 +117,16 @@ public:
             realEndpoint =
                 [this, endpoint = std::move(endpoint),
                  ... interceptors = interceptors] (protocol::http::Request &req,
-                                                  protocol::http::Response &res) mutable
+                                                   protocol::http::Response &res) mutable
             -> HX::STL::coroutine::task::Task<> {
             static_cast<void>(this);
             bool ok = true;
-            (doBefore(interceptors, ok, req, res), ...);
+            static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
             if (ok) {
                 co_await endpoint(req, res);
             }
             ok = true;
-            (doAfter(interceptors, ok, req, res), ...);
+            static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
         };
         _routerTree.setNotFoundHandler(std::move(realEndpoint));
     }
@@ -205,12 +205,12 @@ private:
                     -> HX::STL::coroutine::task::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    (doBefore(interceptors, ok, req, res), ...);
+                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    (doAfter(interceptors, ok, req, res), ...);
+                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -230,12 +230,12 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     HX::web::protocol::http::PathVariable pathVar {req, wildcarArr};
-                    (doBefore(interceptors, ok, req, res), ...);
+                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    (doAfter(interceptors, ok, req, res), ...);
+                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -254,12 +254,12 @@ private:
                         req,
                         pureRequesPathView.substr(UWPIndex)
                     };
-                    (doBefore(interceptors, ok, req, res), ...);
+                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    (doAfter(interceptors, ok, req, res), ...);
+                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -288,12 +288,12 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv
                     };
-                    (doBefore(interceptors, ok, req, res), ...);
+                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    (doAfter(interceptors, ok, req, res), ...);
+                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -307,33 +307,29 @@ private:
     }
 
     template <typename T>
-    void doBefore(
+    bool doBefore(
         T& interceptors, 
         bool& ok, 
         protocol::http::Request& req, 
         protocol::http::Response& res
     ) {
         if constexpr (internal::has_before_v<T>) {
-            if (!ok) {
-                return;
-            }
             ok = interceptors.before(req, res);
         }
+        return ok;
     }
 
     template <typename T>
-    void doAfter(
+    bool doAfter(
         T& interceptors, 
         bool& ok, 
         protocol::http::Request& req, 
         protocol::http::Response& res
     ) {
         if constexpr (internal::has_after_v<T>) {
-            if (!ok) {
-                return;
-            }
             ok = interceptors.after(req, res);
         }
+        return ok;
     }
 
     RouterTree _routerTree {};

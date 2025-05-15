@@ -17,8 +17,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_RETURN_TO_PARENT_AWAITER_H_
+#ifdef _HX_RETURN_TO_PARENT_AWAITER_H__TODO__
+// #ifndef _HX_RETURN_TO_PARENT_AWAITER_H_
 #define _HX_RETURN_TO_PARENT_AWAITER_H_
+
+/**
+ * @file ReturnToParentAwaiter.hpp
+ * @author your name (you@domain.com)
+ * @brief 不知道为什么, 今天回看源码, 这里被废弃了?! 但是! 是应该的, 因为我似乎采用了其他方案?!
+ * 似乎是所有权的问题, 这样搞记得是会内存泄漏还是转移失败来着?
+ * 我只记得是让智能指针来获取所有权, 然后移动到其他地方了~
+ * @version 0.1
+ * @date 2025-05-15
+ * 
+ * @copyright Copyright (c) 2025
+ */
 
 #include <coroutine>
 

@@ -17,7 +17,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EXPECTED_H_
+#ifdef _HX_EXPECTED_H__TODO__ // @todo
+// #ifndef _HX_EXPECTED_H_
 #define _HX_EXPECTED_H_
 
 /**

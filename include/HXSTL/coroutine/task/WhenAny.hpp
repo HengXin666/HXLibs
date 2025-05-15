@@ -77,7 +77,7 @@ class WhenAny {
      * @brief WhenAny 控制块
      */
     struct WhenAnyCtlBlock {
-        static constexpr std::size_t kNullIndex = std::size_t(-1);
+        inline static constexpr std::size_t kNullIndex = std::size_t(-1);
 
         std::size_t _index {kNullIndex};
         std::coroutine_handle<> _previous {}; // 根协程 (whenAnyImpl)
@@ -122,7 +122,7 @@ class WhenAny {
             control._exception = std::current_exception();
             co_return control._previous;
         }
-        --control._index = index;
+        control._index = index;
         co_return control._previous; // 执行控制块
     }
 

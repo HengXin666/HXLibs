@@ -21,11 +21,9 @@
 #define _HX_TIMER_LOOP_H_
 
 #include <queue>
-#include <list>
 #include <map>
 #include <optional>
 #include <chrono>
-#include <utility>
 
 #include <HXSTL/coroutine/task/TimerTask.h>
 #include <HXSTL/coroutine/task/Task.hpp>
@@ -169,9 +167,10 @@ public:
         HX::STL::container::NonVoidHelper<>
     > static yield();
 
-    explicit TimerLoop() : _timerRBTree()
-                         , _initiationQueue()
-                         , _destructionQueue()
+    explicit TimerLoop() 
+        : _timerRBTree()
+        , _initiationQueue()
+        , _destructionQueue()
     {}
 
 private:
