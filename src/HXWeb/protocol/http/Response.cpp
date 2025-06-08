@@ -80,11 +80,11 @@ std::size_t Response::parserResponse(std::string_view buf) {
         buf = buf.substr(pos + 2);
     }
 
-    if (_responseHeaders.count("content-length"s)) { // 存在content-length模式接收的响应体
+    if (_responseHeaders.count("Content-Length"s)) { // 存在content-length模式接收的响应体
         // 是 空行之后 (\r\n\r\n) 的内容大小(char)
         if (!_remainingBodyLen.has_value()) {
             _body = buf;
-            _remainingBodyLen = std::stoll(_responseHeaders["content-length"s]) 
+            _remainingBodyLen = std::stoll(_responseHeaders["Content-Length"s]) 
                               - _body.size();
         } else {
             *_remainingBodyLen -= buf.size();
@@ -95,7 +95,7 @@ std::size_t Response::parserResponse(std::string_view buf) {
             _buf.clear();
             return *_remainingBodyLen;
         }
-    } else if (_responseHeaders.count("transfer-encoding"s)) { // 存在响应体以`分块传输编码`
+    } else if (_responseHeaders.count("Transfer-Encoding"s)) { // 存在响应体以`分块传输编码`
         if (_remainingBodyLen) { // 处理没有读取完的
             if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
                 _body += buf;

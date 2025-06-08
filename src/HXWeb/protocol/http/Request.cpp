@@ -10,26 +10,28 @@
 namespace HX { namespace web { namespace protocol { namespace http {
 
 void Request::createRequestBuffer() {
+    using namespace std::string_literals;
+    using namespace std::string_view_literals;
     _buf.clear();
     _buf.append(_requestLine[RequestLineDataType::RequestType]);
-    _buf.append(" ");
+    _buf.append(" "s);
     _buf.append(_requestLine[RequestLineDataType::RequestPath]);
-    _buf.append(" ");
+    _buf.append(" "s);
     _buf.append(_requestLine[RequestLineDataType::ProtocolVersion]);
-    _buf.append("\r\n");
+    _buf.append("\r\n"s);
     for (const auto& [key, val] : _requestHeaders) {
         _buf.append(key);
-        _buf.append(": ");
+        _buf.append(": "s);
         _buf.append(val);
-        _buf.append("\r\n");
+        _buf.append("\r\n"s);
     }
     if (_body.size()) {
-        _buf.append("Content-Length: ");
+        _buf.append("Content-Length: "s);
         _buf.append(std::to_string(_body.size()));
-        _buf.append("\r\n\r\n");
+        _buf.append("\r\n\r\n"s);
         _buf.append(_body);
     } else {
-        _buf.append("\r\n\r\n");
+        _buf.append("\r\n\r\n"s);
     }
 }
 
@@ -83,11 +85,11 @@ std::size_t Request::parserRequest(
         buf = buf.substr(pos + 2);
     }
 
-    if (_requestHeaders.count("content-length"s)) { // 存在content-length模式接收的响应体
+    if (_requestHeaders.count("Content-Length"s)) { // 存在content-length模式接收的响应体
         // 是 空行之后 (\r\n\r\n) 的内容大小(char)
         if (!_remainingBodyLen.has_value()) {
             _body = buf;
-            _remainingBodyLen = std::stoll(_requestHeaders["content-length"s]) 
+            _remainingBodyLen = std::stoll(_requestHeaders["Content-Length"s]) 
                               - _body.size();
         } else {
             *_remainingBodyLen -= buf.size();
@@ -98,7 +100,7 @@ std::size_t Request::parserRequest(
             _buf.clear();
             return *_remainingBodyLen;
         }
-    } else if (_requestHeaders.count("transfer-encoding"s)) { // 存在请求体以`分块传输编码`
+    } else if (_requestHeaders.count("Transfer-Encoding"s)) { // 存在请求体以`分块传输编码`
         /**
          * TODO: 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
          * */
