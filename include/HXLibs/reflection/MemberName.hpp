@@ -25,9 +25,9 @@
 #include <array>
 #include <utility>
 
-#include <HXSTL/reflection/MemberCount.hpp>
+#include <HXLibs/reflection/MemberCount.hpp>
 
-namespace HX { namespace STL { namespace reflection {
+namespace HX::reflection {
 
 namespace internal {
 
@@ -243,13 +243,13 @@ inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersName
 template <typename T, typename Visit>
 inline constexpr void forEach(T&& obj, Visit&& func) {
     constexpr auto Cnt = membersCountVal<T>;
-    constexpr auto membersArr = HX::STL::reflection::getMembersNames<T>();
+    constexpr auto membersArr = getMembersNames<T>();
     auto tr = internal::getObjTie(obj);
     [&] <std::size_t... Is> (std::index_sequence<Is...>) {
         ((func(Is, membersArr[Is], std::get<Is>(tr))), ...);
     } (std::make_index_sequence<Cnt>{});
 }
 
-}}} // namespace HX::STL::reflection
+} // namespace HX::reflection
 
 #endif // !_HX_MEMBER_NAME_H_
