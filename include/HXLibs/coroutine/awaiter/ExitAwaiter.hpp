@@ -22,7 +22,7 @@
 
 #include <coroutine>
 
-namespace HX {
+namespace HX::coroutine {
 
 /**
  * @brief 默认的协程控制: 在协程挂起(`co_await`)时会退出整个协程链条
@@ -66,6 +66,6 @@ struct ExitAwaiter {
     std::coroutine_handle<promise_type> _coroutine;
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_EXIT_AWAITER_H_

@@ -22,7 +22,7 @@
 
 #include <HXLibs/coroutine/promise/Promise.hpp>
 
-namespace HX {
+namespace HX::coroutine {
 
 /**
  * @brief 根协程, 其绝对不应该被其他协程 co_await, 只能被 resume()
@@ -71,6 +71,6 @@ private:
     std::coroutine_handle<promise_type> _handle;
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_ROOT_TASK_H_

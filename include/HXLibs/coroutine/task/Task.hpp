@@ -23,7 +23,7 @@
 #include <HXLibs/coroutine/awaiter/ExitAwaiter.hpp>
 #include <HXLibs/coroutine/promise/Promise.hpp>
 
-namespace HX {
+namespace HX::coroutine {
 
 template <
     typename T = void,
@@ -76,6 +76,6 @@ private:
     std::coroutine_handle<promise_type> _handle;
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_TASK_H_

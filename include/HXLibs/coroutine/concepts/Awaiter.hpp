@@ -22,7 +22,7 @@
 
 #include <coroutine>
 
-namespace HX {
+namespace HX::coroutine {
 template <typename T>
 concept Awaiter = requires(T const t, std::coroutine_handle<> h) {
     { t.await_ready() } -> std::convertible_to<bool>; // trailing-return-type requirement (后置返回类型要求)
@@ -49,6 +49,6 @@ using AwaiterReturnValue = decltype([](auto t) {
     }
 }(std::declval<T>()));
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_AWAITER_H_

@@ -24,7 +24,7 @@
 
 #include <HXLibs/container/NonVoidHelper.hpp>
 
-namespace HX {
+namespace HX::container {
 
 template <typename T>
 struct Uninitialized {
@@ -66,6 +66,6 @@ struct Uninitialized<T&> : public Uninitialized<std::reference_wrapper<T>> {};
 template <typename T>
 struct Uninitialized<T&&> : public Uninitialized<T> {};
 
-} // namespace HX
+} // namespace HX::container
 
 #endif // !_HX_UNINITIALIZED_H_

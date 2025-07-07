@@ -22,7 +22,7 @@
 
 #include <coroutine>
 
-namespace HX {
+namespace HX::coroutine {
 
 template <bool IsStop>
 struct StopAwaiter {
@@ -31,6 +31,6 @@ struct StopAwaiter {
     constexpr void await_resume() const noexcept {}
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_STOP_AWAITER_H_

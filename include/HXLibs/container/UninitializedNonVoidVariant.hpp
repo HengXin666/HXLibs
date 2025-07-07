@@ -27,7 +27,7 @@
 #include <HXLibs/container/Uninitialized.hpp>
 #include <HXLibs/exception/ExceptionMode.hpp>
 
-namespace HX {
+namespace HX::container {
 
 template <typename... Ts>
 struct UninitializedNonVoidVariant;
@@ -152,23 +152,22 @@ struct UninitializedNonVoidVariantIndexToType;
 template <std::size_t Idx, typename T, typename... Ts>
     requires (Idx <= sizeof...(Ts))
 struct UninitializedNonVoidVariantIndexToType<Idx, UninitializedNonVoidVariant<T, Ts...>> {
-    template <typename U, typename... Us>
+    template <std::size_t _I, typename U, typename... Us>
     struct IndexToType {
-        using Type = std::conditional_t<
-            (Idx == UninitializedNonVoidVariantIndex<
-                    NonVoidType<U>, UninitializedNonVoidVariant<T, Ts...>
-            >::val),
-            NonVoidType<U>,
-            typename IndexToType<Us...>::Type
-        >;
+        using Type 
+            = std::conditional_t<
+                Idx == _I,
+                NonVoidType<U>,
+                typename IndexToType<_I + 1, Us...>::Type
+            >;
     };
 
-    template <typename U>
-    struct IndexToType<U> {
+    template <std::size_t _I, typename U>
+    struct IndexToType<_I, U> {
         using Type = NonVoidType<U>;
     };
 
-    using Type = IndexToType<T, Ts...>::Type;
+    using Type = IndexToType<0, T, Ts...>::Type;
 };
 
 template <std::size_t Idx, typename Lambda, typename... Ts>
@@ -320,13 +319,13 @@ struct UninitializedNonVoidVariant {
         return std::move(std::move(*this).template get<Idx, EMode>());
     }
 
-    template <typename T, typename... Args,
-        std::size_t Idx = UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant>>
+    template <typename T, typename... Args, typename NonVT = NonVoidType<T>,
+        std::size_t Idx = UninitializedNonVoidVariantIndexVal<NonVT, UninitializedNonVoidVariant>>
             requires (Idx < N)
-    T& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
+    NonVT& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<NonVT, Args...>) {
         del(std::make_index_sequence<N>{});
         _idx = Idx;
-        new (std::addressof(get<Idx, ExceptionMode::Nothrow>())) T(std::forward<Args>(args)...);
+        new (std::addressof(get<Idx, ExceptionMode::Nothrow>())) NonVT(std::forward<Args>(args)...);
         return get<Idx, ExceptionMode::Nothrow>();
     }
 
@@ -408,6 +407,27 @@ struct UninitializedNonVoidVariant {
 
     constexpr bool operator!=(UninitializedNonVoidVariant const& that) noexcept {
         return !(*this == that);
+    }
+
+    constexpr void swap(UninitializedNonVoidVariant& that) noexcept {
+        if (this == &that) [[unlikely]] {
+            return;
+        }
+        if (auto idx = index(); idx == that.index()) {
+            [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+                ((idx == Idx && [&] {
+                    using std::swap; // 二段式 ADL, 优先匹配全局的, 再匹配 std 的
+                    swap(get<Idx, ExceptionMode::Nothrow>(),
+                              that.get<Idx, ExceptionMode::Nothrow>());
+                    return true;
+                }()) || ...);
+            }(std::make_index_sequence<N>{});
+            return;
+        }
+        UninitializedNonVoidVariant tmp;
+        tmp = std::move(that);
+        that = std::move(*this);
+        *this = std::move(tmp);
     }
 
     void reset() noexcept {
@@ -546,6 +566,6 @@ constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
     }
 }
 
-} // namespace HX
+} // namespace HX::container
 
 #endif // !_HX_UNINITIALIZED_NON_VOID_VARIANT_H_

@@ -20,7 +20,7 @@
 #ifndef _HX_NON_VOID_HELPER_H_
 #define _HX_NON_VOID_HELPER_H_
 
-namespace HX {
+namespace HX::container {
 
 template <typename T = void>
 struct NonVoidHelper {
@@ -40,11 +40,15 @@ struct NonVoidHelper<void> {
     constexpr NonVoidHelper& operator=(NonVoidHelper const&) noexcept = default;
     constexpr NonVoidHelper& operator=(NonVoidHelper&&) noexcept = default;
 #endif
+
+    constexpr bool operator==(NonVoidHelper const&) const noexcept {
+        return true;
+    }
 };
 
 template <typename T>
 using NonVoidType = NonVoidHelper<T>::Type;
 
-} // namespace HX
+} // namespace HX::container
 
 #endif // !_HX_NON_VOID_HELPER_H_

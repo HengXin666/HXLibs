@@ -28,7 +28,7 @@
 #include <HXLibs/coroutine/concepts/Awaiter.hpp>
 #include <HXLibs/coroutine/task/Task.hpp>
 
-namespace HX {
+namespace HX::coroutine {
 
 namespace internal {
 
@@ -41,13 +41,13 @@ struct WhenAnyCtlBlock {
 
 struct WhenAnyPromise {
     using InitStrategy = std::suspend_always;
-    using DeleStrategy = HX::PreviousAwaiter;
+    using DeleStrategy = PreviousAwaiter;
 
     std::suspend_always initial_suspend() noexcept { return {}; }
     auto get_return_object() noexcept {
         return std::coroutine_handle<WhenAnyPromise>::from_promise(*this);
     }
-    HX::PreviousAwaiter final_suspend() noexcept {
+    PreviousAwaiter final_suspend() noexcept {
         return {_mainCoroutine}; // 3) WhenAny 的核心, 协程终止时候, 都执行这个; 然后回到 whenAny 中!
     }
     void return_value(std::coroutine_handle<> previous) noexcept {
@@ -105,7 +105,7 @@ Task<std::coroutine_handle<>, WhenAnyPromise> start(
 template <
     std::size_t... Idx, 
     AwaitableLike... Ts, 
-    typename ResType = UninitializedNonVoidVariant<
+    typename ResType = container::UninitializedNonVoidVariant<
         AwaiterReturnValue<Ts>...
     >
 >
@@ -136,6 +136,6 @@ template <AwaitableLike... Ts>
     );
 }
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_WHEN_ANY_H_

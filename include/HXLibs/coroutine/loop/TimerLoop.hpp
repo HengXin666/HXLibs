@@ -24,7 +24,7 @@
 #include <map>
 #include <coroutine>
 
-namespace HX {
+namespace HX::coroutine {
 
 /**
  * @brief 定时器循环
@@ -131,6 +131,6 @@ private:
     TimerTree _timerTree;
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_TIMERLOOP_H_

@@ -27,7 +27,7 @@
 #include <HXLibs/coroutine/awaiter/PreviousAwaiter.hpp>
 #include <HXLibs/container/Uninitialized.hpp>
 
-namespace HX {
+namespace HX::coroutine {
 
 /**
  * @brief 协程控制体
@@ -98,7 +98,7 @@ struct Promise {
     std::coroutine_handle<> _previous{};
 private:
     std::exception_ptr _exception{};
-    Uninitialized<T> _value;
+    container::Uninitialized<T> _value;
 };
 
 template <typename Init, typename Dele>
@@ -139,6 +139,6 @@ private:
     std::exception_ptr _exception{};
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_PROMISE_H_

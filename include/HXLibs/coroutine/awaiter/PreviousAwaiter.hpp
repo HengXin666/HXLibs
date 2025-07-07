@@ -22,7 +22,7 @@
 
 #include <coroutine>
 
-namespace HX {
+namespace HX::coroutine {
 
 /**
  * @brief 协程模式: 运行之前的协程
@@ -44,6 +44,6 @@ struct PreviousAwaiter {
     std::coroutine_handle<> _previous; // 之前的协程
 };
 
-} // namespace HX
+} // namespace HX::coroutine
 
 #endif // !_HX_PREVIOUS_AWAITER_H_
