@@ -56,6 +56,7 @@ using namespace std::chrono;
 #include <HXSTL/coroutine/task/Task.hpp>
 #include <HXSTL/coroutine/task/TimerTask.h>
 #include <HXSTL/utils/FileUtils.h>
+#include <HXprint/print.h>
 
 struct Log {
     Log(std::string msg)
@@ -94,12 +95,33 @@ HX::STL::coroutine::task::TimerTask timerTask(int x) {
     co_return;
 }
 
+HX::STL::coroutine::task::Task<int> func02() {
+    HX::print::println("func02 ---");
+
+    HX::print::println("func02 ---");
+    co_return 1;
+}
+
+HX::STL::coroutine::task::Task<int> func03() {
+    HX::print::println("func03 ---");
+
+    HX::print::println("func03 ---");
+    co_return 2;
+}
+
+#include <HXSTL/coroutine/task/WhenAny.hpp>
+
 HX::STL::coroutine::task::Task<> taskMain() {
     printf("你好!\n");
     // {
     //     Log _("test");
     //     co_await A();
     // }
+
+    // @todo BUG!!!
+    // auto _ = co_await HX::STL::coroutine::task::WhenAny::whenAny(func02(), func03());
+    // (void)_;
+
     int zz = 123;
     HX::STL::coroutine::loop::AsyncLoop::getLoop().getTimerLoop().addInitiationTask(
         std::make_shared<HX::STL::coroutine::task::TimerTask>(timerTask(zz))

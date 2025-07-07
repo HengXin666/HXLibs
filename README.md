@@ -1,5 +1,8 @@
 <h1 align="center" style="color:yellow">HXLibs</h1>
 
+> [!TIP]
+> 当前分支是一个比较稳定的版本, 您可以使用和学习...; main分支在变动中, 处于开发状态 ...
+
 - 基于`io_uring`+协程的`http/https`服务器, 基于压缩前缀树的路由, 支持`http/https`解析, `WebSocket`协议, 支持`Transfer-Encoding`分块编码传输文件.
 
 - 客户端提供了简单的协程的`request`方法(API), 并且支持使用`socks5`代理. 支持`http/https`, 以及解析`Transfer-Encoding`分块编码的响应体
