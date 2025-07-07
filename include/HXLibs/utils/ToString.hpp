@@ -30,20 +30,6 @@
 #include <HXLibs/utils/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
-
-// 屏蔽未使用函数、变量和参数的警告
-#if defined(_MSC_VER) // MSVC
-    #pragma warning(push)
-    #pragma warning(disable: 4505) // C4505: 未使用的局部函数
-    #pragma warning(disable: 4101) // C4101: 未使用的局部变量
-    #pragma warning(disable: 4456) // C4456: 声明隐藏了一个局部变量
-#elif defined(__GNUC__) || defined(__clang__) // GCC 和 Clang
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wunused-function"
-    #pragma GCC diagnostic ignored "-Wunused-variable"
-    #pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-
 namespace HX::utils {
 
 // 内部使用的命名空间啊喂!
@@ -121,7 +107,7 @@ concept ToJsonClassType = requires(T t) {
 // 主模版
 template <typename... Ts>
 struct ToString {
-    static std::string toString(Ts const&... obj) { // 禁止默认实现
+    static std::string toString(Ts const&...) { // 禁止默认实现
         static_assert(sizeof...(Ts) == 0, "toString is not implemented for this type");
         return {};
     }
@@ -657,12 +643,5 @@ inline void toString(T&& t, Stream& s) {
 }
 
 } // namespace HX::utils
-
-// 恢复删除的警告
-#if defined(_MSC_VER) // MSVC
-    #pragma warning(pop)
-#elif defined(__GNUC__) || defined(__clang__) // GCC 和 Clang
-    #pragma GCC diagnostic pop
-#endif
 
 #endif // !_HX_TO_STRING_H_

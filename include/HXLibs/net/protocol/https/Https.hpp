@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-06-11 17:38:06
+ * @Date: 2024-08-31 22:07:47
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EXCEPTION_MODE_H_
-#define _HX_EXCEPTION_MODE_H_
+#ifndef _HX_HTTPS_H_
+#define _HX_HTTPS_H_
 
-namespace HX::exception {
+namespace HX { namespace web { namespace protocol { namespace https {
 
-enum class ExceptionMode {
-    Nothrow,
-    Throw
-};
+class Https {};
 
-} // namespace HX
+}}}} // namespace HX::web::protocol::http
 
-#endif // !_HX_EXCEPTION_MODE_H_
+#endif // !_HX_HTTPS_H_

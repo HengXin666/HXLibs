@@ -87,14 +87,14 @@ Task<std::coroutine_handle<>, WhenAnyPromise> start(
             static_cast<void>(co_await t);
             res.template emplace<Idx>();
         } else {
-            res.emplace<Idx>(co_await t);
+            res.template emplace<Idx>(co_await t);
         }
     } else if constexpr (Awaitable<T>) {
         if constexpr (std::is_void_v<decltype(t.operator co_await().await_resume())>) {
             static_cast<void>(co_await t);
             res.template emplace<Idx>();
         } else {
-            res.emplace<Idx>(co_await t);
+            res.template emplace<Idx>(co_await t);
         }
     } else {
         static_assert(!sizeof(T), "The type is not Awaiter");

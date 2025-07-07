@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-06-11 17:38:06
+ * @Date: 2025-03-13 15:29:42
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EXCEPTION_MODE_H_
-#define _HX_EXCEPTION_MODE_H_
+#ifndef _HX_SSL_EXCEPTION_H_
+#define _HX_SSL_EXCEPTION_H_
+
+#include <exception>
+#include <string>
 
 namespace HX::exception {
 
-enum class ExceptionMode {
-    Nothrow,
-    Throw
+class SslException : public std::exception {
+public:
+    explicit SslException(const std::string& msg)
+        : _msg("[SSL Error]: " + msg)
+    {}
+
+    const char* what() const noexcept override {
+        return _msg.c_str();
+    }
+private:
+    std::string _msg;
 };
 
-} // namespace HX
+} // namespace HX::STL::exception
 
-#endif // !_HX_EXCEPTION_MODE_H_
+#endif // !_HX_SSL_EXCEPTION_H_

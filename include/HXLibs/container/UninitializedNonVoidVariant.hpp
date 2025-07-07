@@ -172,7 +172,7 @@ struct UninitializedNonVoidVariantIndexToType<Idx, UninitializedNonVoidVariant<T
 
 template <std::size_t Idx, typename Lambda, typename... Ts>
 constexpr decltype(auto) visitHelper(UninitializedNonVoidVariant<Ts...>& uv, Lambda& lambda) noexcept {
-    return lambda(uv.template get<Idx, ExceptionMode::Nothrow>());
+    return lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
 }
 
 } // namespace internal
@@ -216,7 +216,7 @@ struct UninitializedNonVoidVariant {
         4) 持有索引就可以找到准确的类型 U, 然后 T 构造为 U 了
         */
         constexpr std::size_t Idx = UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant>;
-        new (std::addressof(get<Idx, ExceptionMode::Nothrow>())) T(std::forward<T>(t));
+        new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) T(std::forward<T>(t));
     }
 
     UninitializedNonVoidVariant(UninitializedNonVoidVariant const& that) 
@@ -229,7 +229,7 @@ struct UninitializedNonVoidVariant {
             (((that._idx == Idx) && (
                 [&] {
                     emplace<Idx>(
-                        that.get<Idx, ExceptionMode::Nothrow>()
+                        that.get<Idx, exception::ExceptionMode::Nothrow>()
                     );
                     return true;
                 }()
@@ -247,7 +247,7 @@ struct UninitializedNonVoidVariant {
             (((that._idx == Idx) && (
                 [&] {
                     emplace<Idx>(
-                        std::move(std::move(that).template get<Idx, ExceptionMode::Nothrow>())
+                        std::move(std::move(that).template get<Idx, exception::ExceptionMode::Nothrow>())
                     );
                     return true;
                 }()
@@ -259,10 +259,10 @@ struct UninitializedNonVoidVariant {
         return _idx;
     }
 
-    template <std::size_t Idx, ExceptionMode EMode = ExceptionMode::Throw>
+    template <std::size_t Idx, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (Idx < N)
-    constexpr auto& get() & noexcept(EMode == ExceptionMode::Nothrow) {
-        if constexpr (EMode == ExceptionMode::Throw) {
+    constexpr auto& get() & noexcept(EMode == exception::ExceptionMode::Nothrow) {
+        if constexpr (EMode == exception::ExceptionMode::Throw) {
             if (_idx != Idx) [[unlikely]] {
                 throw std::runtime_error("get: wrong index for variant");
             }
@@ -270,10 +270,10 @@ struct UninitializedNonVoidVariant {
         return internal::UninitializedNonVoidVariantImpl<0, Ts...>::template get<Idx>(_data);
     }
 
-    template <std::size_t Idx, ExceptionMode EMode = ExceptionMode::Throw>
+    template <std::size_t Idx, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (Idx < N)
-    constexpr auto& get() const & noexcept(EMode == ExceptionMode::Nothrow) {
-        if constexpr (EMode == ExceptionMode::Throw) {
+    constexpr auto& get() const & noexcept(EMode == exception::ExceptionMode::Nothrow) {
+        if constexpr (EMode == exception::ExceptionMode::Throw) {
             if (_idx != Idx) [[unlikely]] {
                 throw std::runtime_error("get: wrong index for variant");
             }
@@ -281,10 +281,10 @@ struct UninitializedNonVoidVariant {
         return internal::UninitializedNonVoidVariantImpl<0, Ts...>::template get<Idx>(_data);
     }
 
-    template <std::size_t Idx, ExceptionMode EMode = ExceptionMode::Throw>
+    template <std::size_t Idx, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (Idx < N)
-    constexpr auto&& get() && noexcept(EMode == ExceptionMode::Nothrow) {
-        if constexpr (EMode == ExceptionMode::Throw) {
+    constexpr auto&& get() && noexcept(EMode == exception::ExceptionMode::Nothrow) {
+        if constexpr (EMode == exception::ExceptionMode::Throw) {
             if (_idx != Idx) [[unlikely]] {
                 throw std::runtime_error("get: wrong index for variant");
             }
@@ -298,23 +298,23 @@ struct UninitializedNonVoidVariant {
      * @brief 获取类型为 T 的变量; 如果多个类型, 仅会提取最靠前的那个
      * @tparam T 
      */
-    template <typename T, ExceptionMode EMode = ExceptionMode::Throw>
+    template <typename T, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant> < N)
-    constexpr auto& get() & noexcept(EMode == ExceptionMode::Nothrow) {
+    constexpr auto& get() & noexcept(EMode == exception::ExceptionMode::Nothrow) {
         constexpr std::size_t Idx = UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant>;
         return get<Idx, EMode>();
     }
 
-    template <typename T, ExceptionMode EMode = ExceptionMode::Throw>
+    template <typename T, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant> < N)
-    constexpr const auto& get() const & noexcept(EMode == ExceptionMode::Nothrow) {
+    constexpr const auto& get() const & noexcept(EMode == exception::ExceptionMode::Nothrow) {
         constexpr std::size_t Idx = UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant>;
         return get<Idx, EMode>();
     }
 
-    template <typename T, ExceptionMode EMode = ExceptionMode::Throw>
+    template <typename T, exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
         requires (UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant> < N)
-    constexpr auto&& get() && noexcept(EMode == ExceptionMode::Nothrow) {
+    constexpr auto&& get() && noexcept(EMode == exception::ExceptionMode::Nothrow) {
         constexpr std::size_t Idx = UninitializedNonVoidVariantIndexVal<T, UninitializedNonVoidVariant>;
         return std::move(std::move(*this).template get<Idx, EMode>());
     }
@@ -325,8 +325,8 @@ struct UninitializedNonVoidVariant {
     NonVT& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<NonVT, Args...>) {
         del(std::make_index_sequence<N>{});
         _idx = Idx;
-        new (std::addressof(get<Idx, ExceptionMode::Nothrow>())) NonVT(std::forward<Args>(args)...);
-        return get<Idx, ExceptionMode::Nothrow>();
+        new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) NonVT(std::forward<Args>(args)...);
+        return get<Idx, exception::ExceptionMode::Nothrow>();
     }
 
     template <std::size_t Idx, typename... Args,
@@ -335,8 +335,8 @@ struct UninitializedNonVoidVariant {
     T& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
         del(std::make_index_sequence<N>{});
         _idx = Idx;
-        new (std::addressof(get<Idx, ExceptionMode::Nothrow>())) T(std::forward<Args>(args)...);
-        return get<Idx, ExceptionMode::Nothrow>();
+        new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) T(std::forward<Args>(args)...);
+        return get<Idx, exception::ExceptionMode::Nothrow>();
     }
 
     template <typename T>
@@ -358,7 +358,7 @@ struct UninitializedNonVoidVariant {
             (((that._idx == Idx) && (
                 [&] {
                     emplace<Idx>(
-                        that.get<Idx, ExceptionMode::Nothrow>()
+                        that.get<Idx, exception::ExceptionMode::Nothrow>()
                     );
                     return true;
                 }()
@@ -379,7 +379,8 @@ struct UninitializedNonVoidVariant {
             (((that._idx == Idx) && (
                 [&] {
                     emplace<Idx>(
-                        std::move(std::move(that).template get<Idx, ExceptionMode::Nothrow>())
+                        std::move(std::move(that).template 
+                            get<Idx, exception::ExceptionMode::Nothrow>())
                     );
                     return true;
                 }()
@@ -417,8 +418,8 @@ struct UninitializedNonVoidVariant {
             [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
                 ((idx == Idx && [&] {
                     using std::swap; // 二段式 ADL, 优先匹配全局的, 再匹配 std 的
-                    swap(get<Idx, ExceptionMode::Nothrow>(),
-                              that.get<Idx, ExceptionMode::Nothrow>());
+                    swap(get<Idx, exception::ExceptionMode::Nothrow>(),
+                              that.get<Idx, exception::ExceptionMode::Nothrow>());
                     return true;
                 }()) || ...);
             }(std::make_index_sequence<N>{});
@@ -447,9 +448,9 @@ private:
 #if defined(_MSC_VER)
                 // 实际上里面几乎就是套了一层模版, 然后 ->~T
                 // 原来是 MSVC 不能 ->~NonVoidType<T> 啊!
-                std::destroy_at(std::addressof(u.get<Idx, ExceptionMode::Nothrow>()));
+                std::destroy_at(std::addressof(u.get<Idx, exception::ExceptionMode::Nothrow>()));
 #elif defined(__GNUC__) || defined(__clang__)
-                u.get<Idx, ExceptionMode::Nothrow>().~NonVoidType<Ts>(); 
+                u.get<Idx, exception::ExceptionMode::Nothrow>().~NonVoidType<Ts>(); 
 #else
                 // 暂时不支持当前编译器
                 #error "Currently not supported by the compiler"
@@ -471,41 +472,53 @@ private:
 };
 
 template <std::size_t Idx, typename... Ts, 
-    ExceptionMode EMode = ExceptionMode::Throw,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
-constexpr auto& get(UninitializedNonVoidVariant<Ts...>& v) noexcept(EMode == ExceptionMode::Nothrow) {
+constexpr auto& get(
+    UninitializedNonVoidVariant<Ts...>& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<Idx, EMode>();
 }
 
 template <std::size_t Idx, typename... Ts, 
-    ExceptionMode EMode = ExceptionMode::Throw,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
-constexpr const auto& get(UninitializedNonVoidVariant<Ts...> const& v) noexcept(EMode == ExceptionMode::Nothrow) {
+constexpr const auto& get(
+    UninitializedNonVoidVariant<Ts...> const& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<Idx, EMode>();
 }
 
 template <std::size_t Idx, typename... Ts, 
-    ExceptionMode EMode = ExceptionMode::Throw,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
-constexpr auto&& get(UninitializedNonVoidVariant<Ts...>&& v) noexcept(EMode == ExceptionMode::Nothrow) {
+constexpr auto&& get(
+    UninitializedNonVoidVariant<Ts...>&& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return std::move(std::move(v).template get<Idx, EMode>());
 }
 
 template <typename T, typename... Ts,
-    ExceptionMode EMode = ExceptionMode::Throw>
-constexpr auto& get(UninitializedNonVoidVariant<Ts...>& v) noexcept(EMode == ExceptionMode::Nothrow) {
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+constexpr auto& get(
+    UninitializedNonVoidVariant<Ts...>& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<T, EMode>();
 }
 
 template <typename T, typename... Ts,
-    ExceptionMode EMode = ExceptionMode::Throw>
-constexpr const auto& get(UninitializedNonVoidVariant<Ts...> const& v) noexcept(EMode == ExceptionMode::Nothrow) {
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+constexpr const auto& get(
+    UninitializedNonVoidVariant<Ts...> const& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<T, EMode>();
 }
 
 template <typename T, typename... Ts,
-    ExceptionMode EMode = ExceptionMode::Throw>
-constexpr auto&& get(UninitializedNonVoidVariant<Ts...>&& v) noexcept(EMode == ExceptionMode::Nothrow) {
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+constexpr auto&& get(
+    UninitializedNonVoidVariant<Ts...>&& v
+) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return std::move(std::move(v).template get<T, EMode>());
 }
 
@@ -519,7 +532,7 @@ constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
     if constexpr (std::is_void_v<Res>) {
         // void 返回值
         auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
-            lambda(uv.template get<Idx, ExceptionMode::Nothrow>());
+            lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
             return true;
         };
         [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
@@ -532,7 +545,7 @@ constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
         // 返回 带参数的, 支持移动 or 拷贝构造
         Uninitialized<Res> res;
         auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
-            res.set(lambda(uv.template get<Idx, ExceptionMode::Nothrow>()));
+            res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
             return true;
         };
         [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
@@ -543,7 +556,7 @@ constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
         // 返回 如 Lambda 这类 不支持 移动 or 拷贝构造的
         // 您可以使用 std::function 来返回 ...
 
-#if 1   // 原因见: src/06-std-analyse/test/08-Lambda/01_Lambda.cpp
+#if 1   // 原因见: https://github.com/HengXin666/HXTest/blob/main/src/06-std-analyse/test/08-Lambda/01_Lambda.cpp
         static_assert(sizeof...(Ts) < 0, 
             "visit requires the visitor to have the same "
             "return type for all alternatives of a variant");
@@ -553,7 +566,7 @@ constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
             static FuncPtr table[] = {
                 [] (UninitializedNonVoidVariant<Ts...>& uv, Lambda& ld) -> Res {
                     if constexpr () {
-                        return ld(uv.template get<Idx, ExceptionMode::Nothrow>());
+                        return ld(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
                     } else {
                         // [[unlikely]]
                         return std::declval<Res>();
