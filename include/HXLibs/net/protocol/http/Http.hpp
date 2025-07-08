@@ -64,6 +64,12 @@ inline constexpr std::string_view getMethodStringView(HttpMethod const mthd) {
 
 inline constexpr std::string_view CRLF{"\r\n", 2};
 
+inline constexpr std::string_view HEADER_SEPARATOR_SV   = ": ";
+inline constexpr std::string_view HEADER_END_SV         = "\r\n\r\n";
+inline constexpr std::string_view CONTENT_LENGTH_SV     = "content-length";
+inline constexpr std::string_view CONTENT_TYPE_SV       = "content-type";
+inline constexpr std::string_view TRANSFER_ENCODING_SV  = "transfer-encoding";
+inline constexpr std::string_view CONNECTION_SV         = "connection";
 } // namespace HX::net
 
 #endif // !_HX_HTTP_H_

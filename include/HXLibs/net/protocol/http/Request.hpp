@@ -32,10 +32,43 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
+#include <HXLibs/exception/ErrorHandlingTools.hpp>
 
 namespace HX::net {
 
 class Router;
+
+namespace internal {
+
+struct TransparentStringHash {
+    using is_transparent = void; // 告诉 unordered_map 可以透明查找
+
+    std::size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+
+    std::size_t operator()(const std::string& s) const noexcept {
+        return std::hash<std::string>{}(s);
+    }
+};
+
+struct TransparentStringEqual {
+    using is_transparent = void;
+
+    bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
+        return lhs == rhs;
+    }
+
+    bool operator()(const std::string& lhs, std::string_view rhs) const noexcept {
+        return lhs == rhs;
+    }
+
+    bool operator()(std::string_view lhs, const std::string& rhs) const noexcept {
+        return lhs == rhs;
+    }
+};
+
+} // namespace internal
 
 /**
  * @brief 请求类(Request)
@@ -43,7 +76,8 @@ class Router;
 class Request {
 public:
     explicit Request(IO& io) 
-        : _requestLine()
+        : _recvBuf(IO::kBufMaxSize)
+        , _requestLine()
         , _requestHeaders()
         , _requestHeadersIt(_requestHeaders.end())
         , _body()
@@ -114,124 +148,30 @@ public:
     // ===== ↓服务端使用↓ =====
     /**
      * @brief 解析请求
-     * @param buf 需要解析的内容
-     * @return 是否需要继续解析;
-     *         `== 0`: 不需要;
-     *         `>  0`: 需要继续解析`size_t`个字节
-     * @warning 假定内容是符合Http协议的
+     * @return coroutine::Task<bool> 断开连接则为false, 解析成功为true
      */
-    std::size_t parserRequest(std::string_view buf) {
-        using namespace std::string_literals;
-        using namespace std::string_view_literals;
-        if (_buf.size()) {
-            _buf += buf;
-            buf = _buf;
-        }
-
-        if (_requestLine.empty()) { // 请求行还未解析
-            std::size_t pos = buf.find(CRLF);
-            if (pos == std::string_view::npos) [[unlikely]] { // 不可能事件
-                return HX::utils::FileUtils::kBufMaxSize;
+    template <auto Timeout>
+    coroutine::Task<bool> parserRequest() {
+        std::size_t n = IO::kBufMaxSize;
+        for (; n; n = _parserRequest()) {
+            auto res = co_await _io.recvLinkTimeout<Timeout>(_recvBuf, n);
+            if (res.index() == 1) [[unlikely]] {
+                co_return false;
             }
-
-            // 解析请求行
-            _requestLine = HX::utils::StringUtil::split<std::string>(buf.substr(0, pos), " "sv);
-            if (_requestLine.size() != 3)
-                return HX::utils::FileUtils::kBufMaxSize;
-            buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
-        }
-
-        /**
-         * @brief 请求头
-         * 通过`\r\n`分割后, 取最前面的, 先使用最左的`:`以判断是否是需要作为独立的键值对;
-         * -  如果找不到`:`, 并且 非空, 那么它需要接在上一个解析的键值对的值尾
-         * -  否则即请求头解析完毕!
-         */
-        while (!_completeRequestHeader) { // 请求头未解析完
-            std::size_t pos = buf.find(CRLF);
-            if (pos == std::string_view::npos) { // 没有读取完
-                _buf = buf;
-                return HX::utils::FileUtils::kBufMaxSize;
-            }
-            std::string_view subStr = buf.substr(0, pos);
-            auto p = HX::utils::StringUtil::splitAtFirst(subStr, ": "sv);
-            if (p.first.empty()) { // 找不到 ": "
-                if (subStr.size()) [[unlikely]] { // 很少会有分片传输请求头的
-                    _requestHeadersIt->second.append(subStr);
-                } else { // 请求头解析完毕!
-                    _completeRequestHeader = true;
-                }
-            } else {
-                HX::utils::StringUtil::toLower(p.second);
-                _requestHeadersIt = _requestHeaders.insert(p).first;
-            }
-            buf = buf.substr(pos + 2);
-        }
-
-        if (_requestHeaders.count("Content-Length"s)) { // 存在content-length模式接收的响应体
-            // 是 空行之后 (\r\n\r\n) 的内容大小(char)
-            if (!_remainingBodyLen.has_value()) {
-                _body = buf;
-                _remainingBodyLen = std::stoll(_requestHeaders["Content-Length"s]) 
-                                - _body.size();
-            } else {
-                *_remainingBodyLen -= buf.size();
-                _body.append(buf);
-            }
-
-            if (*_remainingBodyLen != 0) {
-                _buf.clear();
-                return *_remainingBodyLen;
-            }
-        } else if (_requestHeaders.count("Transfer-Encoding"s)) { // 存在请求体以`分块传输编码`
-            /**
-            * TODO: 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
-            * */
-            if (_remainingBodyLen) { // 处理没有读取完的
-                if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
-                    _body += buf;
-                    *_remainingBodyLen -= buf.size();
-                    return HX::utils::FileUtils::kBufMaxSize;
-                } else { // 读取完了
-                    _body.append(buf, 0, *_remainingBodyLen);
-                    buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
-                    _remainingBodyLen.reset();
-                }
-            }
-            while (true) {
-                std::size_t posLen = buf.find(CRLF);
-                if (posLen == std::string_view::npos) { // 没有读完
-                    _buf = buf;
-                    return HX::utils::FileUtils::kBufMaxSize;
-                }
-                if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
-                    // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
-                    buf = buf.substr(posLen + 2);
-                    continue;
-                }
-                _remainingBodyLen = std::stol(std::string {buf.substr(0, posLen)}, nullptr, 16); // 转换为十进制整数
-                if (!*_remainingBodyLen) { // 解析完毕
-                    return 0;
-                }
-                buf = buf.substr(posLen + 2);
-                if (buf.size() <= *_remainingBodyLen) { // 没有读完
-                    _body += buf;
-                    *_remainingBodyLen -= buf.size();
-                    return HX::utils::FileUtils::kBufMaxSize;
-                }
-                _body.append(buf.substr(0, *_remainingBodyLen));
-                buf = buf.substr(*_remainingBodyLen + 2);
+            if (exception::IoUringErrorHandlingTools::check(
+                res.template get<0, exception::ExceptionMode::Nothrow>()
+            ) == 0) [[unlikely]] {
+                co_return false; // 连接断开
             }
         }
-
-        return 0; // 解析完毕
+        co_return true;
     }
 
     /**
      * @brief 获取请求头键值对的引用
      * @return const std::unordered_map<std::string, std::string>& 
      */
-    const std::unordered_map<std::string, std::string>& getRequestHeaders() const noexcept {
+    const auto& getRequestHeaders() const noexcept {
         return _requestHeaders;
     }
 
@@ -346,7 +286,8 @@ public:
         _requestLine.clear();
         _requestHeaders.clear();
         _requestHeadersIt = _requestHeaders.end();
-        _buf.clear();
+        // _buf.clear();
+        _recvBuf.clear();
         _body.clear();
         _completeRequestHeader = false;
         _remainingBodyLen.reset();
@@ -362,16 +303,26 @@ private:
     };
 
     /**
+     * @brief 仅用于读取和写入的缓冲区
+     */
+    std::vector<char> _recvBuf;
+
+    /**
      * @brief 服务端: 之前未解析全的数据
      *        客户端: 待写入的内容
      */
-    std::string _buf;
+    // std::string _buf;
 
     std::vector<std::string> _requestLine; // 请求行
-    std::unordered_map<std::string, std::string> _requestHeaders; // 请求头
+    std::unordered_map<
+        std::string, 
+        std::string, 
+        internal::TransparentStringHash, 
+        internal::TransparentStringEqual
+    > _requestHeaders; // 请求头
 
     // 上一次解析的请求头
-    std::unordered_map<std::string, std::string>::iterator _requestHeadersIt;
+    decltype(_requestHeaders)::iterator _requestHeadersIt;
 
     // 请求体
     std::string _body;
@@ -404,28 +355,267 @@ private:
     void createRequestBuffer() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
-        _buf.clear();
-        _buf.append(_requestLine[RequestLineDataType::RequestType]);
-        _buf.append(" "s);
-        _buf.append(_requestLine[RequestLineDataType::RequestPath]);
-        _buf.append(" "s);
-        _buf.append(_requestLine[RequestLineDataType::ProtocolVersion]);
-        _buf.append("\r\n"s);
+        _recvBuf.clear();
+        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestType]);
+        utils::StringUtil::append(_recvBuf, " "s);
+        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestPath]);
+        utils::StringUtil::append(_recvBuf, " "s);
+        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::ProtocolVersion]);
+        utils::StringUtil::append(_recvBuf, CRLF);
         for (const auto& [key, val] : _requestHeaders) {
-            _buf.append(key);
-            _buf.append(": "s);
-            _buf.append(val);
-            _buf.append("\r\n"s);
+            utils::StringUtil::append(_recvBuf, key);
+            utils::StringUtil::append(_recvBuf, HEADER_SEPARATOR_SV);
+            utils::StringUtil::append(_recvBuf, val);
+            utils::StringUtil::append(_recvBuf, CRLF);
         }
         if (_body.size()) {
-            _buf.append("Content-Length: "s);
-            _buf.append(std::to_string(_body.size()));
-            _buf.append("\r\n\r\n"s);
-            _buf.append(_body);
+            utils::StringUtil::append(_recvBuf, CONTENT_LENGTH_SV);
+            utils::StringUtil::append(_recvBuf, std::to_string(_body.size()));
+            utils::StringUtil::append(_recvBuf, HEADER_END_SV);
+            utils::StringUtil::append(_recvBuf, _body);
         } else {
-            _buf.append("\r\n\r\n"s);
+            utils::StringUtil::append(_recvBuf, HEADER_END_SV);
         }
     }
+
+    std::size_t _parserRequest() {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        switch ((_completeRequestHeader << 1) | (!_requestLine.empty())) {
+            case 0x00: { // 什么也没有解析, 开始解析请求行
+                std::size_t pos = buf.find(CRLF);
+                if (pos == std::string_view::npos) [[unlikely]] { // 不可能事件
+                    return IO::kBufMaxSize;
+                }
+                std::string_view reqLine = buf.substr(0, pos);
+
+                // 解析请求行
+                _requestLine = utils::StringUtil::split<std::string>(
+                    reqLine, " "sv
+                );
+
+                if (_requestLine.size() < 3) [[unlikely]] {
+                    return IO::kBufMaxSize;
+                } 
+                // else if (_requestLine.size() > 3) [[unlikely]] {
+                // @todo 理论上不会出现
+                // }
+
+                buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
+            }
+            case 0x01: { // 解析完请求行, 开始解析请求头
+                /**
+                 * @brief 请求头
+                 * 通过`\r\n`分割后, 取最前面的, 先使用最左的`:`以判断是否是需要作为独立的键值对;
+                 * -  如果找不到`:`, 并且 非空, 那么它需要接在上一个解析的键值对的值尾
+                 * -  否则即请求头解析完毕!
+                 */
+                while (!_completeRequestHeader) { // 请求头未解析完
+                    std::size_t pos = buf.find(CRLF);
+                    if (pos == std::string_view::npos) { // 没有读取完
+                        _recvBuf.insert(_recvBuf.begin(), buf.begin(), buf.end());
+                        return IO::kBufMaxSize;
+                    }
+                    std::string_view subKVStr = buf.substr(0, pos);
+                    auto p = utils::StringUtil::splitAtFirst(subKVStr, ": "sv);
+                    if (p.first.empty()) [[unlikely]] {     // 找不到 ": "
+                        if (subKVStr.size()) [[unlikely]] { // 很少会有分片传输请求头的
+                            _requestHeadersIt->second.append(subKVStr);
+                        } else { // 请求头解析完毕!
+                            _completeRequestHeader = true;
+                        }
+                    } else {
+                        // K: V, 其中 V 是区分大小写的, 但是 K 是不区分的
+                        utils::StringUtil::toLower(p.first);
+                        _requestHeadersIt = _requestHeaders.insert(p).first;
+                    }
+                    buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
+                }
+            }
+            case 0x03: { // 解析完请求头, 开始请求体解析
+                if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
+                    // 是 空行之后 (\r\n\r\n) 的内容大小(char)
+                    if (!_remainingBodyLen.has_value()) {
+                        _body = buf;
+                        _remainingBodyLen 
+                            = std::stoll(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
+                            - _body.size();
+                    } else {
+                        *_remainingBodyLen -= buf.size();
+                        _body.append(buf);
+                    }
+
+                    if (*_remainingBodyLen != 0) {
+                        _recvBuf.clear();
+                        return *_remainingBodyLen;
+                    }
+                } else if (_requestHeaders.contains(TRANSFER_ENCODING_SV)) { // 存在请求体以`分块传输编码`
+                    /**
+                     * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
+                     * */
+                    if (_remainingBodyLen) { // 处理没有读取完的
+                        if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
+                            _body += buf;
+                            *_remainingBodyLen -= buf.size();
+                            return IO::kBufMaxSize;
+                        } else { // 读取完了
+                            _body.append(buf, 0, *_remainingBodyLen);
+                            buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
+                            _remainingBodyLen.reset();
+                        }
+                    }
+                    while (true) {
+                        std::size_t posLen = buf.find(CRLF);
+                        if (posLen == std::string_view::npos) { // 没有读完
+                            _recvBuf.insert(_recvBuf.begin(), buf.begin(), buf.end());
+                            return IO::kBufMaxSize;
+                        }
+                        if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
+                            // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
+                            buf = buf.substr(posLen + 2);
+                            continue;
+                        }
+                        _remainingBodyLen = std::stol(std::string {buf.substr(0, posLen)}, nullptr, 16); // 转换为十进制整数
+                        if (!*_remainingBodyLen) { // 解析完毕
+                            return 0;
+                        }
+                        buf = buf.substr(posLen + 2);
+                        if (buf.size() <= *_remainingBodyLen) { // 没有读完
+                            _body += buf;
+                            *_remainingBodyLen -= buf.size();
+                            return IO::kBufMaxSize;
+                        }
+                        _body.append(buf.substr(0, *_remainingBodyLen));
+                        buf = buf.substr(*_remainingBodyLen + 2);
+                    }
+                }
+                // @todo 断点续传协议
+            }
+            [[unlikely]] default: 
+                throw std::runtime_error{"parserRequest UB Error"};
+        }
+        return 0;
+    }
+
+    #if 0
+    /**
+     * @brief 解析请求
+     * @param buf 需要解析的内容
+     * @return 是否需要继续解析;
+     *         `== 0`: 不需要;
+     *         `>  0`: 需要继续解析`size_t`个字节
+     * @warning 假定内容是符合Http协议的
+     */
+    std::size_t _parserRequest(std::string_view buf) {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        if (_buf.size()) {
+            _buf += buf;
+            buf = _buf;
+        }
+
+        if (_requestLine.empty()) { // 请求行还未解析
+            std::size_t pos = buf.find(CRLF);
+            if (pos == std::string_view::npos) [[unlikely]] { // 不可能事件
+                return HX::utils::FileUtils::kBufMaxSize;
+            }
+
+            // 解析请求行
+            _requestLine = HX::utils::StringUtil::split<std::string>(
+                buf.substr(0, pos), " "sv
+            );
+            if (_requestLine.size() != 3)
+                return HX::utils::FileUtils::kBufMaxSize;
+            buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
+        }
+
+        /**
+         * @brief 请求头
+         * 通过`\r\n`分割后, 取最前面的, 先使用最左的`:`以判断是否是需要作为独立的键值对;
+         * -  如果找不到`:`, 并且 非空, 那么它需要接在上一个解析的键值对的值尾
+         * -  否则即请求头解析完毕!
+         */
+        while (!_completeRequestHeader) { // 请求头未解析完
+            std::size_t pos = buf.find(CRLF);
+            if (pos == std::string_view::npos) { // 没有读取完
+                _buf = buf;
+                return HX::utils::FileUtils::kBufMaxSize;
+            }
+            std::string_view subStr = buf.substr(0, pos);
+            auto p = HX::utils::StringUtil::splitAtFirst(subStr, ": "sv);
+            if (p.first.empty()) { // 找不到 ": "
+                if (subStr.size()) [[unlikely]] { // 很少会有分片传输请求头的
+                    _requestHeadersIt->second.append(subStr);
+                } else { // 请求头解析完毕!
+                    _completeRequestHeader = true;
+                }
+            } else {
+                HX::utils::StringUtil::toLower(p.second);
+                _requestHeadersIt = _requestHeaders.insert(p).first;
+            }
+            buf = buf.substr(pos + 2);
+        }
+
+        if (_requestHeaders.count(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
+            // 是 空行之后 (\r\n\r\n) 的内容大小(char)
+            if (!_remainingBodyLen.has_value()) {
+                _body = buf;
+                _remainingBodyLen = std::stoll(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
+                                - _body.size();
+            } else {
+                *_remainingBodyLen -= buf.size();
+                _body.append(buf);
+            }
+
+            if (*_remainingBodyLen != 0) {
+                _buf.clear();
+                return *_remainingBodyLen;
+            }
+        } else if (_requestHeaders.count(TRANSFER_ENCODING_SV)) { // 存在请求体以`分块传输编码`
+            /**
+             * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
+             * */
+            if (_remainingBodyLen) { // 处理没有读取完的
+                if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
+                    _body += buf;
+                    *_remainingBodyLen -= buf.size();
+                    return HX::utils::FileUtils::kBufMaxSize;
+                } else { // 读取完了
+                    _body.append(buf, 0, *_remainingBodyLen);
+                    buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
+                    _remainingBodyLen.reset();
+                }
+            }
+            while (true) {
+                std::size_t posLen = buf.find(CRLF);
+                if (posLen == std::string_view::npos) { // 没有读完
+                    _buf = buf;
+                    return HX::utils::FileUtils::kBufMaxSize;
+                }
+                if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
+                    // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
+                    buf = buf.substr(posLen + 2);
+                    continue;
+                }
+                _remainingBodyLen = std::stol(std::string {buf.substr(0, posLen)}, nullptr, 16); // 转换为十进制整数
+                if (!*_remainingBodyLen) { // 解析完毕
+                    return 0;
+                }
+                buf = buf.substr(posLen + 2);
+                if (buf.size() <= *_remainingBodyLen) { // 没有读完
+                    _body += buf;
+                    *_remainingBodyLen -= buf.size();
+                    return HX::utils::FileUtils::kBufMaxSize;
+                }
+                _body.append(buf.substr(0, *_remainingBodyLen));
+                buf = buf.substr(*_remainingBodyLen + 2);
+            }
+        }
+
+        return 0; // 解析完毕
+    }
+    #endif
 };
 
 } // namespace HX::net

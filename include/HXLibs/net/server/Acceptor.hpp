@@ -43,6 +43,7 @@ struct Acceptor {
 
     Acceptor& operator=(Acceptor&&) noexcept = delete;
 
+    template <auto Timeout>
     coroutine::Task<> start() {
         auto serverFd = co_await makeServerFd();
         for (;;) {
@@ -59,7 +60,7 @@ struct Acceptor {
                     0
                 )
             );
-            ConnectionHandler::start(fd, _router, _eventLoop).detach();
+            ConnectionHandler::start<Timeout>(fd, _router, _eventLoop).detach();
         }
     }
 

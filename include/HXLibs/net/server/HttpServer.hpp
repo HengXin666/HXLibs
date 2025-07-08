@@ -68,31 +68,36 @@ public:
 
     /**
      * @brief 同步启动 HttpServer
+     * @tparam Timeout 字面常量, 表示超时时间
      */
+    template <auto Timeout = std::chrono::seconds{30}>
     void sync() {
         if (_thread) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
-        _sync();
+        _sync<Timeout>();
     }
 
     /**
      * @brief 异步启动 HttpServer
      * @warning 本方法不可重入, 并且线程不安全
+     * @tparam Timeout 字面常量, 表示超时时间
      */
+    template <auto Timeout = std::chrono::seconds{30}>
     void async() {
         if (_thread) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
         _thread = std::make_unique<std::jthread>([this]{
-            _sync();
+            _sync<Timeout>();
         });
     }
 
 private:
-    void _sync() {
+    template <auto Timeout>
+    void _sync(std::chrono::seconds timeout) {
         Acceptor acceptor{_router, _eventLoop, _addrInfo};
-        _eventLoop.start(acceptor.start());
+        _eventLoop.start(acceptor.start<Timeout>(timeout));
         _eventLoop.run();
     }
     

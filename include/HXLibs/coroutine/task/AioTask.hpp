@@ -263,7 +263,7 @@ public:
      * @return AioTask&& 
      */
     [[nodiscard]] AioTask&& prepLinkTimeout(
-        struct __kernel_timespec *ts,
+        struct __kernel_timespec* ts,
         unsigned int flags
     ) && {
         ::io_uring_prep_link_timeout(_sqe, ts, flags);
@@ -276,7 +276,9 @@ public:
      * @param timeoutTask `prepLinkTimeout`的返回值
      * @return auto 
      */
-    [[nodiscard]] inline static auto linkTimeout(AioTask&& task, AioTask&& timeoutTask) {
+    [[nodiscard]] inline static auto linkTimeout(
+        AioTask&& task, AioTask&& timeoutTask
+    ) {
         task._sqe->flags |= IOSQE_IO_LINK;
         return whenAny(std::move(task), std::move(timeoutTask));
     }

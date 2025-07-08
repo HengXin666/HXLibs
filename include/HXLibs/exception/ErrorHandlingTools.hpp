@@ -83,7 +83,7 @@ struct LinuxErrorHandlingTools {
         T expect(const char *what) const {
             if (_res < 0) {
                 auto ec = errorCode();
-                LOG_ERROR("%s: %s (%d)", what, ec.message().c_str(), _res);
+                // LOG_ERROR("%s: %s (%d)", what, ec.message().c_str(), _res);
                 throw std::system_error(ec, what);
             }
             return _res;
@@ -96,7 +96,7 @@ struct LinuxErrorHandlingTools {
         T value() const {
             if (_res < 0) {
                 auto ec = errorCode();
-                LOG_ERROR("%s", ec.message().c_str());
+                // LOG_ERROR("%s", ec.message().c_str());
                 throw std::system_error(ec);
             }
             return _res;

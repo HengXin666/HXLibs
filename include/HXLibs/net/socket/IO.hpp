@@ -23,11 +23,70 @@
 #include <string>
 
 #include <HXLibs/coroutine/task/Task.hpp>
+#include <HXLibs/coroutine/loop/EventLoop.hpp>
+#include <HXLibs/net/socket/SocketFd.hpp>
+
+#include <HXLibs/log/Log.hpp>
 
 namespace HX::net {
 
+/**
+ * @brief Socket IO 接口, 仅提供写入和读取等操作, 不会进行任何解析和再封装
+ * @note 如果需要进行读写解析, 可以看 Res / Req 的接口
+ */
 class IO {
 public:
+    inline constexpr static std::size_t kBufMaxSize = 1 << 10;
+
+    IO(SocketFdType fd, coroutine::EventLoop& eventLoop)
+        : _fd{fd}
+        , _eventLoop{eventLoop}
+    {}
+
+    coroutine::Task<int> recv(std::span<char> buf) {
+        co_return co_await _eventLoop.makeAioTask()
+                                     .prepRecv(_fd, buf, 0);
+    }
+
+    coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
+        co_return co_await _eventLoop.makeAioTask()
+                                     .prepRecv(_fd, buf.subspan(0, n), 0);
+    }
+
+    template <auto Timeout>
+    auto recvLinkTimeout(std::span<char> buf) {
+#if defined(__linux__)
+        // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
+        static auto to = coroutine::durationToKernelTimespec(Timeout);
+        return coroutine::AioTask::linkTimeout(
+            _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
+            _eventLoop.makeAioTask().prepLinkTimeout(&to, 0)
+        );
+#elif defined(_WIN32)
+        #error "@todo"
+#else
+        #error "Does not support the current operating system."
+#endif
+    }
+
+    coroutine::Task<int> send(std::span<char const> buf) {
+        co_return co_await _eventLoop.makeAioTask()
+                                     .prepSend(_fd, buf, 0);
+    }
+
+    coroutine::Task<int> send(std::span<char const> buf, std::size_t n) {
+        co_return co_await _eventLoop.makeAioTask()
+                                     .prepSend(_fd, buf.subspan(0, n), 0);
+    }
+
+    coroutine::Task<int> close() {
+        /// @todo 此处可能也需要特化 ckose ? 因为 win 下的超时实际上就已经close了(?)
+        auto res = co_await _eventLoop.makeAioTask()
+                                           .prepClose(_fd);
+        _fd = kInvalidSocket;
+        co_return res;
+    }
+
     /**
      * @brief 设置响应体使用`TransferEncoding`分块编码, 以传输读取的文件
      * @param path 需要读取的文件的路径
@@ -45,6 +104,16 @@ public:
     coroutine::Task<> sendResponseWithRange(
         const std::string& path
     ) const;
+
+    ~IO() noexcept {
+        if (_fd != kInvalidSocket) [[unlikely]] {
+            log::hxLog.error("IO 没有进行 close");
+        }
+    }
+private:
+    SocketFdType _fd;
+    coroutine::EventLoop& _eventLoop;
+    friend struct ConnectionHandler;
 };
 
 } // namespace HX::net

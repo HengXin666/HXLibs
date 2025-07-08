@@ -24,16 +24,43 @@
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/net/socket/SocketFd.hpp>
 #include <HXLibs/net/router/Router.hpp>
+#include <HXLibs/net/socket/IO.hpp>
+#include <HXLibs/net/protocol/http/Request.hpp>
+#include <HXLibs/net/protocol/http/Response.hpp>
 
 namespace HX::net {
 
 struct ConnectionHandler {
 
+    template <auto Timeout>
     static coroutine::RootTask<> start(
         SocketFdType fd,
         Router const& router,
         coroutine::EventLoop& eventLoop
     ) {
+        IO io{fd, eventLoop};
+        Request  req{io};
+        Response res{io};
+
+        try {
+            for (;;) {
+                // 读
+                if (!co_await req.parserRequest<Timeout>()) [[unlikely]] {
+                    break;
+                }
+                // 路由
+                co_await router.getEndpoint(
+                    req.getRequesType(), 
+                    req.getRequesPath()
+                )(req, res);
+        
+                // 写
+            }
+        } catch (...) {
+        
+        }
+
+        co_await io.close();
 
         co_return;
     };

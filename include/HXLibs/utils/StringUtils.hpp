@@ -192,6 +192,15 @@ struct StringUtil final {
         }
         return std::string {str}; // 如果未找到分隔符, 返回原字符串
     }
+
+    /**
+     * @brief 为 vector<char> 尾部添加字符串
+     * @param buf 
+     * @param sv 
+     */
+    inline static void append(std::vector<char>& buf, std::span<char const> sv) {
+        buf.insert(buf.end(), sv.begin(), sv.end());
+    }
 };
 
 /**
