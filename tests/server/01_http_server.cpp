@@ -13,6 +13,6 @@ int main() {
                     .sendResponse();
         co_return;
     });
-    // ser.sync(1); // bug
+    // ser.sync(); // @todo cli
     return 0;
 }

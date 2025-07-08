@@ -30,6 +30,11 @@
 
 namespace HX::coroutine {
 
+template <AwaitableLike... Ts>
+using WhenAnyReturnType = container::UninitializedNonVoidVariant<
+    AwaiterReturnValue<Ts>...
+>;
+
 namespace internal {
 
 /**
@@ -105,9 +110,7 @@ Task<std::coroutine_handle<>, WhenAnyPromise> start(
 template <
     std::size_t... Idx, 
     AwaitableLike... Ts, 
-    typename ResType = container::UninitializedNonVoidVariant<
-        AwaiterReturnValue<Ts>...
-    >
+    typename ResType = WhenAnyReturnType<Ts...>
 >
 Task<ResType> whenAny(std::index_sequence<Idx...>, Ts&&... ts) {
     // 1. 存储所有的返回值

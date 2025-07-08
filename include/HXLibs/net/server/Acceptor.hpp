@@ -47,24 +47,17 @@ struct Acceptor {
 
     template <std::size_t Timeout>
     coroutine::Task<> start() {
-        log::hxLog.info("获取服务器fd");
         auto serverFd = co_await makeServerFd();
-        log::hxLog.info("获取服务器fd了");
         for (;;) {
-            log::hxLog.info("等待客户端连接");
             auto fd = exception::IoUringErrorHandlingTools::check(
                 co_await _eventLoop.makeAioTask().prepAccept(
                     serverFd,
-#ifdef CLIENT_ADDRESS_LOGGING
-                    &_addr._addr,
-                    &_addr._addrlen,
-#else
+                    nullptr,    // 如果需要, 可以 getpeername(fd, ...) 获取的说...
                     nullptr,
-                    nullptr,
-#endif
                     0
                 )
             );
+            log::hxLog.debug("有新的连接:", fd);
             ConnectionHandler::start<Timeout>(fd, _router, _eventLoop).detach();
         }
     }

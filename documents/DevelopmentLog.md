@@ -1,5 +1,28 @@
 # 开发日志
 
+- [2025-07-08 23:38:43] : 初步完成迁移, 目前测试性能为:
+
+> [!TIP]
+> ROG 枪神7 笔记本 Arch Linux x84_64 6.15.5-arch1-1 cmake-Release
+>
+> CPU: 32 × 13th Gen Intel® Core™ i9-13980HX, RAM: 64GB
+
+```bash
+# 以下为初步测试
+╰─ wrk -d15s -t32 -c1000 http://127.0.0.1:28205/
+Running 15s test @ http://127.0.0.1:28205/
+  32 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.85ms   11.30ms 340.14ms   95.23%
+    Req/Sec    74.34k    58.70k  201.80k    60.35%
+  34571774 requests in 15.10s, 4.28GB read
+  Socket errors: connect 3, read 0, write 0, timeout 0
+Requests/sec: 2288842.38
+Transfer/sec:    290.31MB
+```
+
+但是还有 Linux 异步文件读写、断点续传、分块编码还需要再兼容...
+
 - [2025-07-08 17:51:43] : 完善了 req / res 类, 已经初步可用, 但是还有些内存上的问题...
 - [2025-07-08 15:25:10] : 编写了 IO 类 和 连接处理类的具体逻辑, 重构了请求解析的部分代码
 - [2025-07-08 10:55:07] : 修改部分平台依赖头文件到单独头文件, 并且进行跨平台处理; 新增 连接类 和 连接处理类 等等

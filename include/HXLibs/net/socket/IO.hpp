@@ -52,13 +52,16 @@ public:
     }
 
     template <std::size_t Timeout>
-    auto recvLinkTimeout(std::span<char> buf) {
+    coroutine::Task<coroutine::WhenAnyReturnType<
+        coroutine::AioTask,
+        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
+    >> recvLinkTimeout(std::span<char> buf) {
 #if defined(__linux__)
         // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
         static auto to = coroutine::durationToKernelTimespec(
             std::chrono::seconds{Timeout}
         );
-        return coroutine::AioTask::linkTimeout(
+        co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(&to, 0)
         );

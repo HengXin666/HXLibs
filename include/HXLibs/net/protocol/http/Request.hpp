@@ -121,16 +121,18 @@ public:
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserRequest()) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data(), _recvBuf.size()}
+                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;
             }
-            if (exception::IoUringErrorHandlingTools::check(
+            auto recvN = exception::IoUringErrorHandlingTools::check(
                 res.template get<0, exception::ExceptionMode::Nothrow>()
-            ) == 0) [[unlikely]] {
+            );
+            if (recvN == 0) [[unlikely]] {
                 co_return false; // 连接断开
             }
+            _recvBuf.addSize(static_cast<std::size_t>(recvN));
         }
         co_return true;
     }
@@ -467,6 +469,7 @@ private:
                     }
                 }
                 // @todo 断点续传协议
+                break;
             }
             [[unlikely]] default: 
                 throw std::runtime_error{"parserRequest UB Error"};

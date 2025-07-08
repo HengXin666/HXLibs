@@ -66,7 +66,7 @@ inline unsigned int getIoUringMaxSize() {
 }
 
 struct IoUring {
-    explicit IoUring(unsigned int size = std::min(1024U, getIoUringMaxSize()))
+    explicit IoUring(unsigned int size = 1024U)
         : _ring{}
         , _numSqesPending{}
     {
@@ -120,10 +120,8 @@ struct IoUring {
         unsigned head, numGot = 0;
         io_uring_for_each_cqe(&_ring, head, cqe) {
             ++numGot;
-            if (cqe->res < 0) {
-                if (cqe->res == -ECANCELED) { // 操作已取消 (比如超时了)
-                    continue;
-                }
+            if (cqe->res == -ECANCELED) { // 操作已取消 (比如超时了)
+                continue;
             }
             auto* task = reinterpret_cast<AioTask*>(cqe->user_data);
             task->_res = cqe->res;

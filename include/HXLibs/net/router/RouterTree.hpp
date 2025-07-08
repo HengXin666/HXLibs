@@ -43,10 +43,11 @@ public:
                               Response &res) 
         -> coroutine::Task<> {
             static_cast<void>(req);
-            res.setResponseLine(Status::CODE_404)
-               .setContentType(HTML)
-               .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>");
-            co_return;
+            co_return co_await res
+                .setResponseLine(Status::CODE_404)
+                .setContentType(HTML)
+                .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>")
+                .sendResponse();
         })
     {}
 

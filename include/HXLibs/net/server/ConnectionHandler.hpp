@@ -61,8 +61,9 @@ struct ConnectionHandler {
                 res.clear();
             }
         } catch (...) {
-        
+            log::hxLog.error("发生未知错误!");
         }
+        log::hxLog.debug("连接已断开");
 
         co_await io.close();
 

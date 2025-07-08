@@ -27,20 +27,49 @@ namespace HX::container {
 
 template <typename T, std::size_t N>
 struct ArrayBuf {
+    ArrayBuf()
+        : _nowSize{}
+        , arr{}
+    {}
+
     /**
      * @brief s 是指向 arr 的指针
      * @warning s.size() <= arr.size() && s.data 是 arr的子区间 && s.size() != 0
      * @param s 
      */
     void moveToHead(std::span<T const> s) {
-        index = s.size() - 1;
+        _nowSize = s.size();
         std::memmove(arr, s.data(), s.size());
     }
 
-    constexpr std::size_t size() const {
-        return index + 1;
+    /**
+     * @brief 设置长度 (注意, 如果外界对`.data()`进行写入, 需要自己调用此函数!)
+     * @param index 
+     */
+    void resetSize(std::size_t size) {
+        _nowSize = size;
     }
 
+    /**
+     * @brief 增加长度 (注意, 如果外界对`.data()`进行写入, 需要自己调用此函数!)
+     * @param index 
+     */
+    void addSize(std::size_t size) {
+        _nowSize += size;
+    }
+
+    /**
+     * @brief 返回当前大小
+     * @return constexpr std::size_t 
+     */
+    constexpr std::size_t size() const {
+        return _nowSize;
+    }
+
+    /**
+     * @brief 返回长度最大值
+     * @return constexpr std::size_t 
+     */
     constexpr static std::size_t max_size() {
         return N;
     }
@@ -54,11 +83,11 @@ struct ArrayBuf {
     }
 
     void clear() {
-        index = 0;
+        _nowSize = 0;
     }
 
 private:
-    std::size_t index;
+    std::size_t _nowSize;
     T arr[N];
 };
 

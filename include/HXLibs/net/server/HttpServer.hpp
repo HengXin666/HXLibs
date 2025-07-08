@@ -39,7 +39,6 @@ public:
         std::string port
     )
         : _router{}
-        , _eventLoop{}
         , _name{std::move(name)}
         , _port{std::move(port)}
     {}
@@ -100,14 +99,18 @@ private:
     void _sync() {
         AddressResolver addr;
         auto entry = addr.resolve(_name, _port);
-        Acceptor acceptor{_router, _eventLoop, entry};
-        auto mainTask = acceptor.start<Timeout>();
-        _eventLoop.start(mainTask);
-        _eventLoop.run();
+        try {
+            coroutine::EventLoop _eventLoop;
+            Acceptor acceptor{_router, _eventLoop, entry};
+            auto mainTask = acceptor.start<Timeout>();
+            _eventLoop.start(mainTask);
+            _eventLoop.run();
+        } catch (std::exception const& ec) {
+            log::hxLog.error("Server Error:", ec.what());
+        }
     }
     
     Router _router;
-    coroutine::EventLoop _eventLoop;
     std::vector<std::jthread> _threads;
     std::string _name;
     std::string _port;
