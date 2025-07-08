@@ -20,26 +20,11 @@
 #ifndef _HX_EVENT_LOOP_H_
 #define _HX_EVENT_LOOP_H_
 
-#if defined(__linux__)
-#   include <liburing.h>
-#   include <chrono>
-#   include <coroutine>
-#elif defined(_WIN32)
-    /// @todo 下面还需要精简!
-    #define WIN32_LEAN_AND_MEAN
-    #define NOMINMAX
-    #define _WINSOCK_DEPRECATED_NO_WARNINGS
-    #include <WinSock2.h>
-    #include <MSWSock.h>
-    #include <Windows.h>
-
-    #pragma comment(lib, "Ws2_32.lib")
-    #pragma comment(lib, "Mswsock.lib")
-#else
-    #error "Does not support the current operating system."
-#endif
-
 #include <thread>
+#include <chrono>
+#include <coroutine>
+
+#include <HXLibs/platform/EventLoopApi.hpp>
 
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/task/AioTask.hpp>
@@ -62,13 +47,30 @@ struct ::__kernel_timespec durationToKernelTimespec(std::chrono::duration<Rep, P
 namespace internal {
 
 #if defined(__linux__)
+
+/**
+ * @brief 获取当前系统支持的最大io_uring环形队列的长度
+ * @return unsigned int 
+ */
+inline unsigned int getIoUringMaxSize() {
+    struct ::io_uring ring;
+    for (unsigned int entries = 64; entries; entries <<= 1) [[likely]] {
+        int ret = ::io_uring_queue_init(entries, &ring, 0);
+        if (!ret) {
+            ::io_uring_queue_exit(&ring);
+        } else {
+            return entries >> 1;
+        }
+    }
+    [[unlikely]] throw std::runtime_error{"IoUringMaxSize not find"}; // 找不到可用的大小
+}
+
 struct IoUring {
-    explicit IoUring(unsigned int size) noexcept
+    explicit IoUring(unsigned int size = std::min(1024U, getIoUringMaxSize()))
         : _ring{}
         , _numSqesPending{}
     {
         unsigned int flags = 0;
-
         exception::IoUringErrorHandlingTools::check(
             ::io_uring_queue_init(size, &_ring, flags)
         );
@@ -193,6 +195,11 @@ using EventDrive
  * @brief 协程事件循环
  */
 struct EventLoop {
+    EventLoop() 
+        : _eventDrive{}
+        , _timerLoop{}
+    {}
+
     template <CoroutineObject T>
     void start(T&& mainTask) {
         static_cast<std::coroutine_handle<>>(mainTask).resume();

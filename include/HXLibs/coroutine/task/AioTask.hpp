@@ -20,24 +20,9 @@
 #ifndef _HX_AIO_TASK_H_
 #define _HX_AIO_TASK_H_
 
-#if defined(__linux__)
-#   include <liburing.h>
-#elif defined(_WIN32)
-    /// @todo 下面还需要精简!
-    #define WIN32_LEAN_AND_MEAN
-    #define NOMINMAX
-    #define _WINSOCK_DEPRECATED_NO_WARNINGS
-    #include <WinSock2.h>
-    #include <MSWSock.h>
-    #include <Windows.h>
-
-    #pragma comment(lib, "Ws2_32.lib")
-    #pragma comment(lib, "Mswsock.lib")
-#else
-    #error "Does not support the current operating system."
-#endif
-
 #include <span>
+
+#include <HXLibs/platform/EventLoopApi.hpp>
 
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 

@@ -21,12 +21,29 @@
 #define _HX_HTTP_SERVER_H_
 
 #include <HXLibs/net/router/Router.hpp>
+#include <HXLibs/net/socket/AddressResolver.hpp>
+#include <HXLibs/net/server/Acceptor.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 
 namespace HX::net {
 
 class HttpServer {
 public:
+
+    /**
+     * @brief 创建一个Http服务器
+     * @param name 服务器绑定的地址, 如`127.0.0.1`
+     * @param port 服务器绑定的端口, 如`28205`
+     */
+    HttpServer(
+        const std::string& name,
+        const std::string& port
+    )
+        : _router{}
+        , _eventLoop{}
+        , _addrInfo{AddressResolver{}.resolve(name, port)}
+    {}
+
     HttpServer& operator=(HttpServer&&) = delete;
 
     /**
@@ -46,18 +63,6 @@ public:
             std::move(endpoint),
             std::forward<Interceptors>(interceptors)...
         );
-        return *this;
-    }
-
-    /**
-     * @brief 启动一个协程任务
-     * @tparam T 协程任务
-     * @param mainTask 
-     * @return HttpServer& 可链式调用
-     */
-    template <coroutine::CoroutineObject T>
-    HttpServer& start(T&& mainTask) {
-        _eventLoop.start(std::forward<T>(mainTask));
         return *this;
     }
 
@@ -86,12 +91,15 @@ public:
 
 private:
     void _sync() {
+        Acceptor acceptor{_router, _eventLoop, _addrInfo};
+        _eventLoop.start(acceptor.start());
         _eventLoop.run();
     }
     
     Router _router;
     coroutine::EventLoop _eventLoop;
     std::unique_ptr<std::jthread> _thread;
+    AddressResolver::AddressInfo _addrInfo;
 };
 
 } // namespace HX::net

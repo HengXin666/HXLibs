@@ -41,7 +41,7 @@ concept AwaitableLike = Awaiter<T> || Awaitable<T>;
 
 template <typename T>
 concept CoroutineObject = requires(T&& t) { 
-    T::promise_type;
+    typename T::promise_type;
     static_cast<std::coroutine_handle<>>(t);
 };
 

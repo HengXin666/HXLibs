@@ -37,7 +37,7 @@ struct LinuxErrorHandlingTools {
      */
     template <typename T>
     struct Expected {
-        // @brief 保证是 T 的有符号类型
+        /// @brief 保证是 T 的有符号类型
         std::make_signed_t<T> _res;
 
         Expected() = default;
@@ -122,7 +122,7 @@ private:
 public:
     /**
      * @brief 判断是否是错误: 专门伺候Linux的系统函数(即返回`-1`代表错误, 而错误原因在`erron`)
-     * @param what 错误提示 (如: 传入`"HX"`, 那么到时候错误则会打印`HX: ErrorStr...`)
+     * @param what 错误提示
      * @param res 需要检查的可能的错误码
      * @tparam Except 需要排除的错误码
      * @return 当没有`Except`时只是转发`res`, 如果`erron == Except`则会返回`-1`而不会终止程序
@@ -158,12 +158,12 @@ public:
      */
     inline static const std::error_category& gaiCategory() {
         static struct final : std::error_category {
-            char const *name() const noexcept override {
+            char const* name() const noexcept override {
                 return "getaddrinfo";
             }
 
             std::string message(int err) const override {
-                return gai_strerror(err);
+                return ::gai_strerror(err);
             }
         } instance;
         return instance; // 使用: std::error_code(err, gai_category())

@@ -8,10 +8,11 @@
 - `#include`规范:
 
 ```cpp
-#include <HXLibs/net/socket/AddressResolver.h> // .cpp 与 .h 配对 (然后空行)
+#include <HXLibs/net/socket/AddressResolver.h>  // .cpp 与 .h 配对 (然后空行)
+                                                // 本库纯头文件, 这一行可忽略
 
 #include <sys/types.h>  // 标准库/Linux提供的头文件 (.h在上, 无后缀的在下)
-#include <sys/socket.h>
+#include <sys/socket.h> // 理论上会封装到 HXLibs/platform/**Api.hpp 中 (平台相关的api)
 #include <netdb.h>
 #include <cstring>
 #include <iostream>     // (然后空行)
@@ -20,7 +21,9 @@
 #include <openssl/ssl.h>  
 #include <openssl/err.h> // (然后空行)
 
-#include <HXLibs/tools/ErrorHandlingTools.h> // 本项目的 库文件
+#include <HXLibs/platform/SocketApi.hpp>        // 本项目为了跨平台而封装的API (然后空行)
+
+#include <HXLibs/coroutine/awaiter/WhenAny.hpp> // 本项目的 库文件
 ```
 
 - 命名空间规范: 按照文件夹来, 比如`/HXLibs/coroutine/loop/IoUringLoop.h`
@@ -40,8 +43,6 @@ namespace internal {
 - 变量名: 几乎全部都是`驼峰`命名
 - 枚举: 首字母大写的驼峰
 - 编译期常量: (`k`开头 +) 驼峰
-- ~~类的构造函数: 请 **显式** 书写构造函数, 必要可以添加`explicit`关键字!, 而不是依赖`C++20`的自动隐式匹配生成!~~
-    - 聚合类可以!!!
 
 - 宏定义: 全大写+下划线
 

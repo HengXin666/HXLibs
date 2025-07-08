@@ -1,5 +1,6 @@
 # 开发日志
 
+- [2025-07-08 10:55:07] : 修改部分平台依赖头文件到单独头文件, 并且进行跨平台处理; 新增 连接类 和 连接处理类 等等
 - [2025-07-07 23:33:43] : 调整了很多文件结构, 重构了网络部分, 也重新架构了, 编写了`事件循环`和`HttpServer`; 还有很多未完工...
 - [2025-07-07 16:14:55] : 添加了 `UninitializedNonVoidVariant` 的 ctest, 并且修复了 `UninitializedNonVoidVariant` 的 `UninitializedNonVoidVariantIndexToType` 的问题; 调整了部分文件的命名空间
 - [2025-07-07 14:38:59] : 重构 HXLibs; 调整cmake, 现在更加自动化和现代 | 新增 log 方便打印 | 新增新版本重构的协程等工具
