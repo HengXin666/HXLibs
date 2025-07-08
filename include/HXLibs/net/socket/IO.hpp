@@ -20,8 +20,6 @@
 #ifndef _HX_IO_H_
 #define _HX_IO_H_
 
-#include <string>
-
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/net/socket/SocketFd.hpp>
@@ -53,11 +51,13 @@ public:
                                      .prepRecv(_fd, buf.subspan(0, n), 0);
     }
 
-    template <auto Timeout>
+    template <std::size_t Timeout>
     auto recvLinkTimeout(std::span<char> buf) {
 #if defined(__linux__)
         // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
-        static auto to = coroutine::durationToKernelTimespec(Timeout);
+        static auto to = coroutine::durationToKernelTimespec(
+            std::chrono::seconds{Timeout}
+        );
         return coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(&to, 0)
@@ -86,24 +86,6 @@ public:
         _fd = kInvalidSocket;
         co_return res;
     }
-
-    /**
-     * @brief 设置响应体使用`TransferEncoding`分块编码, 以传输读取的文件
-     * @param path 需要读取的文件的路径
-     * @warning 在此之前都不需要使用`setBodyData`
-     */
-    coroutine::Task<> sendResponseWithChunkedEncoding(
-        const std::string& path
-    ) const;
-
-    /**
-     * @brief 使用`断点续传`, 以传输读取的文件. 内部会自动处理.
-     * @param path 需要读取的文件的路径
-     * @warning 在此之前都不需要使用`setBodyData` 
-     */
-    coroutine::Task<> sendResponseWithRange(
-        const std::string& path
-    ) const;
 
     ~IO() noexcept {
         if (_fd != kInvalidSocket) [[unlikely]] {

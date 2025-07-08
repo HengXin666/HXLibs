@@ -21,12 +21,10 @@
 #define _HX_REQUEST_H_
 
 #include <vector>
-#include <unordered_map>
-#include <string>
-#include <string_view>
 #include <optional>
 #include <stdexcept>
 
+#include <HXLibs/container/ArrayBuf.hpp>
 #include <HXLibs/net/protocol/http/Http.hpp>
 #include <HXLibs/net/protocol/http/PathVariable.hpp>
 #include <HXLibs/net/socket/IO.hpp>
@@ -38,45 +36,13 @@ namespace HX::net {
 
 class Router;
 
-namespace internal {
-
-struct TransparentStringHash {
-    using is_transparent = void; // 告诉 unordered_map 可以透明查找
-
-    std::size_t operator()(std::string_view sv) const noexcept {
-        return std::hash<std::string_view>{}(sv);
-    }
-
-    std::size_t operator()(const std::string& s) const noexcept {
-        return std::hash<std::string>{}(s);
-    }
-};
-
-struct TransparentStringEqual {
-    using is_transparent = void;
-
-    bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
-        return lhs == rhs;
-    }
-
-    bool operator()(const std::string& lhs, std::string_view rhs) const noexcept {
-        return lhs == rhs;
-    }
-
-    bool operator()(std::string_view lhs, const std::string& rhs) const noexcept {
-        return lhs == rhs;
-    }
-};
-
-} // namespace internal
-
 /**
  * @brief 请求类(Request)
  */
 class Request {
 public:
     explicit Request(IO& io) 
-        : _recvBuf(IO::kBufMaxSize)
+        : _recvBuf()
         , _requestLine()
         , _requestHeaders()
         , _requestHeadersIt(_requestHeaders.end())
@@ -150,11 +116,13 @@ public:
      * @brief 解析请求
      * @return coroutine::Task<bool> 断开连接则为false, 解析成功为true
      */
-    template <auto Timeout>
+    template <std::size_t Timeout>
     coroutine::Task<bool> parserRequest() {
-        std::size_t n = IO::kBufMaxSize;
-        for (; n; n = _parserRequest()) {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(_recvBuf, n);
+        for (std::size_t n = IO::kBufMaxSize; n; n = _parserRequest()) {
+            auto res = co_await _io.recvLinkTimeout<Timeout>(
+                // 保留原有的数据
+                {_recvBuf.data(), _recvBuf.size()}
+            );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;
             }
@@ -181,12 +149,12 @@ public:
      * @warning 如果解析到不是键值对的, 即通过`&`分割后没有`=`的, 默认其全部为Key, 但Val = ""
      */
     std::unordered_map<std::string, std::string> getParseQueryParameters() const {
-        std::string path = getRequesPath();
+        auto path = getRequesPath();
         std::size_t pos = path.find('?'); // 没必要反向查找
         if (pos == std::string::npos)
             return {};
         // 如果有#这种, 要删除: 无需处理, 这个只是存在于客户端, 不会传输到服务端(?)至少path没有
-        std::string parameter = path.substr(pos + 1);
+        auto parameter = path.substr(pos + 1);
         auto kvArr = HX::utils::StringUtil::split<std::string>(parameter, "&");
         std::unordered_map<std::string, std::string> res;
         for (const auto& it : kvArr) {
@@ -227,7 +195,7 @@ public:
      * @brief 获取请求PATH
      * @return 请求PATH (如: "/", "/home?loli=watasi"...)
      */
-    std::string getRequesPath() const noexcept {
+    std::string_view getRequesPath() const noexcept {
         return _requestLine[RequestLineDataType::RequestPath];
     }
 
@@ -236,18 +204,19 @@ public:
      * @return 请求PATH (如: "/", "/home?loli=watasi"的"/home"部分)
      */
     std::string getPureRequesPath() const noexcept {
-        std::string path = getRequesPath();
+        auto path = getRequesPath();
         std::size_t pos = path.find('?');
-        if (pos == std::string::npos)
-            return path;
-        return path.substr(0, pos);
+        if (pos != std::string_view::npos) {
+            path = path.substr(0, pos);
+        }
+        return {path.data(), path.size()};
     }
 
     /**
      * @brief 获取请求协议版本
      * @return 请求协议版本 (如: "HTTP/1.1", "HTTP/2.0"...)
      */
-    std::string getRequesProtocolVersion() const noexcept {
+    std::string_view getRequesProtocolVersion() const noexcept {
         return _requestLine[RequestLineDataType::ProtocolVersion];
     }
 
@@ -277,6 +246,10 @@ public:
         }
         return _urlWildcardData;
     }
+
+    RangeRequestView getRangeRequestView() const {
+        return {getRequesType(), _requestHeaders};
+    }
     // ===== ↑服务端使用↑ =====
 
     /**
@@ -303,9 +276,9 @@ private:
     };
 
     /**
-     * @brief 仅用于读取和写入的缓冲区
+     * @brief 仅用于读取时候写入的缓冲区
      */
-    std::vector<char> _recvBuf;
+    container::ArrayBuf<char, IO::kBufMaxSize> _recvBuf;
 
     /**
      * @brief 服务端: 之前未解析全的数据
@@ -314,12 +287,7 @@ private:
     // std::string _buf;
 
     std::vector<std::string> _requestLine; // 请求行
-    std::unordered_map<
-        std::string, 
-        std::string, 
-        internal::TransparentStringHash, 
-        internal::TransparentStringEqual
-    > _requestHeaders; // 请求头
+    RequestHeaders _requestHeaders; // 请求头
 
     // 上一次解析的请求头
     decltype(_requestHeaders)::iterator _requestHeadersIt;
@@ -355,29 +323,37 @@ private:
     void createRequestBuffer() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
-        _recvBuf.clear();
-        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestType]);
-        utils::StringUtil::append(_recvBuf, " "s);
-        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestPath]);
-        utils::StringUtil::append(_recvBuf, " "s);
-        utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::ProtocolVersion]);
-        utils::StringUtil::append(_recvBuf, CRLF);
-        for (const auto& [key, val] : _requestHeaders) {
-            utils::StringUtil::append(_recvBuf, key);
-            utils::StringUtil::append(_recvBuf, HEADER_SEPARATOR_SV);
-            utils::StringUtil::append(_recvBuf, val);
-            utils::StringUtil::append(_recvBuf, CRLF);
-        }
-        if (_body.size()) {
-            utils::StringUtil::append(_recvBuf, CONTENT_LENGTH_SV);
-            utils::StringUtil::append(_recvBuf, std::to_string(_body.size()));
-            utils::StringUtil::append(_recvBuf, HEADER_END_SV);
-            utils::StringUtil::append(_recvBuf, _body);
-        } else {
-            utils::StringUtil::append(_recvBuf, HEADER_END_SV);
-        }
+        // @todo
+        // _recvBuf.clear();
+        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestType]);
+        // utils::StringUtil::append(_recvBuf, " "s);
+        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestPath]);
+        // utils::StringUtil::append(_recvBuf, " "s);
+        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::ProtocolVersion]);
+        // utils::StringUtil::append(_recvBuf, CRLF);
+        // for (const auto& [key, val] : _requestHeaders) {
+        //     utils::StringUtil::append(_recvBuf, key);
+        //     utils::StringUtil::append(_recvBuf, HEADER_SEPARATOR_SV);
+        //     utils::StringUtil::append(_recvBuf, val);
+        //     utils::StringUtil::append(_recvBuf, CRLF);
+        // }
+        // if (_body.size()) {
+        //     utils::StringUtil::append(_recvBuf, CONTENT_LENGTH_SV);
+        //     utils::StringUtil::append(_recvBuf, std::to_string(_body.size()));
+        //     utils::StringUtil::append(_recvBuf, HEADER_END_SV);
+        //     utils::StringUtil::append(_recvBuf, _body);
+        // } else {
+        //     utils::StringUtil::append(_recvBuf, HEADER_END_SV);
+        // }
     }
 
+    /**
+     * @brief 解析请求
+     * @return 是否需要继续解析;
+     *         `== 0`: 不需要;
+     *         `>  0`: 需要继续解析`size_t`个字节
+     * @warning 假定内容是符合Http协议的
+     */
     std::size_t _parserRequest() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
@@ -414,7 +390,7 @@ private:
                 while (!_completeRequestHeader) { // 请求头未解析完
                     std::size_t pos = buf.find(CRLF);
                     if (pos == std::string_view::npos) { // 没有读取完
-                        _recvBuf.insert(_recvBuf.begin(), buf.begin(), buf.end());
+                        _recvBuf.moveToHead(buf);
                         return IO::kBufMaxSize;
                     }
                     std::string_view subKVStr = buf.substr(0, pos);
@@ -439,7 +415,7 @@ private:
                     if (!_remainingBodyLen.has_value()) {
                         _body = buf;
                         _remainingBodyLen 
-                            = std::stoll(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
+                            = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
                             - _body.size();
                     } else {
                         *_remainingBodyLen -= buf.size();
@@ -468,7 +444,7 @@ private:
                     while (true) {
                         std::size_t posLen = buf.find(CRLF);
                         if (posLen == std::string_view::npos) { // 没有读完
-                            _recvBuf.insert(_recvBuf.begin(), buf.begin(), buf.end());
+                            _recvBuf.moveToHead(buf);
                             return IO::kBufMaxSize;
                         }
                         if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0

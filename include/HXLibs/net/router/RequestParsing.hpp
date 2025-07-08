@@ -73,7 +73,7 @@ struct RequestTemplateParsing {
         if (arr.back() != "**"sv) [[unlikely]] {
             throw std::runtime_error(std::string{path} + "is not a correct wildcard statement");
         }
-        for (int i = n - 2; i >= 0; --i) {
+        for (std::size_t i = 0; i < n - 1; ++i) {
             if (arr[i] == "**"sv) {
                 throw std::runtime_error(std::string{path} + "is not a correct wildcard statement");
             }

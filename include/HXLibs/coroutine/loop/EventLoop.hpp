@@ -201,7 +201,7 @@ struct EventLoop {
     {}
 
     template <CoroutineObject T>
-    void start(T&& mainTask) {
+    void start(T& mainTask) {
         static_cast<std::coroutine_handle<>>(mainTask).resume();
     }
     

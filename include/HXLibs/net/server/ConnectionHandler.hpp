@@ -32,7 +32,7 @@ namespace HX::net {
 
 struct ConnectionHandler {
 
-    template <auto Timeout>
+    template <std::size_t Timeout>
     static coroutine::RootTask<> start(
         SocketFdType fd,
         Router const& router,
@@ -54,7 +54,11 @@ struct ConnectionHandler {
                     req.getRequesPath()
                 )(req, res);
         
-                // 写
+                // 写 (由端点内部完成)
+
+                // 清空
+                req.clear();
+                res.clear();
             }
         } catch (...) {
         

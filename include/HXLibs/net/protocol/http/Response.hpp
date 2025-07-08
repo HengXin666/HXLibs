@@ -47,7 +47,7 @@ public:
         , _body()
         , _responseHeadersIt(_responseHeaders.end())
         , _buf()
-        , _sendCnt(0)
+
         , _io{io}
     {}
 
@@ -69,7 +69,8 @@ public:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t parserResponse(std::string_view buf) {
+    std::size_t parserResponse(std::string_view buf) { 
+        // @todo 需要修改!!!
         using namespace std::string_literals;
         if (_buf.size()) {
             _buf += buf;
@@ -126,7 +127,7 @@ public:
             // 是 空行之后 (\r\n\r\n) 的内容大小(char)
             if (!_remainingBodyLen.has_value()) {
                 _body = buf;
-                _remainingBodyLen = std::stoll(_responseHeaders["Content-Length"s]) 
+                _remainingBodyLen = std::stoull(_responseHeaders["Content-Length"s]) 
                                 - _body.size();
             } else {
                 *_remainingBodyLen -= buf.size();
@@ -226,26 +227,249 @@ public:
     /**
      * @brief 设置响应码和正文(html)
      * @param status 
-     * @param content 
+     * @param content
+     * @return Response& 可链式调用
      */
-    void setStatusAndContent(Status status, std::string const& content) {
+    Response& setStatusAndContent(Status status, std::string const& content) {
         setResponseLine(status).setContentType(TEXT).setBodyData(content);
+        return *this;
+    }
+
+    /**
+     * @brief 发送已经设置的响应
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> sendResponse() {
+        createResponseBuffer();
+        co_await _io.send(_buf);
     }
 
     /**
      * @brief 使用分块编码传输文件
      * @param filePath 文件路径
      */
-    coroutine::Task<> useChunkedEncodingTransferFile(std::string const& filePath) const {
-        co_return co_await _io.sendResponseWithChunkedEncoding(filePath);
+    coroutine::Task<> useChunkedEncodingTransferFile(std::string_view filePath) {
+        using namespace std::string_literals;
+        auto fileType = getMimeType(
+            utils::FileUtils::getExtension(filePath)
+        );
+        setResponseLine(Status::CODE_200);
+        addHeader("Content-Type"s, std::string{fileType});
+        addHeader("Transfer-Encoding"s, "chunked"s);
+        // 生成响应行和响应头
+        _buildResponseLineAndHeaders();
+        // 先发送一版, 告知我们是分块编码
+        co_await _io.send(_buf);
+        
+        utils::FileUtils::AsyncFile file;
+        co_await file.open(filePath);
+        std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+        while (true) {
+            // 读取文件
+            std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
+            _buildToChunkedEncoding({buf.data(), size});
+            co_await _io.send(_buf);
+            if (size != buf.size()) {
+                // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
+                _buildToChunkedEncoding("");
+                co_await _io.send(_buf);
+                break;
+            }
+        }
     }
 
     /**
      * @brief 使用断点续传传输文件
+     * @param rrv 断点续传参数包, 通过 `req.getRangeRequestView()` 获取
      * @param filePath 文件路径
      */
-    coroutine::Task<> useRangeTransferFile(std::string const& filePath) const {
-        co_return co_await _io.sendResponseWithRange(filePath);
+    coroutine::Task<> useRangeTransferFile(RangeRequestView rrv, std::string_view filePath) {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        // 解析请求的范围
+        auto& type = rrv.reqType;
+        auto fileType = getMimeType(
+            utils::FileUtils::getExtension(filePath)
+        );
+        auto fileSize = utils::FileUtils::getFileSize(filePath);
+        auto fileSizeStr = std::to_string(fileSize);
+        auto const& headMap = rrv.reqHead;
+        if (type == "HEAD"sv) {
+            // 返回文件大小
+            /*
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 10737418240\r\n"
+                "Accept-Ranges: bytes\r\n"
+                "\r\n"
+            */
+            setResponseLine(Status::CODE_200);
+            addHeader("Content-Length"s, fileSizeStr);
+            addHeader("Content-Type"s, std::string{fileType});
+            addHeader("Accept-Ranges"s, "bytes"s);
+            _buildResponseLineAndHeaders();
+            co_await _io.send(_buf);
+        } else if (auto it = headMap.find("range"s); it != headMap.end()) {
+            // 开始[断点续传]传输, 先发一下头
+            /*
+                "HTTP/1.1 206 Partial Content\r\n"
+                "Content-Range: bytes X-Y/Z\r\n"
+                "Content-Length: Y-X+1\r\n"
+                "Accept-Ranges: bytes\r\n"
+                "\r\n"
+
+                其中Content-Range为: 本次传输的文件的起始位置-结束位置/总大小
+                而Content-Length是 [X, Y] 包含X, 包含Y, 所以是 Y - X + 1个字节
+            */
+            // 解析范围, 如果访问不合法, 应该返回416
+            std::string_view rangeVals = it->second;
+            // Range: bytes=<range-start>-<range-end>
+            auto rangeNumArr = utils::StringUtil::split<std::string>(rangeVals.substr(6), ","sv);
+            setResponseLine(Status::CODE_206);
+            addHeader("Accept-Ranges"s, "bytes"s);
+
+            if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
+                auto [begin, end] = utils::StringUtil::splitAtFirst(rangeNumArr.back(), "-"sv);
+                if (begin.empty()) {
+                    begin += '0';
+                }
+                if (end.empty()) {
+                    end = std::to_string(fileSize - 1);
+                }
+                u_int64_t beginPos = std::stoull(begin);
+                u_int64_t endPos = std::stoull(end);
+                if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
+                    // 范围不合法: 返回416, 表示请求错误
+                    setResponseLine(Status::CODE_416);
+                    _buildResponseLineAndHeaders();
+                    co_await _io.send(_buf);
+                } else {
+                    uint64_t remaining = endPos - beginPos + 1;
+                    addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
+                    addHeader("Content-Type", std::string{fileType});
+                    addHeader("Content-Length", std::to_string(remaining));
+                    _buildResponseLineAndHeaders();
+                    co_await _io.send(_buf); // 先发一个头
+                    
+                    utils::FileUtils::AsyncFile file;
+                    co_await file.open(filePath);
+                    file.setOffset(beginPos);
+                    std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+                    // 支持偏移量
+                    while (remaining > 0) {
+                        // 读取文件
+                        std::size_t size = static_cast<std::size_t>(
+                            co_await file.read(
+                                buf,
+                                static_cast<uint32_t>(std::min(remaining, buf.size()))
+                            )
+                        );
+                        if (!size) [[unlikely]] {
+                            break;
+                        }
+                        co_await _io.send(buf);
+                        remaining -= size;
+                    }
+                }
+            } else {
+                /*
+                    HTTP/1.1 206 Partial Content\r\n
+                    Content-Type: multipart/byteranges; boundary=BOUNDARY_STRING\r\n
+                    \r\n
+                    --BOUNDARY_STRING\r\n
+                    Content-Range: bytes X1-Y1/Z\r\n
+                    Content-Length: L1\r\n
+                    Content-Type: application/octet-stream\r\n
+                    \r\n
+                    [BINARY DATA PART 1]\r\n
+                    --BOUNDARY_STRING\r\n
+                    Content-Range: bytes X2-Y2/Z\r\n
+                    Content-Length: L2\r\n
+                    Content-Type: application/octet-stream\r\n
+                    \r\n
+                    [BINARY DATA PART 2]\r\n
+                    --BOUNDARY_STRING--\r\n
+                */
+                addHeader("Content-Type", "multipart/byteranges; boundary=BOUNDARY_STRING");
+                _buildResponseLineAndHeaders();
+                co_await _io.send(_buf); // 先发一个头
+                for (auto& ragen : rangeNumArr) {
+                    auto [begin, end] = utils::StringUtil::splitAtFirst(ragen, "-");
+                    if (begin.empty()) {
+                        begin += '0';
+                    }
+                    if (end.empty()) {
+                        end = std::to_string(fileSize - 1);
+                    }
+                    u_int64_t beginPos = std::stoull(begin);
+                    u_int64_t endPos = std::stoull(end);
+                    // 范围不合法: 不会报错, 而是忽略!
+                    if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
+                        continue;
+                    }
+                    _buf.clear();
+
+                    u_int64_t remaining = endPos - beginPos + 1;
+                    _buf.append("--BOUNDARY_STRING\r\n"sv);
+                    _buf.append("Content-Range: bytes "sv);
+                    _buf.append(begin);
+                    _buf.append("-"sv);
+                    _buf.append(end);
+                    _buf.append("/"sv);
+                    _buf.append(fileSizeStr);
+                    _buf.append(CRLF);
+                    _buf.append("Content-Length: "sv);
+                    _buf.append(std::to_string(remaining));
+                    _buf.append(CRLF);
+                    _buf.append("Content-Type: application/octet-stream\r\n"sv);
+                    _buf.append(CRLF);
+                    co_await _io.send(_buf); // 先发头
+
+                    utils::FileUtils::AsyncFile file;
+                    co_await file.open(filePath);
+                    file.setOffset(beginPos);
+                    std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+                    // 支持偏移量
+                    while (remaining > 0) {
+                        // 读取文件
+                        std::size_t size = static_cast<std::size_t>(
+                            co_await file.read(
+                                buf,
+                                static_cast<uint32_t>(std::min(remaining, buf.size()))
+                            )
+                        );
+                        if (!size) [[unlikely]] {
+                            break;
+                        }
+                        co_await _io.send(buf);
+                        co_await _io.send(CRLF);
+                        remaining -= size;
+                    }
+                }
+                co_await _io.send("--BOUNDARY_STRING--\r\n"sv);
+            }
+        } else {
+            // 普通的传输文件
+            setResponseLine(Status::CODE_200);
+            addHeader("Content-Type"s, std::string{fileType});
+            addHeader("Content-Length"s, fileSizeStr);
+            _buildResponseLineAndHeaders();
+            co_await _io.send(_buf); // 先发一个头
+
+            utils::FileUtils::AsyncFile file;
+            co_await file.open(filePath);
+            std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+            u_int64_t remaining = fileSize;
+            while (remaining > 0) {
+                std::size_t size = static_cast<std::size_t>(
+                    co_await file.read(buf)
+                );
+                if (!size) [[unlikely]] {
+                    break;
+                }
+                co_await _io.send(buf);
+                remaining -= size;
+            }
+        }
     }
 
     // ===== ↑服务端使用の更加人性化API↑ =====
@@ -302,8 +526,9 @@ public:
      * @return Response&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
-    Response& addHeader(const std::string& key, const std::string& val) {
-        _responseHeaders[key] = val;
+    template <typename Str>
+    Response& addHeader(const std::string& key, Str&& val) {
+        _responseHeaders[key] = std::forward<Str>(val);
         return *this;
     }
     // ===== ↑服务端使用↑ =====
@@ -338,7 +563,6 @@ private:
     std::unordered_map<std::string, std::string>::iterator _responseHeadersIt; 
 
     std::string _buf;                               // 上一次未解析全的
-    unsigned _sendCnt = 0;                          // 写入计数
     std::optional<std::size_t> _remainingBodyLen;   // 仍需读取的请求体长度
     IO& _io;
     bool _completeResponseHeader = false;           //是否解析完成响应头
@@ -346,20 +570,62 @@ private:
     /**
      * @brief [仅服务端] 生成响应行和响应头
      */
-    void _buildResponseLineAndHeaders();
+    void _buildResponseLineAndHeaders() {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        _responseHeaders["Connection"s] = "keep-alive"sv; // 长连接
+        _responseHeaders["Server"s] = "HX-Net"sv;
+        
+        _buf.append(_statusLine[ResponseLineDataType::ProtocolVersion]);
+        _buf.append(" "sv);
+        _buf.append(_statusLine[ResponseLineDataType::StatusCode]);
+        _buf.append(" "sv);
+        _buf.append(_statusLine[ResponseLineDataType::StatusMessage]);
+        _buf.append(CRLF);
+        for (const auto& [key, val] : _responseHeaders) {
+            _buf.append(key);
+            _buf.append(HEADER_SEPARATOR_SV);
+            _buf.append(val);
+            _buf.append(CRLF);
+        }
+        _buf.append(CRLF);
+    }
 
     /**
      * @brief [仅服务端] 将`buf`转化为`ChunkedEncoding`的Body, 放入`_body`以分片发送
      * @param buf 
      * @warning 内部会清空 `_buf`, 再以`ChunkedEncoding`格式写入 buf 到 `_buf`!
      */
-    void _buildToChunkedEncoding(std::string_view buf);
+    void _buildToChunkedEncoding(std::string_view buf) {
+        _buf.clear();
+#ifdef HEXADECIMAL_CONVERSION
+        _buf.append(utils::NumericBaseConverter::hexadecimalConversion(buf.size()));
+#else
+        _buf.append(std::format("{:X}", buf.size())); // 需要十六进制嘞
+#endif // !HEXADECIMAL_CONVERSION
+        _buf.append(CRLF);
+        _buf.append(buf);
+        _buf.append(CRLF);
+    }
 
     /**
      * @brief [仅服务端] 生成完整的响应字符串, 用于写入
      * @warning 本方法子适用于`Content-Length`的短消息, 无法使用分块编码
      */
-    void createResponseBuffer();
+    void createResponseBuffer() {
+        using namespace std::string_view_literals;
+        _buf.clear();
+        _buildResponseLineAndHeaders();
+        _buf.pop_back(); // 去掉\n
+        _buf.pop_back(); // 去掉\r
+        // 补充这个
+        _buf.append("Content-Length: "sv);
+        _buf.append(std::to_string(_body.size()));
+        _buf.append(CRLF);
+
+        _buf.append(CRLF);
+        _buf.append(std::move(_body));
+    }
 };
 
 } // namespace HX::net

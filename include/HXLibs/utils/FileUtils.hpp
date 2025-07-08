@@ -126,10 +126,13 @@ public:
      * @return std::string 文件内容
      */
     static HX::coroutine::Task<std::string> asyncGetFileContent(
-        const std::string& path,
+        std::string_view path,
         OpenMode flags = OpenMode::Read,
         mode_t mode = 0644
     ) {
+        (void)path;
+        (void)flags;
+        (void)mode;
 #ifdef __HX_TODO__
         int fd = HX::STL::tools::UringErrorHandlingTools::throwingError(
             co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
@@ -167,6 +170,10 @@ public:
         OpenMode flags,
         mode_t mode = 0644
     ) {
+        (void)path;
+        (void)content;
+        (void)flags;
+        (void)mode;
 #ifdef __HX_TODO__
         int fd = HX::STL::tools::UringErrorHandlingTools::throwingError(
             co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
@@ -199,10 +206,13 @@ public:
          * @return HX::STL::coroutine::task::Task<> 
          */
         HX::coroutine::Task<> open(
-            const std::string& path,
+            std::string_view path,
             OpenMode flags = OpenMode::ReadWrite,
             mode_t mode = 0644
         ) {
+            (void)path;
+            (void)flags;
+            (void)mode;
 #ifdef __HX_TODO__
             _fd = co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
                 AT_FDCWD, path.c_str(), static_cast<int>(flags), mode
@@ -218,6 +228,7 @@ public:
          * @return int 读取的字节数
          */
         HX::coroutine::Task<int> read(std::span<char> buf) {
+            (void)buf;
 #ifdef __HX_TODO__
             int len = HX::STL::tools::UringErrorHandlingTools::throwingError(
                 co_await HX::STL::coroutine::loop::IoUringTask().prepRead(_fd, buf, _offset)
@@ -236,6 +247,8 @@ public:
          * @return int 读取的字节数
          */
         HX::coroutine::Task<int> read(std::span<char> buf, unsigned int size) {
+            (void)buf;
+            (void)size;
 #ifdef __HX_TODO__
             int len = HX::STL::tools::UringErrorHandlingTools::throwingError(
                 co_await HX::STL::coroutine::loop::IoUringTask().prepRead(_fd, buf, size, _offset)
@@ -253,6 +266,7 @@ public:
          * @return int 写入的字节数
          */
         HX::coroutine::Task<int> write(std::span<char> buf) {
+            (void)buf;
 #ifdef __HX_TODO__
             co_return HX::STL::tools::UringErrorHandlingTools::throwingError(
                 co_await HX::STL::coroutine::loop::IoUringTask().prepWrite(

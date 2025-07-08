@@ -28,6 +28,8 @@
 #include <HXLibs/net/server/ConnectionHandler.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
+#include <HXLibs/log/Log.hpp>
+
 namespace HX::net {
 
 struct Acceptor {
@@ -43,10 +45,13 @@ struct Acceptor {
 
     Acceptor& operator=(Acceptor&&) noexcept = delete;
 
-    template <auto Timeout>
+    template <std::size_t Timeout>
     coroutine::Task<> start() {
+        log::hxLog.info("获取服务器fd");
         auto serverFd = co_await makeServerFd();
+        log::hxLog.info("获取服务器fd了");
         for (;;) {
+            log::hxLog.info("等待客户端连接");
             auto fd = exception::IoUringErrorHandlingTools::check(
                 co_await _eventLoop.makeAioTask().prepAccept(
                     serverFd,

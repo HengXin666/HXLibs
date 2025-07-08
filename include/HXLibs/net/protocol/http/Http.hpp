@@ -20,9 +20,31 @@
 #ifndef _HX_HTTP_H_
 #define _HX_HTTP_H_
 
+#include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace HX::net {
+
+namespace internal {
+
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+};
+
+struct TransparentStringEqual {
+    using is_transparent = void;
+
+    bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
+        return lhs == rhs;
+    }
+};
+
+} // namespace internal
 
 class Http {};
 
@@ -70,6 +92,22 @@ inline constexpr std::string_view CONTENT_LENGTH_SV     = "content-length";
 inline constexpr std::string_view CONTENT_TYPE_SV       = "content-type";
 inline constexpr std::string_view TRANSFER_ENCODING_SV  = "transfer-encoding";
 inline constexpr std::string_view CONNECTION_SV         = "connection";
+
+using RequestHeaders = std::unordered_map<
+    std::string, 
+    std::string, 
+    internal::TransparentStringHash, 
+    internal::TransparentStringEqual
+>;
+
+/**
+ * @brief 断点续传参数包
+ */
+struct RangeRequestView {
+    std::string_view reqType; // 请求类型
+    RequestHeaders const& reqHead;  // 请求头
+};
+
 } // namespace HX::net
 
 #endif // !_HX_HTTP_H_

@@ -29,19 +29,19 @@ namespace HX::net {
 
 class HttpServer {
 public:
-
     /**
      * @brief 创建一个Http服务器
      * @param name 服务器绑定的地址, 如`127.0.0.1`
      * @param port 服务器绑定的端口, 如`28205`
      */
     HttpServer(
-        const std::string& name,
-        const std::string& port
+        std::string name,
+        std::string port
     )
         : _router{}
         , _eventLoop{}
-        , _addrInfo{AddressResolver{}.resolve(name, port)}
+        , _name{std::move(name)}
+        , _port{std::move(port)}
     {}
 
     HttpServer& operator=(HttpServer&&) = delete;
@@ -68,43 +68,49 @@ public:
 
     /**
      * @brief 同步启动 HttpServer
-     * @tparam Timeout 字面常量, 表示超时时间
+     * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
+     * @param threadNum 线程数
      */
-    template <auto Timeout = std::chrono::seconds{30}>
-    void sync() {
-        if (_thread) [[unlikely]] {
-            throw std::runtime_error{"The server is already running"};
-        }
-        _sync<Timeout>();
+    template <std::size_t Timeout = 30>
+    void sync(std::size_t threadNum = std::thread::hardware_concurrency()) {
+        async(threadNum);
+        _threads.clear();
     }
 
     /**
      * @brief 异步启动 HttpServer
      * @warning 本方法不可重入, 并且线程不安全
-     * @tparam Timeout 字面常量, 表示超时时间
+     * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
+     * @param threadNum 线程数
      */
-    template <auto Timeout = std::chrono::seconds{30}>
-    void async() {
-        if (_thread) [[unlikely]] {
+    template <std::size_t Timeout = 30>
+    void async(std::size_t threadNum = std::thread::hardware_concurrency()) {
+        if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
-        _thread = std::make_unique<std::jthread>([this]{
-            _sync<Timeout>();
-        });
+        for (std::size_t i = 0; i < threadNum; ++i) {
+            _threads.emplace_back([this] {
+                _sync<Timeout>();
+            });
+        }
     }
 
 private:
-    template <auto Timeout>
-    void _sync(std::chrono::seconds timeout) {
-        Acceptor acceptor{_router, _eventLoop, _addrInfo};
-        _eventLoop.start(acceptor.start<Timeout>(timeout));
+    template <std::size_t Timeout>
+    void _sync() {
+        AddressResolver addr;
+        auto entry = addr.resolve(_name, _port);
+        Acceptor acceptor{_router, _eventLoop, entry};
+        auto mainTask = acceptor.start<Timeout>();
+        _eventLoop.start(mainTask);
         _eventLoop.run();
     }
     
     Router _router;
     coroutine::EventLoop _eventLoop;
-    std::unique_ptr<std::jthread> _thread;
-    AddressResolver::AddressInfo _addrInfo;
+    std::vector<std::jthread> _threads;
+    std::string _name;
+    std::string _port;
 };
 
 } // namespace HX::net
