@@ -45,7 +45,8 @@ struct Acceptor {
 
     Acceptor& operator=(Acceptor&&) noexcept = delete;
 
-    template <std::size_t Timeout>
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
     coroutine::Task<> start(std::atomic_bool const& isRun) {
         auto serverFd = co_await makeServerFd();
         for (;;) [[likely]] {

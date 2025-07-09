@@ -23,8 +23,11 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/net/socket/SocketFd.hpp>
+#include <HXLibs/utils/TimeNTTP.hpp>
 
-#include <HXLibs/log/Log.hpp>
+#ifndef NDEBUG
+    #include <HXLibs/log/Log.hpp>
+#endif // !NDEBUG
 
 namespace HX::net {
 
@@ -58,7 +61,8 @@ public:
                                      .prepRecv(_fd, buf.subspan(0, n), 0);
     }
 
-    template <std::size_t Timeout>
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
     coroutine::Task<coroutine::WhenAnyReturnType<
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
@@ -66,7 +70,7 @@ public:
 #if defined(__linux__)
         // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
         static auto to = coroutine::durationToKernelTimespec(
-            std::chrono::seconds{Timeout}
+            Timeout::Val
         );
         co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),

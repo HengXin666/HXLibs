@@ -78,9 +78,14 @@ public:
      * @brief 同步启动 HttpServer
      * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
      * @param threadNum 线程数
+     * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
-    template <std::size_t Seconds = 30>
-    void sync(std::size_t threadNum = std::thread::hardware_concurrency(), Timeout<Seconds> timeout = {}) {
+    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+        requires(requires { Timeout::Val; })
+    void sync(
+        std::size_t threadNum = std::thread::hardware_concurrency(),
+        Timeout timeout = utils::operator""_s<'3', '0'>()
+    ) {
         async(threadNum, timeout);
         _threads.clear();
     }
@@ -90,15 +95,20 @@ public:
      * @warning 本方法不可重入, 并且线程不安全
      * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
      * @param threadNum 线程数
+     * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
-    template <std::size_t Seconds = 30>
-    void async(std::size_t threadNum = std::thread::hardware_concurrency(), Timeout<Seconds> = {}) {
+    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+        requires(requires { Timeout::Val; })
+    void async(
+        std::size_t threadNum = std::thread::hardware_concurrency(),
+        Timeout = utils::operator""_s<'3', '0'>()
+    ) {
         if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
         for (std::size_t i = 0; i < threadNum; ++i) {
             _threads.emplace_back([this] {
-                _sync<Seconds>();
+                _sync<Timeout>();
             });
         }
         log::hxLog.info("====== HXServer start: \033[33m\033]8;;http://" 
@@ -113,7 +123,8 @@ public:
     }
 
 private:
-    template <std::size_t Timeout>
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
     void _sync() {
         AddressResolver addr;
         auto entry = addr.resolve(_name, _port);

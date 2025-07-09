@@ -44,7 +44,7 @@ public:
         -> coroutine::Task<> {
             static_cast<void>(req);
             co_return co_await res
-                .setResponseLine(Status::CODE_404)
+                .setResLine(Status::CODE_404)
                 .setContentType(HTML)
                 .setBodyData(
     "<!DOCTYPE html><html lang=\"en\">"
@@ -61,7 +61,7 @@ public:
         "<hr/>"
         "<p>HXLibs</p>"
     "</body></html>")
-                .sendResponse();
+                .sendRes();
         })
     {}
 

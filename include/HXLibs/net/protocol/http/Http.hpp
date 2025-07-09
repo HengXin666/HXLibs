@@ -93,6 +93,9 @@ inline constexpr std::string_view CONTENT_TYPE_SV       = "content-type";
 inline constexpr std::string_view TRANSFER_ENCODING_SV  = "transfer-encoding";
 inline constexpr std::string_view CONNECTION_SV         = "connection";
 
+/**
+ * @brief 实现了 std::string 作为 Key, 但是可以通过std::string_view 进行查找的功能
+ */
 using HeaderHashMap = std::unordered_map<
     std::string, 
     std::string, 

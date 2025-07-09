@@ -67,10 +67,11 @@ public:
      * @tparam Seconds 超时时间, 单位: 秒 (s)
      * @return coroutine::Task<> 
      */
-    template <std::size_t Seconds = 10>
-    coroutine::Task<> parserResponse(Timeout<Seconds>) {
-        for (std::size_t n = IO::kBufMaxSize; n; n = _parserResponse()) {
-            auto res = co_await _io.recvLinkTimeout<Seconds>(
+    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> parserRes(Timeout = utils::operator""_s<'3', '0'>()) {
+        for (std::size_t n = IO::kBufMaxSize; n; n = _parserRes()) {
+            auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
             );
@@ -116,7 +117,7 @@ public:
      * @brief 获取响应头键值对 只读引用
      * @return 响应头键值对 (键均为小写)
      */
-    auto const& getResponseHeaders() const {
+    auto const& getHeaders() const {
         return _responseHeaders;
     }
 
@@ -124,7 +125,7 @@ public:
      * @brief 获取响应头键值对 引用
      * @return 响应头键值对 (键均为小写)
      */
-    auto& getResponseHeaders() {
+    auto& getHeaders() {
         return _responseHeaders;
     }
 
@@ -132,7 +133,7 @@ public:
      * @brief 获取响应体
      * @return std::string 
      */
-    std::string getResponseBody() const {
+    std::string getBody() const {
         return _body;
     }
 
@@ -147,7 +148,7 @@ public:
      * @return Response& 可链式调用
      */
     Response& setStatusAndContent(Status status, std::string const& content) {
-        setResponseLine(status).setContentType(TEXT).setBodyData(content);
+        setResLine(status).setContentType(TEXT).setBodyData(content);
         return *this;
     }
 
@@ -155,7 +156,7 @@ public:
      * @brief 发送已经设置的响应
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> sendResponse() {
+    coroutine::Task<> sendRes() {
         createResponseBuffer();
         co_await _io.send(_sendBuf);
     }
@@ -169,7 +170,7 @@ public:
         auto fileType = getMimeType(
             utils::FileUtils::getExtension(filePath)
         );
-        setResponseLine(Status::CODE_200);
+        setResLine(Status::CODE_200);
         addHeader("Content-Type"s, std::string{fileType});
         addHeader("Transfer-Encoding"s, "chunked"s);
         // 生成响应行和响应头
@@ -220,7 +221,7 @@ public:
                 "Accept-Ranges: bytes\r\n"
                 "\r\n"
             */
-            setResponseLine(Status::CODE_200);
+            setResLine(Status::CODE_200);
             addHeader("Content-Length"s, fileSizeStr);
             addHeader("Content-Type"s, fileType);
             addHeader("Accept-Ranges"s, "bytes"s);
@@ -242,7 +243,7 @@ public:
             std::string_view rangeVals = it->second;
             // Range: bytes=<range-start>-<range-end>
             auto rangeNumArr = utils::StringUtil::split<std::string>(rangeVals.substr(6), ","sv);
-            setResponseLine(Status::CODE_206);
+            setResLine(Status::CODE_206);
             addHeader("Accept-Ranges"s, "bytes"s);
 
             if (rangeNumArr.size() == 1) [[likely]] { // 一般都是请求单个范围
@@ -257,7 +258,7 @@ public:
                 uint64_t endPos = std::stoull(end);
                 if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
                     // 范围不合法: 返回416, 表示请求错误
-                    setResponseLine(Status::CODE_416);
+                    setResLine(Status::CODE_416);
                     _buildResponseLineAndHeaders();
                     co_await _io.send(_sendBuf);
                 } else {
@@ -369,7 +370,7 @@ public:
             }
         } else {
             // 普通的传输文件
-            setResponseLine(Status::CODE_200);
+            setResLine(Status::CODE_200);
             addHeader("Content-Type"s, fileType);
             addHeader("Content-Length"s, fileSizeStr);
             _buildResponseLineAndHeaders();
@@ -402,7 +403,7 @@ public:
      * @param describe 状态码描述: 如果为`""`则会使用该状态码对应默认的描述
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setResponseLine(Status statusCode, std::string_view describe = "") {
+    Response& setResLine(Status statusCode, std::string_view describe = "") {
         using namespace std::string_view_literals;
         _statusLine.clear();
         _statusLine.resize(3);
@@ -481,9 +482,9 @@ private:
     container::ArrayBuf<char, IO::kBufMaxSize> _recvBuf;
 
     // 注意: 他们的末尾并没有事先包含 \r\n, 具体在to_string才提供
-    std::vector<std::string> _statusLine;                           // 状态行
-    HeaderHashMap _responseHeaders;  // 响应头
-    std::string _body;                                              // 响应体
+    std::vector<std::string> _statusLine; // 状态行
+    HeaderHashMap _responseHeaders;       // 响应头
+    std::string _body;                    // 响应体
 
     // 指向上一次解析的响应头的键值对; 无效时候指向 `.end()`
     decltype(_responseHeaders)::iterator _responseHeadersIt; 
@@ -567,7 +568,7 @@ private:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t _parserResponse() { 
+    std::size_t _parserRes() { 
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf = {_recvBuf.data(), _recvBuf.size()};
@@ -684,8 +685,9 @@ private:
             }
             [[unlikely]] default:
 #ifndef NDEBUG
-                throw std::runtime_error{"parserResponse UB Error"};
+                throw std::runtime_error{"parserResponse UB Error"}
 #endif // !NDEBUG
+            ;
         }
         return 0; // 解析完毕
 #if 0

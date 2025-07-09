@@ -15,7 +15,7 @@ struct TimeLog {
         auto t1 = std::chrono::steady_clock::now();
         auto dt = t1 - t;
         int64_t us = std::chrono::duration_cast<std::chrono::milliseconds>(dt).count();
-        log::hxLog.info("已响应: ", req.getPureRequesPath(), "花费: ", us, " us");
+        log::hxLog.info("已响应: ", req.getPureReqPath(), "花费: ", us, " us");
         return true;
     }
 };
@@ -41,13 +41,13 @@ int main() {
         (void)req;
         co_await res.setStatusAndContent(
             Status::CODE_200, "<h1>Hello</h1>" + utils::DateTimeFormat::formatWithMilli())
-                    .sendResponse();
+                    .sendRes();
         co_return;
     }, TimeLog{})
     .addEndpoint<GET>("/stop", [&] ENDPOINT {
         co_await res.setStatusAndContent(
             Status::CODE_200, "<h1>stop server!</h1>" + utils::DateTimeFormat::formatWithMilli())
-                    .sendResponse();
+                    .sendRes();
         ser.stop();
         co_return;
     })
@@ -65,8 +65,8 @@ int main() {
             警告! 需要自己在 ./static 中创建bigFile文件夹, 因为github中并没有上传, 因为太大了
         */
         auto path = req.getUniversalWildcardPath();
-        log::hxLog.debug("请求:", path, "| 断点续传:", req.getRequesType() == "HEAD"sv
-            || req.getRequestHeaders().contains("range"));
+        log::hxLog.debug("请求:", path, "| 断点续传:", req.getReqType() == "HEAD"sv
+            || req.getHeaders().contains("range"));
         try {
             co_await res.useRangeTransferFile(
                 req.getRangeRequestView(),
@@ -79,6 +79,8 @@ int main() {
         co_return ;
     });
     
+    using namespace utils;
+
     // ser.sync(); // @todo cli
     return 0;
 }

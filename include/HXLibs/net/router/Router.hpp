@@ -161,7 +161,7 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    auto pureRequesPath = req.getPureRequesPath();
+                    auto pureRequesPath = req.getPureReqPath();
                     auto pathSplitArr = utils::StringUtil::split<std::string_view>(pureRequesPath, "/");
                     std::vector<std::string_view> wildcarArr;
                     for (auto idx : indexArr) {
@@ -186,7 +186,7 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    auto pureRequesPath = req.getPureRequesPath();
+                    auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
                     static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
@@ -209,7 +209,7 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    auto pureRequesPath = req.getPureRequesPath();
+                    auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     auto pathSplitArr = utils::StringUtil::splitWithPos<std::string_view>(pureRequesPathView, "/");
                     std::vector<std::string_view> wildcarArr;

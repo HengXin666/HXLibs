@@ -20,13 +20,37 @@
 #ifndef _HX_HTTP_CLIENT_H_
 #define _HX_HTTP_CLIENT_H_
 
+#include <HXLibs/net/client/HttpClientOptions.hpp>
+#include <HXLibs/net/protocol/http/Request.hpp>
+#include <HXLibs/net/protocol/http/Response.hpp>
+#include <HXLibs/coroutine/loop/EventLoop.hpp>
+
 namespace HX::net {
 
+template <typename Timeout>
+    requires(requires { Timeout::Val; })
 class HttpClient {
 public:
-    
+    HttpClient(HttpClientOptions<Timeout>&& options) 
+        : _options{std::move(options)}
+    {
+        _req.addHeaders(_options.reqHead);
+    }
+
+    void get([[maybe_unused]] std::string_view url) {
+        coroutine::EventLoop _eventLoop;
+        _req.setReqLine<GET>(url.empty() ? _options.url : url);
+        auto mainTask = [&]() -> coroutine::Task<> {
+            // 需要编写连接者 ...
+        }();
+        _eventLoop.start(mainTask);
+    }
 
     HttpClient& operator=(HttpClient&&) noexcept = delete;
+private:
+    HttpClientOptions<Timeout> _options;
+    Request _req;
+    Response _res;
 };
 
 } // namespace HX::net

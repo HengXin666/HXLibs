@@ -32,7 +32,8 @@ namespace HX::net {
 
 struct ConnectionHandler {
 
-    template <std::size_t Timeout>
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
     static coroutine::RootTask<> start(
         SocketFdType fd,
         Router const& router,
@@ -45,13 +46,13 @@ struct ConnectionHandler {
         try {
             for (;;) {
                 // 读
-                if (!co_await req.parserRequest<Timeout>()) [[unlikely]] {
+                if (!co_await req.parserReq<Timeout>()) [[unlikely]] {
                     break;
                 }
                 // 路由
                 co_await router.getEndpoint(
-                    req.getRequesType(), 
-                    req.getRequesPath()
+                    req.getReqType(), 
+                    req.getReqPath()
                 )(req, res);
         
                 // 写 (由端点内部完成)

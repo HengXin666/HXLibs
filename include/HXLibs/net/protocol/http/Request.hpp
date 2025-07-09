@@ -68,10 +68,11 @@ public:
      * @param url url (如 "www.baidu.com")
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Request& setRequestLine(const std::string& method, const std::string& url) {
+    template <HttpMethod Method>
+    Request& setReqLine(const std::string& url) {
         using namespace std::string_literals;
         _requestLine.resize(3);
-        _requestLine[RequestLineDataType::RequestType] = method;
+        _requestLine[RequestLineDataType::RequestType] = getMethodStringView(Method);
         _requestLine[RequestLineDataType::RequestPath] = url;
         _requestLine[RequestLineDataType::ProtocolVersion] = "HTTP/1.1"s;
         return *this;
@@ -82,7 +83,7 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addRequestHeaders(const std::vector<std::pair<std::string, std::string>>& heads) {
+    Request& addHeaders(const std::vector<std::pair<std::string, std::string>>& heads) {
         _requestHeaders.insert(heads.begin(), heads.end());
         return *this;
     }
@@ -92,7 +93,17 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addRequestHeaders(const std::unordered_map<std::string, std::string>& heads) {
+    Request& addHeaders(const std::unordered_map<std::string, std::string>& heads) {
+        _requestHeaders.insert(heads.begin(), heads.end());
+        return *this;
+    }
+
+    /**
+     * @brief 向请求头添加一些键值对
+     * @param heads 键值对
+     * @return Request& 
+     */
+    Request& addHeaders(const HeaderHashMap& heads) {
         _requestHeaders.insert(heads.begin(), heads.end());
         return *this;
     }
@@ -102,7 +113,7 @@ public:
      * @param data 信息
      * @return Request& 
      */
-    Request& setRequestBody(const std::string& data) {
+    Request& setBody(const std::string& data) {
         _body = data;
         return *this;
     }
@@ -126,9 +137,10 @@ public:
      * @brief 解析请求
      * @return coroutine::Task<bool> 断开连接则为false, 解析成功为true
      */
-    template <std::size_t Timeout>
-    coroutine::Task<bool> parserRequest() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = _parserRequest()) {
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<bool> parserReq() {
+        for (std::size_t n = IO::kBufMaxSize; n; n = _parserReq()) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
@@ -151,7 +163,7 @@ public:
      * @brief 获取请求头键值对的引用
      * @return const std::unordered_map<std::string, std::string>& 
      */
-    const auto& getRequestHeaders() const noexcept {
+    const auto& getHeaders() const noexcept {
         return _requestHeaders;
     }
 
@@ -161,7 +173,7 @@ public:
      * @warning 如果解析到不是键值对的, 即通过`&`分割后没有`=`的, 默认其全部为Key, 但Val = ""
      */
     std::unordered_map<std::string, std::string> getParseQueryParameters() const {
-        auto path = getRequesPath();
+        auto path = getReqPath();
         std::size_t pos = path.find('?'); // 没必要反向查找
         if (pos == std::string::npos)
             return {};
@@ -183,7 +195,7 @@ public:
      * @brief 获取请求类型
      * @return 请求类型 (如: "GET", "POST"...)
      */
-    std::string_view getRequesType() const noexcept {
+    std::string_view getReqType() const noexcept {
         return _requestLine[RequestLineDataType::RequestType];
     }
 
@@ -191,7 +203,7 @@ public:
      * @brief 获取请求体 ( 临时设计的 )
      * @return 如果没有请求体, 则返回`""`
      */
-    std::string getRequesBody() const noexcept {
+    std::string getReqBody() const noexcept {
         return _body;
     }
 
@@ -199,7 +211,7 @@ public:
      * @brief 获取请求体
      * @return 如果没有请求体, 则返回`""`
      */
-    std::string getRequesBody() noexcept {
+    std::string getReqBody() noexcept {
         return std::move(_body);
     }
 
@@ -207,7 +219,7 @@ public:
      * @brief 获取请求PATH
      * @return 请求PATH (如: "/", "/home?loli=watasi"...)
      */
-    std::string_view getRequesPath() const noexcept {
+    std::string_view getReqPath() const noexcept {
         return _requestLine[RequestLineDataType::RequestPath];
     }
 
@@ -215,8 +227,8 @@ public:
      * @brief 获取请求的纯PATH部分
      * @return 请求PATH (如: "/", "/home?loli=watasi"的"/home"部分)
      */
-    std::string getPureRequesPath() const noexcept {
-        auto path = getRequesPath();
+    std::string getPureReqPath() const noexcept {
+        auto path = getReqPath();
         std::size_t pos = path.find('?');
         if (pos != std::string_view::npos) {
             path = path.substr(0, pos);
@@ -228,7 +240,7 @@ public:
      * @brief 获取请求协议版本
      * @return 请求协议版本 (如: "HTTP/1.1", "HTTP/2.0"...)
      */
-    std::string_view getRequesProtocolVersion() const noexcept {
+    std::string_view getProtocolVersion() const noexcept {
         return _requestLine[RequestLineDataType::ProtocolVersion];
     }
 
@@ -260,7 +272,7 @@ public:
     }
 
     RangeRequestView getRangeRequestView() const {
-        return {getRequesType(), _requestHeaders};
+        return {getReqType(), _requestHeaders};
     }
     // ===== ↑服务端使用↑ =====
 
@@ -366,7 +378,7 @@ private:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t _parserRequest() {
+    std::size_t _parserReq() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
@@ -483,8 +495,9 @@ private:
             }
             [[unlikely]] default:
 #ifndef NDEBUG
-                throw std::runtime_error{"parserRequest UB Error"};
+                throw std::runtime_error{"parserRequest UB Error"}
 #endif // NDEBUG
+            ;
         }
         return 0;
     }
