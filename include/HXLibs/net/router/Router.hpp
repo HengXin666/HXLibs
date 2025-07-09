@@ -32,40 +32,6 @@
 
 namespace HX::net {
 
-namespace internal {
-
-template <typename T, typename = void>
-struct has_before 
-    : std::false_type
-{};
-
-template <typename T>
-struct has_before<T, std::void_t<decltype(std::declval<T>().before(
-    std::declval<Request&>(),
-    std::declval<Response&>()))>>
-    : std::true_type
-{};
-
-template <typename T, typename = void>
-struct has_after 
-    : std::false_type
-{};
-
-template <typename T>
-struct has_after<T, std::void_t<decltype(std::declval<T>().after(
-    std::declval<Request&>(),
-    std::declval<Response&>()))>>
-    : std::true_type
-{};
-
-template <typename T>
-constexpr auto has_before_v = has_before<T>::value;
-
-template <typename T>
-constexpr auto has_after_v = has_after<T>::value;
-
-} // namespace internal
-
 class Router {
 public:
     Router() = default;
@@ -81,10 +47,10 @@ public:
         std::string_view method,
         std::string_view path
     ) const {
-        auto findLink = HX::utils::StringUtil::split<std::string_view>(
-                path, 
-                "/", 
-                {method}
+        auto findLink = utils::StringUtil::split<std::string_view>(
+            path, 
+            "/", 
+            {method}
         );
         if (path.back() == '/') { // 为了适配 /** 的情况
             findLink.emplace_back("");
@@ -102,13 +68,13 @@ public:
      */
     template <typename Func, typename... Interceptors>
     void setErrorEndpointFunc(Func&& endpoint, Interceptors&&... interceptors) {
-        std::function<HX::coroutine::Task<>(
+        std::function<coroutine::Task<>(
             Request &, Response &)>
             realEndpoint =
                 [this, endpoint = std::move(endpoint),
                  ... interceptors = interceptors] (Request &req,
                                                    Response &res) mutable
-            -> HX::coroutine::Task<> {
+            -> coroutine::Task<> {
             static_cast<void>(this);
             bool ok = true;
             static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
@@ -166,7 +132,7 @@ private:
         using namespace std::string_view_literals;
         auto isResolvePathVariable = path.find_first_of("{"sv) != std::string_view::npos;
         auto isParseWildcardPath = path.find("/**"sv) != std::string_view::npos;
-        std::function<HX::coroutine::Task<>(
+        std::function<coroutine::Task<>(
             Request &, Response &)> realEndpoint;
         switch (isResolvePathVariable | (isParseWildcardPath << 1)) {
             case 0x0: // 不解析任何参数
@@ -174,7 +140,7 @@ private:
                                 ... interceptors = interceptors](
                                    Request &req,
                                    Response &res) mutable
-                    -> HX::coroutine::Task<> {
+                    -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
                     static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
@@ -192,11 +158,11 @@ private:
                                 ... interceptors = interceptors](
                                    Request &req,
                                    Response &res) mutable
-                    -> HX::coroutine::Task<> {
+                    -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
                     auto pureRequesPath = req.getPureRequesPath();
-                    auto pathSplitArr = HX::utils::StringUtil::split<std::string_view>(pureRequesPath, "/");
+                    auto pathSplitArr = utils::StringUtil::split<std::string_view>(pureRequesPath, "/");
                     std::vector<std::string_view> wildcarArr;
                     for (auto idx : indexArr) {
                         wildcarArr.emplace_back(pathSplitArr[idx]);
@@ -217,7 +183,7 @@ private:
                                 ... interceptors = interceptors](
                                    Request &req,
                                    Response &res) mutable
-                    -> HX::coroutine::Task<> {
+                    -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
                     auto pureRequesPath = req.getPureRequesPath();
@@ -240,12 +206,12 @@ private:
                                 ... interceptors = interceptors](
                                    Request &req,
                                    Response &res) mutable
-                    -> HX::coroutine::Task<> {
+                    -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
                     auto pureRequesPath = req.getPureRequesPath();
                     std::string_view pureRequesPathView = pureRequesPath;
-                    auto pathSplitArr = HX::utils::StringUtil::splitWithPos<std::string_view>(pureRequesPathView, "/");
+                    auto pathSplitArr = utils::StringUtil::splitWithPos<std::string_view>(pureRequesPathView, "/");
                     std::vector<std::string_view> wildcarArr;
                     for (auto idx : indexArr) {
                         wildcarArr.emplace_back(pathSplitArr[idx].second);
@@ -264,7 +230,7 @@ private:
                 break;
             }
         }
-        auto buildLink = HX::utils::StringUtil::split<std::string_view>(
+        auto buildLink = utils::StringUtil::split<std::string_view>(
             path, 
             "/",
             {getMethodStringView(Method)}
@@ -279,8 +245,15 @@ private:
         Request& req, 
         Response& res
     ) {
-        if constexpr (internal::has_before_v<T>) {
+        if constexpr (requires {
+            { interceptors.before(req, res) } -> std::convertible_to<bool>;
+        }) {
             ok = interceptors.before(req, res);
+        } else if constexpr (requires {
+            interceptors.before(req, res);
+        }) {
+            // 如果存在 before(req, res) 函数, 那么需要保证其返回值可以转化为 bool
+            static_assert(!sizeof(T), "before() should return boolean");
         }
         return ok;
     }
@@ -292,8 +265,15 @@ private:
         Request& req, 
         Response& res
     ) {
-        if constexpr (internal::has_after_v<T>) {
+        if constexpr (requires {
+            { interceptors.after(req, res) } -> std::convertible_to<bool>;
+        }) {
             ok = interceptors.after(req, res);
+        } else if constexpr (requires {
+            interceptors.after(req, res);
+        }) {
+            // 如果存在 after(req, res) 函数, 那么需要保证其返回值可以转化为 bool
+            static_assert(!sizeof(T), "after() should return boolean");
         }
         return ok;
     }

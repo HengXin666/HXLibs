@@ -26,7 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace HX { namespace STL { namespace container {
+namespace HX::container {
 
 /**
  * @brief 基数树结点
@@ -106,6 +106,6 @@ public:
     }
 };
 
-}}} // namespace HX::STL::container
+} // namespace HX::container
 
 #endif // _HX_RADIX_TREE_H_

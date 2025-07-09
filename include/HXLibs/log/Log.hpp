@@ -31,9 +31,13 @@ namespace internal {
 struct Log {
     template <typename... Ts>
     void debug(Ts const&... ts) const {
+#ifndef NDEBUG
         printf("\033[1;35m[DEBUG]\033[0m \033[38;5;244m"); // 紫色标签 + 灰内容
         ((printf("%s ", utils::toString(ts).c_str())), ...);
         printf("\033[0m\n");
+#else
+        (static_cast<void>(ts), ...);
+#endif
     }
 
     template <typename... Ts>

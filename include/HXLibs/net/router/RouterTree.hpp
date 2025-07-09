@@ -32,10 +32,10 @@
 
 namespace HX::net {
 
-using EndpointFunc = std::function<HX::coroutine::Task<>(Request&, Response&)>;
+using EndpointFunc = std::function<coroutine::Task<>(Request&, Response&)>;
 
 class RouterTree {
-    using Node = HX::STL::container::RadixTreeNode<std::string_view, EndpointFunc>;
+    using Node = container::RadixTreeNode<std::string_view, EndpointFunc>;
 public:
     explicit RouterTree() 
         : _root(std::make_shared<Node>())
@@ -46,7 +46,21 @@ public:
             co_return co_await res
                 .setResponseLine(Status::CODE_404)
                 .setContentType(HTML)
-                .setBodyData("<!DOCTYPE html><html><head><meta charset=UTF-8><title>404 Not Found</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4}h1{font-size:100px;margin:0;color:#333}p{font-size:24px;color:#666}</style><body><h1>404</h1><p>Not Found</p><hr/><p>HXLibs</p>")
+                .setBodyData(
+    "<!DOCTYPE html><html lang=\"en\">"
+    "<head><meta charset=\"UTF-8\"/>"
+    "<title>404 Not Found</title>"
+    "<style>"
+        "body{font-family:Arial,sans-serif;text-align:center;padding:50px;background-color:#f4f4f4;}"
+        "h1{font-size:100px;margin:0;color:#333;}"
+        "p{font-size:24px;color:#666;}"
+    "</style></head>"
+    "<body>"
+        "<h1>404</h1>"
+        "<p>Not Found</p>"
+        "<hr/>"
+        "<p>HXLibs</p>"
+    "</body></html>")
                 .sendResponse();
         })
     {}

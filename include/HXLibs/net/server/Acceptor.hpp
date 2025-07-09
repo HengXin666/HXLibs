@@ -46,9 +46,9 @@ struct Acceptor {
     Acceptor& operator=(Acceptor&&) noexcept = delete;
 
     template <std::size_t Timeout>
-    coroutine::Task<> start() {
+    coroutine::Task<> start(std::atomic_bool const& isRun) {
         auto serverFd = co_await makeServerFd();
-        for (;;) {
+        for (;;) [[likely]] {
             auto fd = exception::IoUringErrorHandlingTools::check(
                 co_await _eventLoop.makeAioTask().prepAccept(
                     serverFd,
@@ -58,8 +58,14 @@ struct Acceptor {
                 )
             );
             log::hxLog.debug("有新的连接:", fd);
+            if (!isRun) [[unlikely]] {
+                break;  // 最在乎性能的关闭方式是, 关闭时候通过请求来解决 prepAccept 的阻塞
+                        // 而不是写一个 whenAny 然后再写很复杂的逻辑什么的, 它浪费性能, 并且不是永远必须的
+                        // 我们牺牲一个 atomic_bool 的性能已经很让步了..., @todo 这甚至应该作为一个编译选项(?)
+            }
             ConnectionHandler::start<Timeout>(fd, _router, _eventLoop).detach();
         }
+        log::hxLog.info("已退出...", serverFd);
     }
 
 private:

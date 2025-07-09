@@ -41,9 +41,18 @@ public:
         : _router{}
         , _name{std::move(name)}
         , _port{std::move(port)}
+        , _isRun{true}
     {}
 
     HttpServer& operator=(HttpServer&&) = delete;
+
+    /**
+     * @brief 关闭服务器
+     */
+    void stop() {
+        _isRun = false;
+        log::hxLog.warning("服务器正在关闭...");
+    }
 
     /**
     * @brief 为服务器添加一个端点
@@ -92,6 +101,15 @@ public:
                 _sync<Timeout>();
             });
         }
+        log::hxLog.info("====== HXServer start: \033[33m\033]8;;http://" 
+            + _name 
+            + ":" 
+            + _port 
+            + "/\033\\http://"
+            + _name
+            + ":"
+            + _port
+            + "/\033]8;;\033\\\033[0m\033[1;32m ======");
     }
 
 private:
@@ -102,7 +120,7 @@ private:
         try {
             coroutine::EventLoop _eventLoop;
             Acceptor acceptor{_router, _eventLoop, entry};
-            auto mainTask = acceptor.start<Timeout>();
+            auto mainTask = acceptor.start<Timeout>(_isRun);
             _eventLoop.start(mainTask);
             _eventLoop.run();
         } catch (std::exception const& ec) {
@@ -114,6 +132,7 @@ private:
     std::vector<std::jthread> _threads;
     std::string _name;
     std::string _port;
+    std::atomic_bool _isRun;
 };
 
 } // namespace HX::net
