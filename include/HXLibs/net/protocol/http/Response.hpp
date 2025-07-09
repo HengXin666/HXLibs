@@ -261,7 +261,7 @@ public:
         // 先发送一版, 告知我们是分块编码
         co_await _io.send(_buf);
         
-        utils::FileUtils::AsyncFile file;
+        utils::AsyncFile file{_io};
         co_await file.open(filePath);
         std::vector<char> buf(utils::FileUtils::kBufMaxSize);
         while (true) {
@@ -276,6 +276,7 @@ public:
                 break;
             }
         }
+        co_await file.close();
     }
 
     /**
@@ -304,11 +305,11 @@ public:
             */
             setResponseLine(Status::CODE_200);
             addHeader("Content-Length"s, fileSizeStr);
-            addHeader("Content-Type"s, std::string{fileType});
+            addHeader("Content-Type"s, fileType);
             addHeader("Accept-Ranges"s, "bytes"s);
             _buildResponseLineAndHeaders();
             co_await _io.send(_buf);
-        } else if (auto it = headMap.find("range"s); it != headMap.end()) {
+        } else if (auto it = headMap.find("range"); it != headMap.end()) {
             // 开始[断点续传]传输, 先发一下头
             /*
                 "HTTP/1.1 206 Partial Content\r\n"
@@ -335,8 +336,8 @@ public:
                 if (end.empty()) {
                     end = std::to_string(fileSize - 1);
                 }
-                u_int64_t beginPos = std::stoull(begin);
-                u_int64_t endPos = std::stoull(end);
+                uint64_t beginPos = std::stoull(begin);
+                uint64_t endPos = std::stoull(end);
                 if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
                     // 范围不合法: 返回416, 表示请求错误
                     setResponseLine(Status::CODE_416);
@@ -345,15 +346,15 @@ public:
                 } else {
                     uint64_t remaining = endPos - beginPos + 1;
                     addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
-                    addHeader("Content-Type", std::string{fileType});
+                    addHeader("Content-Type", fileType);
                     addHeader("Content-Length", std::to_string(remaining));
                     _buildResponseLineAndHeaders();
                     co_await _io.send(_buf); // 先发一个头
                     
-                    utils::FileUtils::AsyncFile file;
+                    utils::AsyncFile file{_io};
                     co_await file.open(filePath);
                     file.setOffset(beginPos);
-                    std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+                    std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
                     // 支持偏移量
                     while (remaining > 0) {
                         // 读取文件
@@ -369,6 +370,7 @@ public:
                         co_await _io.send(buf);
                         remaining -= size;
                     }
+                    co_await file.close();
                 }
             } else {
                 /*
@@ -400,15 +402,15 @@ public:
                     if (end.empty()) {
                         end = std::to_string(fileSize - 1);
                     }
-                    u_int64_t beginPos = std::stoull(begin);
-                    u_int64_t endPos = std::stoull(end);
+                    uint64_t beginPos = std::stoull(begin);
+                    uint64_t endPos = std::stoull(end);
                     // 范围不合法: 不会报错, 而是忽略!
                     if (beginPos > endPos || endPos > fileSize) [[unlikely]] {
                         continue;
                     }
                     _buf.clear();
 
-                    u_int64_t remaining = endPos - beginPos + 1;
+                    uint64_t remaining = endPos - beginPos + 1;
                     _buf.append("--BOUNDARY_STRING\r\n"sv);
                     _buf.append("Content-Range: bytes "sv);
                     _buf.append(begin);
@@ -424,7 +426,7 @@ public:
                     _buf.append(CRLF);
                     co_await _io.send(_buf); // 先发头
 
-                    utils::FileUtils::AsyncFile file;
+                    utils::AsyncFile file{_io};
                     co_await file.open(filePath);
                     file.setOffset(beginPos);
                     std::vector<char> buf(utils::FileUtils::kBufMaxSize);
@@ -444,21 +446,22 @@ public:
                         co_await _io.send(CRLF);
                         remaining -= size;
                     }
+                    co_await file.close();
                 }
                 co_await _io.send("--BOUNDARY_STRING--\r\n"sv);
             }
         } else {
             // 普通的传输文件
             setResponseLine(Status::CODE_200);
-            addHeader("Content-Type"s, std::string{fileType});
+            addHeader("Content-Type"s, fileType);
             addHeader("Content-Length"s, fileSizeStr);
             _buildResponseLineAndHeaders();
             co_await _io.send(_buf); // 先发一个头
 
-            utils::FileUtils::AsyncFile file;
+            utils::AsyncFile file{_io};
             co_await file.open(filePath);
-            std::vector<char> buf(utils::FileUtils::kBufMaxSize);
-            u_int64_t remaining = fileSize;
+            std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
+            uint64_t remaining = fileSize;
             while (remaining > 0) {
                 std::size_t size = static_cast<std::size_t>(
                     co_await file.read(buf)
@@ -469,6 +472,7 @@ public:
                 co_await _io.send(buf);
                 remaining -= size;
             }
+            co_await file.close();
         }
     }
 
@@ -570,11 +574,15 @@ private:
     /**
      * @brief [仅服务端] 生成响应行和响应头
      */
+    template <bool IsEnd = true>
     void _buildResponseLineAndHeaders() {
+        if (_buf.size()) [[unlikely]] {
+            throw std::runtime_error{"不应该为有"};
+        }
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         _responseHeaders["Connection"s] = "keep-alive"sv; // 长连接
-        _responseHeaders["Server"s] = "HX-Net"sv;
+        _responseHeaders["Server"s] = "HXLibs::net"sv;
         
         _buf.append(_statusLine[ResponseLineDataType::ProtocolVersion]);
         _buf.append(" "sv);
@@ -588,7 +596,9 @@ private:
             _buf.append(val);
             _buf.append(CRLF);
         }
-        _buf.append(CRLF);
+        if constexpr (IsEnd) {
+            _buf.append(CRLF);
+        }
     }
 
     /**
@@ -615,9 +625,7 @@ private:
     void createResponseBuffer() {
         using namespace std::string_view_literals;
         _buf.clear();
-        _buildResponseLineAndHeaders();
-        _buf.pop_back(); // 去掉\n
-        _buf.pop_back(); // 去掉\r
+        _buildResponseLineAndHeaders<false>();
         // 补充这个
         _buf.append("Content-Length: "sv);
         _buf.append(std::to_string(_body.size()));

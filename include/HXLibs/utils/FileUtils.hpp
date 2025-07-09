@@ -20,21 +20,25 @@
 #ifndef _HX_FILE_UTILS_H_
 #define _HX_FILE_UTILS_H_
 
-#include <fcntl.h>
-
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <filesystem>
 #include <span>
 
+#include <HXLibs/platform/LocalFdApi.hpp>
+
 #include <HXLibs/coroutine/task/Task.hpp>
+#include <HXLibs/coroutine/loop/EventLoop.hpp>
 
 /**
  * @brief @todo !!!本类需要大重构!!!
  */
 
 namespace HX::utils {
+
+using platform::LocalFdType;
+using platform::kInvalidLocalFd;
 
 /**
  * @brief 文件操作类
@@ -51,7 +55,7 @@ private:
 #endif
 public:
     /// @brief 读取文件buf数组的缓冲区大小
-    inline static constexpr std::size_t kBufMaxSize = 1024 * 64ULL;
+    inline static constexpr std::size_t kBufMaxSize = 1 << 12;
 
     enum class OpenMode : int {
         Read = O_RDONLY | kOpenModeDefaultFlags,                        // 只读模式 (r)
@@ -192,115 +196,6 @@ public:
     }
 
     /**
-     * @brief 异步文件类
-     */
-    class AsyncFile {
-    public:
-        explicit AsyncFile() = default;
-
-        /**
-         * @brief 异步打开文件
-         * @param path 文件路径
-         * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Write | OpenMode::Append)
-         * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
-         * @return HX::STL::coroutine::task::Task<> 
-         */
-        HX::coroutine::Task<> open(
-            std::string_view path,
-            OpenMode flags = OpenMode::ReadWrite,
-            mode_t mode = 0644
-        ) {
-            (void)path;
-            (void)flags;
-            (void)mode;
-#ifdef __HX_TODO__
-            _fd = co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
-                AT_FDCWD, path.c_str(), static_cast<int>(flags), mode
-            );
-#else
-            co_return;
-#endif // __HX_TODO__
-        }
-
-        /**
-         * @brief 读取文件内容到 buf
-         * @param buf [out] 读取到的数据
-         * @return int 读取的字节数
-         */
-        HX::coroutine::Task<int> read(std::span<char> buf) {
-            (void)buf;
-#ifdef __HX_TODO__
-            int len = HX::STL::tools::UringErrorHandlingTools::throwingError(
-                co_await HX::STL::coroutine::loop::IoUringTask().prepRead(_fd, buf, _offset)
-            );
-            _offset += len;
-            co_return len;
-#else
-        co_return {};
-#endif // __HX_TODO__
-        }
-
-        /**
-         * @brief 读取文件内容到 buf
-         * @param buf [out] 读取到的数据
-         * @param size 读取的长度
-         * @return int 读取的字节数
-         */
-        HX::coroutine::Task<int> read(std::span<char> buf, unsigned int size) {
-            (void)buf;
-            (void)size;
-#ifdef __HX_TODO__
-            int len = HX::STL::tools::UringErrorHandlingTools::throwingError(
-                co_await HX::STL::coroutine::loop::IoUringTask().prepRead(_fd, buf, size, _offset)
-            );
-            _offset += len;
-            co_return len;
-#else
-        co_return {};
-#endif // __HX_TODO__
-        }
-
-        /**
-         * @brief 将 buf 写入到文件中
-         * @param buf [in] 需要写入的数据
-         * @return int 写入的字节数
-         */
-        HX::coroutine::Task<int> write(std::span<char> buf) {
-            (void)buf;
-#ifdef __HX_TODO__
-            co_return HX::STL::tools::UringErrorHandlingTools::throwingError(
-                co_await HX::STL::coroutine::loop::IoUringTask().prepWrite(
-                    _fd, buf, static_cast<std::uint64_t>(-1)
-                )
-            );
-#else
-        co_return {};
-#endif // __HX_TODO__
-        }
-
-        /**
-         * @brief 设置偏移量
-         * @param offset 
-         */
-        void setOffset(u_int64_t offset) {
-            _offset = offset;
-        }
-
-        ~AsyncFile() noexcept {
-#ifdef __HX_TODO__
-            if (_fd != -1) {
-                throw;
-            }
-#else
-            ;
-#endif // __HX_TODO__
-        }
-    protected:
-        int _fd = -1;
-        u_int64_t _offset = 0;
-    };
-
-    /**
      * @brief 设置套接字为非阻塞
      * @param fd 
      * @return int `fcntl` 的返回值
@@ -312,6 +207,113 @@ public:
         }
         return ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
+};
+
+/**
+ * @brief 异步文件类
+ */
+class AsyncFile {
+public:
+    AsyncFile(coroutine::EventLoop& eventLoop)
+        : _eventLoop{eventLoop}
+        , _offset{}
+        , _fd{kInvalidLocalFd}
+    {}
+
+    /**
+     * @brief 异步打开文件
+     * @param path 文件路径
+     * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Write | OpenMode::Append)
+     * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
+     * @return HX::STL::coroutine::task::Task<> 
+     */
+    coroutine::Task<> open(
+        std::string_view path,
+        FileUtils::OpenMode flags = FileUtils::OpenMode::ReadWrite,
+        mode_t mode = 0644
+    ) {
+        _fd = exception::IoUringErrorHandlingTools::check(
+            co_await _eventLoop.makeAioTask().prepOpenat(
+                AT_FDCWD, path.data(), static_cast<int>(flags), mode
+            )
+        );
+    }
+
+    /**
+     * @brief 读取文件内容到 buf
+     * @param buf [out] 读取到的数据
+     * @return int 读取的字节数
+     */
+    coroutine::Task<int> read(std::span<char> buf) {
+        int len = exception::IoUringErrorHandlingTools::check(
+            co_await _eventLoop.makeAioTask().prepRead(
+                _fd, buf, _offset
+            )
+        );
+        _offset += static_cast<uint64_t>(len);
+        co_return len;
+    }
+
+    /**
+     * @brief 读取文件内容到 buf
+     * @param buf [out] 读取到的数据
+     * @param size 读取的长度
+     * @return int 读取的字节数
+     */
+    coroutine::Task<int> read(std::span<char> buf, unsigned int size) {
+        int len = exception::IoUringErrorHandlingTools::check(
+            co_await _eventLoop.makeAioTask().prepRead(
+                _fd, buf, size, _offset
+            )
+        );
+        _offset += static_cast<uint64_t>(len);
+        co_return len;
+    }
+
+    /**
+     * @brief 将 buf 写入到文件中
+     * @param buf [in] 需要写入的数据
+     * @return int 写入的字节数
+     */
+    coroutine::Task<int> write(std::span<char> buf) {
+        co_return exception::IoUringErrorHandlingTools::check(
+            co_await _eventLoop.makeAioTask().prepWrite(
+                _fd, buf, static_cast<std::uint64_t>(-1)
+            )
+        );
+    }
+
+    /**
+     * @brief 关闭文件
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> close() {
+        exception::IoUringErrorHandlingTools::check(
+            co_await _eventLoop.makeAioTask().prepClose(_fd)
+        );
+        _fd = kInvalidLocalFd;
+    }
+
+    /**
+     * @brief 设置偏移量
+     * @param offset 
+     */
+    void setOffset(uint64_t offset) {
+        _offset = offset;
+    }
+
+    ~AsyncFile() noexcept(false) {
+        if (_fd != kInvalidLocalFd) [[unlikely]] {
+            // throw std::runtime_error{"Before that, it is necessary to call close()"};
+        }
+    }
+
+    AsyncFile& operator=(AsyncFile&&) noexcept = delete;
+
+private:
+    coroutine::EventLoop& _eventLoop;
+    uint64_t _offset;
+    LocalFdType _fd;
 };
 
 /**

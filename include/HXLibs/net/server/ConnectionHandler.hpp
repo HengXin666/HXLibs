@@ -60,16 +60,17 @@ struct ConnectionHandler {
                 req.clear();
                 res.clear();
             }
+        } catch (std::exception const& err) {
+            // ps: 连接被对方重置 说明对方已经关闭连接, 而我还在等待读取, 这时候会异常, 可以忽视
+            log::hxLog.error("发生异常:", err.what());
         } catch (...) {
             log::hxLog.error("发生未知错误!");
         }
         log::hxLog.debug("连接已断开");
 
         co_await io.close();
-
         co_return;
-    };
-
+    }
 };
 
 } // namespace HX::net

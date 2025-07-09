@@ -1,5 +1,71 @@
 # 开发日志
 
+- [2025-07-09 14:57:40] : 支持服务端断点续传接口, 并且简单进行性能测试(如下); 修复 IO::send 接口的问题; 完善 AioFile类 的新实现...
+
+```bash
+# 文件大小
+─     ~/Loli/code/HXLibs/static/bigFile  on    main !8 ?2                    ✔  at 14:58:51   ─╮
+╰─ l                                                                                                       ─╯
+总计 716M
+drwxr-xr-x 1 loli loli   52  7月 9日 14:56 .
+drwxr-xr-x 1 loli loli  134  7月 9日 11:23 ..
+-rw------- 1 loli loli 155M  7月 9日 14:04 book.pdf
+-rw-r--r-- 1 loli loli  13M  7月 9日 14:10 info.txt
+-rwxr-xr-x 1 loli loli 549M  7月 9日 11:24 misaka.mp4
+
+# 13M 文件传输
+╭─     ~/Loli                                                       ✔  took 5s    at 14:55:00   ─╮
+╰─ wrk -d5s -t32 -c1000 http://127.0.0.1:28205/files/info.txt                                              ─╯
+Running 5s test @ http://127.0.0.1:28205/files/info.txt
+  32 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   518.14ms  475.56ms   2.00s    74.69%
+    Req/Sec    60.58     36.04   190.00     65.42%
+  7502 requests in 5.15s, 97.14GB read
+  Socket errors: connect 3, read 7502, write 0, timeout 91
+Requests/sec:   1456.78
+Transfer/sec:     18.86GB
+
+# 155M 文件传输
+╭─     ~/Loli                                                       ✔  took 5s    at 14:56:34   ─╮
+╰─ wrk -d5s -t32 -c1000 http://127.0.0.1:28205/files/book.pdf                                              ─╯
+Running 5s test @ http://127.0.0.1:28205/files/book.pdf
+  32 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.29s   348.83ms   1.95s    47.62%
+    Req/Sec     7.58      7.38    47.00     71.63%
+  469 requests in 5.14s, 124.96GB read
+  Socket errors: connect 3, read 469, write 0, timeout 448
+Requests/sec:     91.24
+Transfer/sec:     24.31GB
+
+# 549M 文件传输
+╭─     ~/Loli                                                       ✔  took 5s    at 14:56:48   ─╮
+╰─ wrk -d5s -t32 -c1000 http://127.0.0.1:28205/files/misaka.mp4                                            ─╯
+Running 5s test @ http://127.0.0.1:28205/files/misaka.mp4
+  32 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.84s   137.99ms   1.93s    83.33%
+    Req/Sec     0.08      0.28     1.00     91.67%
+  48 requests in 5.23s, 151.97GB read
+  Socket errors: connect 3, read 48, write 0, timeout 42
+Requests/sec:      9.18   # 完整完成的请求数比较少, 或许把时间设置长点会好些?
+Transfer/sec:     29.06GB
+
+
+╭─     ~/Loli/code/HXLibs/static/bigFile  on    main !8 ?2                    ✔  at 14:58:52   ─╮
+╰─ wrk -d10s -t32 -c1000 http://127.0.0.1:28205/files/misaka.mp4                                           ─╯
+Running 10s test @ http://127.0.0.1:28205/files/misaka.mp4
+  32 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.70s   395.57ms   1.98s   100.00%
+    Req/Sec     1.78      3.05    22.00     88.31%
+  185 requests in 10.13s, 270.90GB read
+  Socket errors: connect 3, read 185, write 0, timeout 183
+Requests/sec:     18.25   # 实测是差不多?
+Transfer/sec:     26.73GB
+```
+
 - [2025-07-09 10:19:51] : 提升切面的逻辑完备性 (如果有匹配函数但是返回值不可转化为bool, 则是编译期错误); 初步架构了服务器关闭流程
 - [2025-07-08 23:38:43] : 初步完成迁移, 目前测试性能为:
 

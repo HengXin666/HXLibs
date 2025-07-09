@@ -50,7 +50,7 @@ public:
      * @brief 关闭服务器
      */
     void stop() {
-        _isRun = false;
+        _isRun.store(false, std::memory_order_release);
         log::hxLog.warning("服务器正在关闭...");
     }
 

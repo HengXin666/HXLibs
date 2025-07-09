@@ -72,14 +72,30 @@ public:
 #endif
     }
 
-    coroutine::Task<int> send(std::span<char const> buf) {
-        co_return co_await _eventLoop.makeAioTask()
-                                     .prepSend(_fd, buf, 0);
+    /**
+     * @brief 写入数据, 内部保证完全写入
+     * @param buf 
+     * @return coroutine::Task<int> 
+     */
+    coroutine::Task<> send(std::span<char const> buf) {
+        // io_uring 也不保证其可以完全一次性写入...
+        for (std::size_t n = buf.size(); n; n -= static_cast<std::size_t>(
+                exception::IoUringErrorHandlingTools::check(
+                    co_await _eventLoop.makeAioTask()
+                                       .prepSend(_fd, buf, 0)
+            ))) {
+            ;
+        }
     }
 
-    coroutine::Task<int> send(std::span<char const> buf, std::size_t n) {
-        co_return co_await _eventLoop.makeAioTask()
-                                     .prepSend(_fd, buf.subspan(0, n), 0);
+    /**
+     * @brief 写入数据, 内部保证完全写入
+     * @param buf 
+     * @param n 
+     * @return coroutine::Task<int> 
+     */
+    coroutine::Task<> send(std::span<char const> buf, std::size_t n) {
+        co_await send(buf.subspan(0, n));
     }
 
     coroutine::Task<int> close() {
@@ -88,6 +104,10 @@ public:
                                            .prepClose(_fd);
         _fd = kInvalidSocket;
         co_return res;
+    }
+
+    operator coroutine::EventLoop&() {
+        return _eventLoop;
     }
 
     ~IO() noexcept {
@@ -99,6 +119,8 @@ private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;
     friend struct ConnectionHandler;
+    friend class Request;
+    friend class Response;
 };
 
 } // namespace HX::net

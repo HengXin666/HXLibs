@@ -58,13 +58,14 @@ struct Acceptor {
                 )
             );
             log::hxLog.debug("有新的连接:", fd);
-            if (!isRun) [[unlikely]] {
+            if (!isRun.load(std::memory_order_acquire)) [[unlikely]] {
                 break;  // 最在乎性能的关闭方式是, 关闭时候通过请求来解决 prepAccept 的阻塞
                         // 而不是写一个 whenAny 然后再写很复杂的逻辑什么的, 它浪费性能, 并且不是永远必须的
                         // 我们牺牲一个 atomic_bool 的性能已经很让步了..., @todo 这甚至应该作为一个编译选项(?)
             }
             ConnectionHandler::start<Timeout>(fd, _router, _eventLoop).detach();
         }
+        co_await _eventLoop.makeAioTask().prepClose(serverFd);
         log::hxLog.info("已退出...", serverFd);
     }
 
