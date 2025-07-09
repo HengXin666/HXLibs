@@ -93,7 +93,7 @@ inline constexpr std::string_view CONTENT_TYPE_SV       = "content-type";
 inline constexpr std::string_view TRANSFER_ENCODING_SV  = "transfer-encoding";
 inline constexpr std::string_view CONNECTION_SV         = "connection";
 
-using RequestHeaders = std::unordered_map<
+using HeaderHashMap = std::unordered_map<
     std::string, 
     std::string, 
     internal::TransparentStringHash, 
@@ -105,7 +105,7 @@ using RequestHeaders = std::unordered_map<
  */
 struct RangeRequestView {
     std::string_view reqType; // 请求类型
-    RequestHeaders const& reqHead;  // 请求头
+    HeaderHashMap const& reqHead;  // 请求头
 };
 
 } // namespace HX::net

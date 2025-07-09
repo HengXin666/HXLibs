@@ -60,11 +60,13 @@ int main() {
     })
     .addEndpoint<GET, HEAD>("/files/**", [] ENDPOINT {
         using namespace std::string_literals;
+        using namespace std::string_view_literals;
         /*
             警告! 需要自己在 ./static 中创建bigFile文件夹, 因为github中并没有上传, 因为太大了
         */
         auto path = req.getUniversalWildcardPath();
-        log::hxLog.debug("请求头", req.getRequestHeaders());
+        log::hxLog.debug("请求:", path, "| 断点续传:", req.getRequesType() == "HEAD"sv
+            || req.getRequestHeaders().contains("range"));
         try {
             co_await res.useRangeTransferFile(
                 req.getRangeRequestView(),

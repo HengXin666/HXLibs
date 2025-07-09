@@ -34,8 +34,8 @@
 
 namespace HX::coroutine {
 
-template <class Rep, class Period>
-struct ::__kernel_timespec durationToKernelTimespec(std::chrono::duration<Rep, Period> dur) {
+template <typename Rep, typename Period>
+constexpr struct ::__kernel_timespec durationToKernelTimespec(std::chrono::duration<Rep, Period> dur) {
     struct ::__kernel_timespec ts;
     auto secs = std::chrono::duration_cast<std::chrono::seconds>(dur);
     auto nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(dur - secs);
@@ -49,7 +49,8 @@ namespace internal {
 #if defined(__linux__)
 
 /**
- * @brief 获取当前系统支持的最大io_uring环形队列的长度
+ * @brief 获取当前系统支持的最大io_uring环形队列的长度 (不要频繁调用, 这个只是测试使用的)
+ * @warning 如果频繁调用会导致之前的东西没有在内核上完全释放 (说白了就是需要等会)
  * @return unsigned int 
  */
 inline unsigned int getIoUringMaxSize() {

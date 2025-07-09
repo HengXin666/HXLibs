@@ -44,7 +44,7 @@ public:
         , _isRun{true}
     {}
 
-    HttpServer& operator=(HttpServer&&) = delete;
+    HttpServer& operator=(HttpServer&&) noexcept = delete;
 
     /**
      * @brief 关闭服务器
@@ -79,9 +79,9 @@ public:
      * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
      * @param threadNum 线程数
      */
-    template <std::size_t Timeout = 30>
-    void sync(std::size_t threadNum = std::thread::hardware_concurrency()) {
-        async(threadNum);
+    template <std::size_t Seconds = 30>
+    void sync(std::size_t threadNum = std::thread::hardware_concurrency(), Timeout<Seconds> timeout = {}) {
+        async(threadNum, timeout);
         _threads.clear();
     }
 
@@ -91,14 +91,14 @@ public:
      * @tparam Timeout 字面常量, 表示超时时间 (单位: 秒(s))
      * @param threadNum 线程数
      */
-    template <std::size_t Timeout = 30>
-    void async(std::size_t threadNum = std::thread::hardware_concurrency()) {
+    template <std::size_t Seconds = 30>
+    void async(std::size_t threadNum = std::thread::hardware_concurrency(), Timeout<Seconds> = {}) {
         if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
         for (std::size_t i = 0; i < threadNum; ++i) {
             _threads.emplace_back([this] {
-                _sync<Timeout>();
+                _sync<Seconds>();
             });
         }
         log::hxLog.info("====== HXServer start: \033[33m\033]8;;http://" 

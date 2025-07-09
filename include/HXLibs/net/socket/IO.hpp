@@ -28,6 +28,11 @@
 
 namespace HX::net {
 
+template <std::size_t Seconds>
+struct Timeout {
+    constexpr Timeout() noexcept = default;
+};
+
 /**
  * @brief Socket IO 接口, 仅提供写入和读取等操作, 不会进行任何解析和再封装
  * @note 如果需要进行读写解析, 可以看 Res / Req 的接口
@@ -40,6 +45,8 @@ public:
         : _fd{fd}
         , _eventLoop{eventLoop}
     {}
+
+    IO& operator=(IO&&) noexcept = delete;
 
     coroutine::Task<int> recv(std::span<char> buf) {
         co_return co_await _eventLoop.makeAioTask()
@@ -110,11 +117,16 @@ public:
         return _eventLoop;
     }
 
+#ifdef NDEBUG
+    ~IO() noexcept = default;
+#else
     ~IO() noexcept {
         if (_fd != kInvalidSocket) [[unlikely]] {
             log::hxLog.error("IO 没有进行 close");
         }
     }
+#endif // !NDEBUG
+
 private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;

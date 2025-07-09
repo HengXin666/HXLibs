@@ -302,11 +302,15 @@ public:
         _offset = offset;
     }
 
+#ifdef NDEBUG
+    ~AsyncFile() noexcept = default;
+#else
     ~AsyncFile() noexcept(false) {
         if (_fd != kInvalidLocalFd) [[unlikely]] {
-            // throw std::runtime_error{"Before that, it is necessary to call close()"};
+            throw std::runtime_error{"Before that, it is necessary to call close()"};
         }
     }
+#endif // !NDEBUG
 
     AsyncFile& operator=(AsyncFile&&) noexcept = delete;
 
