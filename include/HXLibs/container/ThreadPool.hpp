@@ -27,100 +27,12 @@
 #include <condition_variable>
 #include <atomic>
 
-#include <HXLibs/container/NonVoidHelper.hpp>
+#include <HXLibs/container/FutureResult.hpp>
 #include <HXLibs/container/SafeQueue.hpp>
 #include <HXLibs/container/MoveOnlyFunction.hpp>
 #include <HXLibs/container/MoveApply.hpp>
 
 namespace HX::container {
-
-template <typename T>
-class Result {
-    struct _Result {
-        using __DataType = NonVoidType<T>;
-
-        _Result()
-            : _data{}
-            , _exception{}
-            , _mtx{}
-            , _cv{}
-            , _isResed(false)
-        {}
-
-        ~_Result() noexcept {
-            if (_isResed && !_exception) {
-                _data.~__DataType();
-            }
-        }
-
-        _Result(_Result&&) = delete;
-        _Result(const _Result&) = delete;
-        _Result& operator=(const _Result&) = delete;
-        _Result& operator=(_Result&&) = delete;
-
-        void wait() {
-            std::unique_lock lck{_mtx};
-            _cv.wait(lck, [this] { return _isResed; });
-        }
-
-        void ready() {
-            {
-                std::lock_guard _{_mtx};
-                _isResed = true;
-            }
-            _cv.notify_all();
-        }
-
-        __DataType data() {
-            if (_exception) [[unlikely]] {
-                std::rethrow_exception(_exception);
-            }
-            return std::move(_data);
-        }
-
-        void setData(__DataType&& data) {
-            new (std::addressof(_data)) __DataType(std::move(data));
-            ready();
-        }
-
-        void unhandledException() noexcept {
-            _exception = std::current_exception();
-            ready();
-        }
-    private:
-        __DataType _data;
-        std::exception_ptr _exception;
-        std::mutex _mtx;
-        std::condition_variable _cv;
-        bool _isResed;
-    };
-public:
-    using FutureResult = _Result;
-
-    Result()
-        : _res{std::make_shared<FutureResult>()}
-    {}
-
-    Result(Result const&) = delete;
-    Result(Result&&) = default;
-    Result& operator=(Result const&) = delete;
-    Result& operator=(Result&&) = default;
-
-    NonVoidType<T> get() {
-        wait();
-        return _res->data();
-    }
-
-    std::shared_ptr<FutureResult> getFutureResult() noexcept {
-        return _res;
-    }
-
-    void wait() {
-        _res->wait();
-    }
-private:
-    std::shared_ptr<FutureResult> _res;
-};
 
 /**
  * @brief 线程池数据
@@ -156,8 +68,8 @@ inline auto ThreadPoolDefaultStrategy = [](ThreadPoolData const& data) -> int {
 
 struct ThreadPool {
     enum class Model {
-        Synchronous,
-        Asynchronous
+        FixedSizeAndNoCheck, // 不检查, 并且为恒定大小
+        AsyncCheck           // 异步检查 (另开一个管理员线程, 以动态扩容)
     };
 
     ThreadPool()
@@ -175,6 +87,37 @@ struct ThreadPool {
     {}
 
     /**
+     * @brief 设置固定的线程数量
+     * @warning 当且仅当 `run<Model::FixedSizeAndNoCheck>` 时候生效!
+     * @param size 
+     * @return ThreadPool& 
+     */
+    ThreadPool& setFixedThreadNum(uint32_t size) {
+        _minThreadNum.store(size);
+        return *this;
+    }
+
+    /**
+     * @brief 设置最小的线程数量
+     * @param size 
+     * @return ThreadPool& 
+     */
+    ThreadPool& setMinThreadNum(uint32_t size) {
+        _minThreadNum.store(size);
+        return *this;
+    }
+
+    /**
+     * @brief 设置最大的线程数量
+     * @param size 
+     * @return ThreadPool& 
+     */
+    ThreadPool& setMaxThreadNum(uint32_t size) {
+        _maxThreadNum.store(size);
+        return *this;
+    }
+
+    /**
      * @brief 添加任务, 任务应当为右值传入
      * @tparam Func 右值传入
      * @tparam Args 如果为左值, 请自行权衡生命周期, 以防止悬垂引用
@@ -182,8 +125,8 @@ struct ThreadPool {
      * @param args 
      */
     template <typename Func, typename... Args, typename Res = std::invoke_result_t<Func, Args...>>
-    Result<Res> addTask(Func&& func, Args&&... args) {
-        Result<Res> res;
+    FutureResult<Res> addTask(Func&& func, Args&&... args) {
+        FutureResult<Res> res;
         auto cb = [func = std::move(func), 
                    ans = res.getFutureResult(),
                    argWap = makePreserveTuple(std::forward<Args>(args)...)
@@ -211,16 +154,20 @@ struct ThreadPool {
      * @param checkTimer 管理者轮询线程的时间间隔
      * @param strategy 是否增删线程的回调函数
      */
-    template <Model Md = Model::Asynchronous, typename Strategy,
+    template <Model Md = Model::AsyncCheck, typename Strategy = decltype(ThreadPoolDefaultStrategy),
         typename = std::enable_if_t<
             std::is_same_v<decltype(std::declval<Strategy>()(std::declval<ThreadPoolData const&>())), int>>>
-    void run(std::chrono::milliseconds checkTimer, Strategy strategy) {
+    void run(
+        [[maybe_unused]] std::chrono::milliseconds checkTimer = std::chrono::milliseconds {1000}, 
+        [[maybe_unused]] Strategy strategy = ThreadPoolDefaultStrategy
+    ) {
         _isRun = true;
-        if constexpr (Md == Model::Asynchronous) {
+        if constexpr (Md == Model::AsyncCheck) {
             _opThread = std::thread{&ThreadPool::check<decltype(strategy)>,
                                     this, checkTimer, std::move(strategy)};
-        } else if constexpr (Md == Model::Synchronous) {
-            check(checkTimer, std::move(strategy));
+        } else if constexpr (Md == Model::FixedSizeAndNoCheck) {
+            // init
+            makeWorker(_minThreadNum - _workers.size());
         } else {
             // 内部错误
             static_assert(!sizeof(Md), "Internal Errors");
@@ -231,7 +178,9 @@ struct ThreadPool {
 
     ~ThreadPool() noexcept {
         _isRun = false;
-        _opThread.join();
+        if (_opThread.joinable()) {
+            _opThread.join();
+        }
         _cv.notify_all();
         for (const auto& [_, t] : _workers) {
             t->join();

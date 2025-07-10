@@ -38,3 +38,27 @@ TEST_CASE("基本任务提交与获取结果") {
     // }
     // <-- 如果在此次才开始 a = 99, 那么就是写入悬挂引用了!!!
 }
+
+TEST_CASE("基本任务提交与获取结果(固定容量版本)") {
+    ThreadPool pool;
+    pool.run<ThreadPool::Model::FixedSizeAndNoCheck>(
+        std::chrono::milliseconds {1000}, ThreadPoolDefaultStrategy
+    );
+
+    auto res1 = pool.addTask([] { return 42; });
+    auto res2 = pool.addTask([](int a, int b) { return a + b; }, 1, 2);
+    auto res3 = pool.addTask([] { 
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+         return 99; 
+    });
+    int a = 0;
+    auto res4 = pool.addTask([](int& a) { 
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
+        return a = 99; 
+    }, a);
+
+    REQUIRE(res1.get() == 42);
+    REQUIRE(res2.get() == 3);
+    REQUIRE(res3.get() == 99);
+    REQUIRE(res4.get() == a);
+}

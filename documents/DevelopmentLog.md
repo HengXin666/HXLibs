@@ -1,5 +1,36 @@
 # 开发日志
 
+- [2025-07-11 00:07:21] : 重新架构了 http-get 接口, 现在集成线程池, 变为线程协程池, 支持协程、异步, 两种调用方式, 为 Task 提供 start 接口, 使得协程可以原地启动(但是要小心, 它可能是未完成的!):
+
+```cpp
+#include <HXLibs/net/client/HttpClient.hpp>
+
+#include <HXLibs/log/Log.hpp>
+
+using namespace HX;
+using namespace net;
+
+coroutine::Task<> coMain() {
+    HttpClient cli{};
+    log::hxLog.debug("开始请求");
+    ResponseData res = co_await cli.coGet("http://httpbin.org/get");
+    log::hxLog.info("状态码:", res.status);
+    log::hxLog.info("拿到了 头:", res.headers);
+    log::hxLog.info("拿到了 体:", res.body);
+}
+
+int main() {
+    coMain().start();
+    HttpClient cli{};
+    auto res = cli.get("http://httpbin.org/get").get(); // 异步请求, .get() 则是阻塞等待获取
+    log::hxLog.info("状态码:", res.status);
+    log::hxLog.info("拿到了 头:", res.headers);
+    log::hxLog.info("拿到了 体:", res.body);
+    log::hxLog.debug("end");
+    return 0;
+}
+```
+
 - [2025-07-10 17:45:55] : 初步实现了 http-get 的客户端, 以及初步的架构... 目前还有一些问题:
 
 比如这样的调用方式太不优雅了! 需要这样的传参! 让使用的人头晕的 ... 但是要改的话, 就需要牵动事件循环了 ... 好像有点思路 ...

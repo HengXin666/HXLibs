@@ -20,6 +20,8 @@
 #ifndef _HX_TASK_H_
 #define _HX_TASK_H_
 
+#include <stdexcept>
+
 #include <HXLibs/coroutine/awaiter/ExitAwaiter.hpp>
 #include <HXLibs/coroutine/promise/Promise.hpp>
 
@@ -72,9 +74,27 @@ struct [[nodiscard]] Task {
     //     return _handle;
     // }
 
-    // constexpr void run() const {
-    //     _handle.resume();
-    // }
+    /**
+     * @brief 立即执行协程
+     * @warning 如果其可以返回, 并且返回值是 FutureResultType 类型, 则可以获取返回值
+     * @warning 使用者必须保证其被正确使用, 即必须要返回一个 FutureResult
+     * @return constexpr auto 
+     */
+    constexpr auto start() const {
+        _handle.resume();
+        if constexpr (requires {
+            // 如果它可以返回值则返回, 并且返回值是 FutureResultType 类型
+            // 则进行返回, 否则为 void, 因为不能保证其永远可以立即执行完毕
+            _handle.promise().result();
+        }) {
+            if (_handle.done()) [[likely]] {
+                return _handle.promise().result();
+            } else {
+                // 不是期望的! 协程还没有执行完毕
+                throw std::runtime_error{"The collaborative process has not been completed yet"};
+            }
+        }
+    }
 private:
     std::coroutine_handle<promise_type> _handle;
 };

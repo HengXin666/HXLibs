@@ -27,8 +27,11 @@
 #include <HXLibs/net/socket/AddressResolver.hpp>
 #include <HXLibs/net/protocol/url/UrlParse.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
+#include <HXLibs/container/ThreadPool.hpp>
 #include <HXLibs/utils/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
+
+#include <HXLibs/log/Log.hpp>
 
 namespace HX::net {
 
@@ -36,11 +39,20 @@ template <typename Timeout>
     requires(requires { Timeout::Val; })
 class HttpClient {
 public:
-    HttpClient(HttpClientOptions<Timeout>&& options = HttpClientOptions{}) 
+    /**
+     * @brief 构造一个 HTTP 客户端
+     * @param options 选项
+     * @param threadNum 线程数
+     */
+    HttpClient(HttpClientOptions<Timeout>&& options = HttpClientOptions{}, uint32_t threadNum = 1) 
         : _options{std::move(options)}
         , _eventLoop{}
         , _cliFd{kInvalidSocket}
-    {}
+        , _pool{}
+    {
+        _pool.setFixedThreadNum(threadNum);
+        _pool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
+    }
 
     void run(coroutine::Task<> const& coMain) {
         _eventLoop.start(coMain);
@@ -56,11 +68,34 @@ public:
         return _cliFd == kInvalidSocket;
     }
 
-    coroutine::Task<ResponseData> get(std::string_view url) {
-        if (needConnect()) {
-            co_await makeSocket(url);
-        }
-        co_return co_await sendReq<GET>(url);
+    /**
+     * @brief 发送一个 GET 请求, 其会在后台线程协程池中执行
+     * @param url 请求的 URL
+     * @return container::FutureResult<ResponseData> 
+     */
+    container::FutureResult<ResponseData> get(std::string_view url) {
+        return _pool.addTask([this, url] {
+            return coGet(url).start();
+        });
+    }
+
+    /**
+     * @brief 发送一个 GET 请求, 其以协程的方式运行
+     * @param url 请求的 URL
+     * @return coroutine::Task<ResponseData> 
+     */
+    coroutine::Task<ResponseData> coGet(std::string_view url) {
+        container::FutureResult<ResponseData> res;
+        auto task = [this, url, ans = res.getFutureResult()]() -> coroutine::Task<> {
+            if (needConnect()) {
+                co_await makeSocket(url);
+            }
+            ans->setData(co_await sendReq<GET>(url));
+            co_return;
+        }();
+        _eventLoop.start(task);
+        _eventLoop.run();
+        co_return res.get();
     }
 
     /**
@@ -140,13 +175,10 @@ private:
         if (body.size()) {
             req.setBody(std::forward<Str>(body));
         }
+        log::hxLog.debug("发送:", req.getReqPath(), req.getReqType(), req.getProtocolVersion(), req.getHeaders());
         co_await req.sendHttpReq<Timeout>();
         Response res{io};
-        try {
-            co_await res.parserRes<Timeout>();
-        } catch (std::exception& ec) {
-            log::hxLog.error("错了:", ec.what());
-        }
+        co_await res.parserRes<Timeout>();
         io.reset();
         co_return res.makeResponseData();
     }
@@ -154,6 +186,7 @@ private:
     HttpClientOptions<Timeout> _options;
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
+    container::ThreadPool _pool;
 };
 
 HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>())>;

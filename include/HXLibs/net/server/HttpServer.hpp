@@ -23,7 +23,9 @@
 #include <HXLibs/net/router/Router.hpp>
 #include <HXLibs/net/socket/AddressResolver.hpp>
 #include <HXLibs/net/server/Acceptor.hpp>
+#include <HXLibs/net/client/HttpClient.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
+#include <HXLibs/container/FutureResult.hpp>
 
 namespace HX::net {
 
@@ -41,6 +43,7 @@ public:
         : _router{}
         , _name{std::move(name)}
         , _port{std::move(port)}
+        , _runNum{0}
         , _isRun{true}
     {}
 
@@ -51,7 +54,12 @@ public:
      */
     void stop() {
         _isRun.store(false, std::memory_order_release);
-        log::hxLog.warning("服务器正在关闭...");
+        using namespace utils;
+        HttpClient cli{HttpClientOptions{.timeout = 5_s}};
+        while (_runNum) {
+            cli.get(_name + ":" + _port + "/").wait();
+        }
+        log::hxLog.warning("服务器已关闭...");
     }
 
     /**
@@ -126,23 +134,32 @@ private:
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     void _sync() {
-        AddressResolver addr;
-        auto entry = addr.resolve(_name, _port);
-        try {
-            coroutine::EventLoop _eventLoop;
-            Acceptor acceptor{_router, _eventLoop, entry};
-            auto mainTask = acceptor.start<Timeout>(_isRun);
-            _eventLoop.start(mainTask);
-            _eventLoop.run();
-        } catch (std::exception const& ec) {
-            log::hxLog.error("Server Error:", ec.what());
-        }
+        container::FutureResult<bool> res;
+        [this, ans = res.getFutureResult()]() {
+            AddressResolver addr;
+            auto entry = addr.resolve(_name, _port);
+            try {
+                coroutine::EventLoop _eventLoop;
+                Acceptor acceptor{_router, _eventLoop, entry};
+                auto mainTask = acceptor.start<Timeout>(_isRun);
+                ++_runNum;
+                _eventLoop.start(mainTask);
+                _eventLoop.run();
+            } catch (std::exception const& ec) {
+                log::hxLog.error("Server Error:", ec.what());
+            }
+            ans->setData(true);
+        }();
+        res.wait();
+        auto _ = --_runNum;
+        log::hxLog.debug("num:", _);
     }
     
     Router _router;
     std::vector<std::jthread> _threads;
     std::string _name;
     std::string _port;
+    std::atomic_uint16_t _runNum;
     std::atomic_bool _isRun;
 };
 
