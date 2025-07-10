@@ -34,6 +34,7 @@
 #include <HXLibs/container/ArrayBuf.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
+#include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
 

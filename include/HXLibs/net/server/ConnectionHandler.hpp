@@ -28,6 +28,8 @@
 #include <HXLibs/net/protocol/http/Request.hpp>
 #include <HXLibs/net/protocol/http/Response.hpp>
 
+#include <HXLibs/log/Log.hpp>
+
 namespace HX::net {
 
 struct ConnectionHandler {
