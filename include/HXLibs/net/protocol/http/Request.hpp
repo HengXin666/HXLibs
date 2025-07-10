@@ -63,13 +63,51 @@ public:
 
     // ===== ↓客户端使用↓ =====
     /**
+     * @brief 发送请求, 并且解析
+     * @return coroutine::Task<> 
+     * @throw 超时
+     */
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> sendHttpReq() {
+        using namespace std::string_literals;
+        // 发送请求行
+        std::vector<char> buf(IO::kBufMaxSize);
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestType]);
+        utils::StringUtil::append(buf, " "s);
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestPath]);
+        utils::StringUtil::append(buf, " "s);
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::ProtocolVersion]);
+        utils::StringUtil::append(buf, CRLF);
+        // 发送请求头
+        for (const auto& [key, val] : _requestHeaders) {
+            utils::StringUtil::append(buf, key);
+            utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
+            utils::StringUtil::append(buf, val);
+            utils::StringUtil::append(buf, CRLF);
+        }
+        if (_body.empty()) {
+            utils::StringUtil::append(buf, CRLF);
+            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(buf));
+        } else {
+            // 发送请求体
+            utils::StringUtil::append(buf, CONTENT_LENGTH_SV);
+            utils::StringUtil::append(buf, std::to_string(_body.size()));
+            utils::StringUtil::append(buf, HEADER_END_SV);
+            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(buf));
+            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(_body));
+        }
+        co_return;
+    }
+
+    /**
      * @brief 设置请求行 (协议使用HTTP/1.1)
      * @param method 请求方法 (如 "GET")
      * @param url url (如 "www.baidu.com")
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
     template <HttpMethod Method>
-    Request& setReqLine(const std::string& url) {
+    Request& setReqLine(std::string_view url) {
         using namespace std::string_literals;
         _requestLine.resize(3);
         _requestLine[RequestLineDataType::RequestType] = getMethodStringView(Method);
@@ -114,6 +152,26 @@ public:
      * @return Request& 
      */
     Request& setBody(const std::string& data) {
+        _body = data;
+        return *this;
+    }
+
+    /**
+     * @brief 设置请求体信息 [[std::move优化]]
+     * @param data 信息
+     * @return Request& 
+     */
+    Request& setBody(std::string&& data) {
+        _body = std::move(data);
+        return *this;
+    }
+
+    /**
+     * @brief 设置请求体信息
+     * @param data 信息
+     * @return Request& 
+     */
+    Request& setBody(std::string_view data) {
         _body = data;
         return *this;
     }
@@ -304,14 +362,8 @@ private:
      */
     container::ArrayBuf<char, IO::kBufMaxSize> _recvBuf;
 
-    /**
-     * @brief 服务端: 之前未解析全的数据
-     *        客户端: 待写入的内容
-     */
-    // std::string _buf;
-
-    std::vector<std::string> _requestLine; // 请求行
-    HeaderHashMap _requestHeaders; // 请求头
+    std::vector<std::string> _requestLine;  // 请求行
+    HeaderHashMap _requestHeaders;          // 请求头
 
     // 上一次解析的请求头
     decltype(_requestHeaders)::iterator _requestHeadersIt;

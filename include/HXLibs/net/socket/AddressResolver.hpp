@@ -36,7 +36,7 @@ public:
      * @brief 用于保存地址引用
      */
     struct AddressRef {
-        struct ::sockaddr *_addr; // 指向 sockaddr 结构体的指针
+        struct ::sockaddr* _addr; // 指向 sockaddr 结构体的指针
         ::socklen_t _addrlen;     // sockaddr 结构体的长度
     };
 
@@ -147,17 +147,17 @@ public:
      * @param service 服务名可以是十进制的端口号, 也可以是已知的服务名称, 如 ftp、http 等
      * @return 用于处理 addrinfo 结果 的结构体
      */
-    AddressInfo resolve(const std::string& name, const std::string& service) {
+    AddressInfo resolve(std::string_view name, std::string_view service) {
         /**
          * hostname: 主机名或地址字符串 IPv4 的点分十进制表示或 IPv6 的十六进制表示
          * service: 服务名可以是十进制的端口号, 也可以是已知的服务名称, 如 ftp、http 等
          * hints: 可以是空指针, 也可以是指向某个 addrinfo 结构体的指针, 包含对所需地址类型的提示
          * result: 该函数通过 result 指针参数返回一个 addrinfo 结构体链表的指针
          */
-        int err = getaddrinfo(name.c_str(), service.c_str(), nullptr, &_head);
+        int err = getaddrinfo(name.data(), service.data(), nullptr, &_head);
         if (err) {
             auto ec = std::error_code(err, exception::LinuxErrorHandlingTools::gaiCategory());
-            throw std::system_error(ec, name + ":" + service);
+            throw std::system_error(ec, name.data() + std::string{":"} + service.data());
         }
         return {_head};
     }
@@ -173,7 +173,7 @@ public:
     /**
      * @brief 析构函数, 释放 addrinfo 链表
      */ 
-    ~AddressResolver() {
+    ~AddressResolver() noexcept {
         if (_head) {
             ::freeaddrinfo(_head);
         }

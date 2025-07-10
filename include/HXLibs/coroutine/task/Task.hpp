@@ -72,6 +72,9 @@ struct [[nodiscard]] Task {
     //     return _handle;
     // }
 
+    // constexpr void run() const {
+    //     _handle.resume();
+    // }
 private:
     std::coroutine_handle<promise_type> _handle;
 };

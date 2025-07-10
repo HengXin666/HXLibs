@@ -35,7 +35,9 @@
 namespace HX::coroutine {
 
 template <typename Rep, typename Period>
-constexpr struct ::__kernel_timespec durationToKernelTimespec(std::chrono::duration<Rep, Period> dur) {
+constexpr struct ::__kernel_timespec durationToKernelTimespec(
+    std::chrono::duration<Rep, Period> dur
+) noexcept {
     struct ::__kernel_timespec ts;
     auto secs = std::chrono::duration_cast<std::chrono::seconds>(dur);
     auto nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(dur - secs);

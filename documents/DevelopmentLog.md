@@ -1,5 +1,34 @@
 # 开发日志
 
+- [2025-07-10 17:45:55] : 初步实现了 http-get 的客户端, 以及初步的架构... 目前还有一些问题:
+
+比如这样的调用方式太不优雅了! 需要这样的传参! 让使用的人头晕的 ... 但是要改的话, 就需要牵动事件循环了 ... 好像有点思路 ...
+
+```cpp
+#include <HXLibs/net/client/HttpClient.hpp>
+
+#include <HXLibs/log/Log.hpp>
+
+using namespace HX;
+using namespace net;
+
+template <typename Timeout>
+coroutine::Task<> coMain(HttpClient<Timeout>& cli) {
+    log::hxLog.debug("开始请求");
+    ResponseData res = co_await cli.get("http://httpbin.org/get");
+    log::hxLog.info("状态码:", res.status);
+    log::hxLog.info("拿到了 头:", res.headers);
+    log::hxLog.info("拿到了 体:", res.body);
+}
+
+int main() {
+    HttpClient cli{};
+    cli.run(coMain(cli));
+    log::hxLog.debug("end");
+    return 0;
+}
+```
+
 - [2025-07-10 14:21:55] : 添加了线程池, 添加了所有权语义的tuple和moveApply, move-only-function(但是不支持运算符()调用(只是一个简单版本)), 添加了线程安全的队列
 - [2025-07-09 23:52:31] : 实现了编译期的 STL 时间库的时间包装, 使其作为模板, 行为类似于 `NTTP`, 简化部分函数的字段; 初步架构了客户端...
 - [2025-07-09 17:49:14] : 实现了新架构的响应解析, 架构了编译期强类型的超时类型; 完善了一些其他代码

@@ -71,7 +71,7 @@ struct ConnectionHandler {
         }
         log::hxLog.debug("连接已断开");
 
-        co_await io.close();
+        co_await io.close(); // @todo close 需要检查!
         co_return;
     }
 };

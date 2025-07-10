@@ -30,10 +30,22 @@
 
 namespace HX::net {
 
-template <std::size_t Seconds>
-struct Timeout {
-    constexpr Timeout() noexcept = default;
-};
+namespace internal {
+
+#if defined(__linux__)
+
+template <typename Timeout>
+auto* getTimePtr() noexcept {
+    // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
+    static auto to = coroutine::durationToKernelTimespec(
+        Timeout::Val
+    );
+    return &to;
+}
+
+#endif
+
+} // namespace internal
 
 /**
  * @brief Socket IO 接口, 仅提供写入和读取等操作, 不会进行任何解析和再封装
@@ -42,6 +54,11 @@ struct Timeout {
 class IO {
 public:
     inline constexpr static std::size_t kBufMaxSize = 1 << 10;
+
+    IO(coroutine::EventLoop& eventLoop)
+        : _fd{kInvalidSocket}
+        , _eventLoop{eventLoop}
+    {}
 
     IO(SocketFdType fd, coroutine::EventLoop& eventLoop)
         : _fd{fd}
@@ -67,13 +84,10 @@ public:
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >> recvLinkTimeout(std::span<char> buf) {
 #if defined(__linux__)
-        // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
-        static auto to = coroutine::durationToKernelTimespec(
-            Timeout::Val
-        );
         co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
-            _eventLoop.makeAioTask().prepLinkTimeout(&to, 0)
+            _eventLoop.makeAioTask().prepLinkTimeout(
+                internal::getTimePtr<Timeout>(), 0)
         );
 #elif defined(_WIN32)
         #error "@todo"
@@ -108,12 +122,47 @@ public:
         co_await send(buf.subspan(0, n));
     }
 
-    coroutine::Task<int> close() {
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<coroutine::WhenAnyReturnType<
+        coroutine::AioTask,
+        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
+    >> sendLinkTimeout(std::span<char const> buf) {
+#if defined(__linux__)
+        co_return co_await coroutine::AioTask::linkTimeout(
+            _eventLoop.makeAioTask().prepSend(_fd, buf, 0),
+            _eventLoop.makeAioTask().prepLinkTimeout(
+                internal::getTimePtr<Timeout>(), 0)
+        );
+#elif defined(_WIN32)
+        #error "@todo"
+#else
+        #error "Does not support the current operating system."
+#endif
+    }
+
+    /**
+     * @brief 关闭套接字
+     * @warning 注意, 内部不会抛异常! 需要外部自己检查
+     * @return coroutine::Task<int> close的返回值
+     */
+    coroutine::Task<int> close() noexcept {
         /// @todo 此处可能也需要特化 ckose ? 因为 win 下的超时实际上就已经close了(?)
         auto res = co_await _eventLoop.makeAioTask()
                                            .prepClose(_fd);
         _fd = kInvalidSocket;
         co_return res;
+    }
+
+    /**
+     * @brief 清空套接字
+     * @warning 请注意, 希望你知道你在做什么! 而不是泄漏套接字!
+     * @note 期望编译器可以自己优化下面方法为不调用, 仅为 debug 时候使用.
+     */
+    constexpr void reset() noexcept {
+#ifndef NDEBUG
+        _fd = kInvalidSocket;
+#endif
     }
 
     operator coroutine::EventLoop&() {
@@ -133,10 +182,20 @@ public:
 private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;
-    friend struct ConnectionHandler;
-    friend class Request;
-    friend class Response;
 };
+
+inline auto checkTimeout(
+    coroutine::WhenAnyReturnType<
+        coroutine::AioTask,
+        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
+    >&& res
+) {
+    if (res.index() == 0) {
+        return res.get<0, exception::ExceptionMode::Nothrow>();
+    } else [[unlikely]] {
+        throw std::runtime_error{"is Timeout"}; // 超时了
+    }
+}
 
 } // namespace HX::net
 

@@ -30,9 +30,6 @@ namespace HX::net {
 template <typename Timeout = decltype(utils::operator""_ms<'5', '0', '0', '0'>())>
     requires(requires { Timeout::Val; })
 struct HttpClientOptions {
-    // 请求 URL
-    std::string url;
-
     // 代理地址
     std::string proxy = {};
 

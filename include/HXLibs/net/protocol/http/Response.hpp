@@ -39,6 +39,15 @@
 namespace HX::net {
 
 /**
+ * @brief 响应数据
+ */
+struct ResponseData {
+    int status = 0;        // 状态码
+    HeaderHashMap headers; // 响应头
+    std::string body;      // 响应体
+};
+
+/**
  * @brief 响应类(Response)
  */
 class Response {
@@ -58,7 +67,11 @@ public:
     Response& operator=(const Response&) = delete;
 
     Response(Response&&) = default;
-    Response& operator=(Response&&) = default;
+    Response& operator=(Response&& that) { // 神人代码
+        delete this;
+        new (this) Response(std::move(that));
+        return *this;
+    }
 #else
     Response& operator=(Response&&) noexcept = delete;
 #endif
@@ -70,7 +83,7 @@ public:
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(requires { Timeout::Val; })
-    coroutine::Task<> parserRes(Timeout = utils::operator""_s<'3', '0'>()) {
+    coroutine::Task<bool> parserRes() {
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserRes()) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
@@ -136,6 +149,18 @@ public:
      */
     std::string getBody() const {
         return _body;
+    }
+
+    /**
+     * @brief 生成响应数据
+     * @return ResponseData 
+     */
+    ResponseData makeResponseData() {
+        return {
+            std::stoi(_statusLine[StatusCode]),
+            std::move(_responseHeaders),
+            std::move(_body)
+        };
     }
 
     // ===== ↑客户端使用↑ =====
@@ -683,6 +708,7 @@ private:
                 } else if (_responseHeaders.contains("content-range")) {
                     // 断点续传 @todo
                 }
+                break;
             }
             [[unlikely]] default:
 #ifndef NDEBUG

@@ -13,9 +13,8 @@ foreach(TEST_FILE ${TEST_FILES})
     # 提取父目录名用于 FOLDER
     get_filename_component(PARENT_DIR ${REL_TEST_PATH} DIRECTORY)
 
-    # 替换路径分隔符与扩展名以生成目标名
-    string(REPLACE "/" "_" TEST_NAME ${REL_TEST_PATH})
-    string(REPLACE ".cpp" "" TEST_NAME ${TEST_NAME})
+    # 提取文件名作为目标名
+    get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
 
     # 添加源文件对应的目标
     add_executable(${TEST_NAME} ${TEST_FILE})
