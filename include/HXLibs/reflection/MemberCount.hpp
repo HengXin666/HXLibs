@@ -20,35 +20,37 @@
 #ifndef _HX_MEMBER_COUNT_H_
 #define _HX_MEMBER_COUNT_H_
 
-#include <HXSTL/utils/TypeTraits.hpp>
+#include <HXLibs/utils/TypeTraits.hpp>
 
 namespace HX::reflection {
 
 namespace internal {
-    struct Any {
-        /**
-         * @brief 万能类型转换运算符, 只用于模版判断
-         */
-        template <typename T>
-        operator T();
-    };
 
+struct Any {
     /**
-     * @brief 获取`聚合类`的成员变量个数
-     * @tparam T `聚合类`类型
-     * @tparam Args 占位
-     * @return consteval 
+     * @brief 万能类型转换运算符, 只用于模版判断
      */
-    template <typename T, typename... Args>
-    inline consteval std::size_t membersCount() {
-        if constexpr (requires {
-            T {Args{}..., internal::Any{}};
-        }) {
-            return membersCount<T, Args..., internal::Any>();
-        } else {
-            return sizeof...(Args);
-        }
+    template <typename T>
+    constexpr operator T() noexcept;
+};
+
+/**
+ * @brief 获取`聚合类`的成员变量个数
+ * @tparam T `聚合类`类型
+ * @tparam Args 占位
+ * @return consteval 
+ */
+template <typename T, typename... Args>
+inline consteval std::size_t membersCount() {
+    if constexpr (requires {
+        T {Args{}..., internal::Any{}};
+    }) {
+        return membersCount<T, Args..., internal::Any>();
+    } else {
+        return sizeof...(Args);
     }
+}
+
 } // namespace internal
 
 /**
@@ -58,7 +60,7 @@ namespace internal {
  */
 template <typename T>
 inline consteval std::size_t membersCount() {
-    return internal::membersCount<HX::STL::utils::remove_cvref_t<T>>();
+    return internal::membersCount<utils::remove_cvref_t<T>>();
 }
 
 /**

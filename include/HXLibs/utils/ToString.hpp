@@ -120,17 +120,17 @@ template <typename T>
 struct ToString<T> {
     static std::string toString(T const& obj) {
         std::string res;
-        constexpr std::size_t Cnt = HX::reflection::membersCountVal<T>;
+        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         static_assert(Cnt > 0, "toString is not implemented for this type");
         res.push_back('{');
         if constexpr (Cnt > 0) {
-            HX::reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+            reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
                 res.push_back('"');
                 res.append(name.data(), name.size());
                 res.push_back('"');
 
                 res.push_back(':');
-                auto&& str = ToString<HX::STL::utils::remove_cvref_t<decltype(val)>>::toString(val);
+                auto&& str = ToString<utils::remove_cvref_t<decltype(val)>>::toString(val);
                 res.append(str.data(), str.size());
 
                 if (index < Cnt - 1) [[likely]] {
@@ -144,17 +144,17 @@ struct ToString<T> {
 
     template <typename Stream>
     static void toString(T const& obj, Stream& s) {
-        constexpr std::size_t Cnt = HX::reflection::membersCountVal<T>;
+        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         static_assert(Cnt > 0, "toString is not implemented for this type");
         s.push_back('{');
         if constexpr (Cnt > 0) {
-            HX::reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+            reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
                 s.push_back('"');
                 s.append(name.data(), name.size());
                 s.push_back('"');
 
                 s.push_back(':');
-                ToString<HX::STL::utils::remove_cvref_t<decltype(val)>>::toString(val, s);
+                ToString<utils::remove_cvref_t<decltype(val)>>::toString(val, s);
 
                 if (index < Cnt - 1) [[likely]] {
                     s.push_back(',');
@@ -249,7 +249,7 @@ struct ToString<T[N]> {
                 res += ',';
             else
                 once = true;
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it);
+            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
         }
         res += ']';
         return res;
@@ -264,7 +264,7 @@ struct ToString<T[N]> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it, s);
+            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
         }
         s.push_back(']');
     }
@@ -282,7 +282,7 @@ struct ToString<std::span<T>> {
                 res += ',';
             else
                 once = true;
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it);
+            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
         }
         res += ']';
         return res;
@@ -297,7 +297,7 @@ struct ToString<std::span<T>> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it, s);
+            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
         }
         s.push_back(']');
     }
@@ -309,7 +309,7 @@ struct ToString<std::optional<Ts...>> {
     static std::string toString(const std::optional<Ts...>& t) {
         std::string res;
         if (t.has_value())
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(*t)>>::toString(*t);
+            res += ToString<utils::remove_cvref_t<decltype(*t)>>::toString(*t);
         else
             res += ToString<std::nullopt_t>::toString(std::nullopt);
         return res;
@@ -318,7 +318,7 @@ struct ToString<std::optional<Ts...>> {
     template <typename Stream>
     static void toString(const std::optional<Ts...>& t, Stream& s) {
         if (t.has_value())
-            ToString<HX::STL::utils::remove_cvref_t<decltype(*t)>>::toString(*t, s);
+            ToString<utils::remove_cvref_t<decltype(*t)>>::toString(*t, s);
         else
             ToString<std::nullopt_t>::toString(std::nullopt, s);
     }
@@ -329,14 +329,14 @@ template <typename... Ts>
 struct ToString<std::variant<Ts...>> {
     static std::string toString(const std::variant<Ts...>& t) {
         return std::visit([] (const auto& v) -> std::string { // 访问者模式
-            return ToString<HX::STL::utils::remove_cvref_t<decltype(v)>>::toString(v);
+            return ToString<utils::remove_cvref_t<decltype(v)>>::toString(v);
         }, t);
     }
 
     template <typename Stream>
     static void toString(const std::variant<Ts...>& t, Stream& s) {
         std::visit([&] (const auto& v) -> void { // 访问者模式
-            ToString<HX::STL::utils::remove_cvref_t<decltype(v)>>::toString(v, s);
+            ToString<utils::remove_cvref_t<decltype(v)>>::toString(v, s);
         }, t);
     }
 };
@@ -347,9 +347,9 @@ struct ToString<Container> {
     static std::string toString(const Container& p) {
         std::string res;
         res += '(';
-        res += ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p));
+        res += ToString<utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p));
         res += ',';
-        res += ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
+        res += ToString<utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
         res += ')';
         return res;
     }
@@ -357,9 +357,9 @@ struct ToString<Container> {
     template <typename Stream>
     static void toString(const Container& p, Stream& s) {
         s.push_back('(');
-        ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
+        ToString<utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
         s.push_back(',');
-        ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
+        ToString<utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
         s.push_back(')');
     }
 };
@@ -376,7 +376,7 @@ struct ToString<Container> {
                 res += ',';
             else
                 once = true;
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it);
+            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
         }
         res += ']';
         return res;
@@ -391,7 +391,7 @@ struct ToString<Container> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<HX::STL::utils::remove_cvref_t<decltype(it)>>::toString(it, s);
+            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
         }
         s.push_back(']');
     }
@@ -409,9 +409,9 @@ struct ToString<Container> {
                 res += ',';
             else
                 once = true;
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(k)>>::toString(k);
+            res += ToString<utils::remove_cvref_t<decltype(k)>>::toString(k);
             res += ':';
-            res += ToString<HX::STL::utils::remove_cvref_t<decltype(v)>>::toString(v);
+            res += ToString<utils::remove_cvref_t<decltype(v)>>::toString(v);
         }
         res += '}';
         return res;
@@ -426,9 +426,9 @@ struct ToString<Container> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<HX::STL::utils::remove_cvref_t<decltype(k)>>::toString(k, s);
+            ToString<utils::remove_cvref_t<decltype(k)>>::toString(k, s);
             s.push_back(':');
-            ToString<HX::STL::utils::remove_cvref_t<decltype(v)>>::toString(v, s);
+            ToString<utils::remove_cvref_t<decltype(v)>>::toString(v, s);
         }
         s.push_back('}');
     }
@@ -572,7 +572,7 @@ std::string tupleToString(
     std::string res;
     res += '(';
     ((
-        res += ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
+        res += ToString<utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
         res += ','
     ), ...);
     res.back() = ')';
@@ -587,7 +587,7 @@ void tupleToString(
 ) {
     s.push_back('(');
     ((
-        ToString<HX::STL::utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
+        ToString<utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
         s.push_back(',')
     ), ...);
     s.back() = ')';
@@ -640,7 +640,7 @@ inline std::string toString(T const& t) {
  */
 template <typename T, typename Stream>
 inline void toString(T&& t, Stream& s) {
-    internal::ToString<HX::STL::utils::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
+    internal::ToString<utils::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
 }
 
 } // namespace HX::utils
