@@ -68,7 +68,8 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithChunkedEncoding(
     
     HX::STL::utils::FileUtils::AsyncFile file;
     co_await file.open(path);
-    std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+    std::vector<char> buf;
+    buf.reserve(HX::STL::utils::FileUtils::kBufMaxSize);
     while (true) {
         // 读取文件
         std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
@@ -158,7 +159,8 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
                 HX::STL::utils::FileUtils::AsyncFile file;
                 co_await file.open(path);
                 file.setOffset(beginPos);
-                std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+                std::vector<char> buf;
+    buf.reserve(HX::STL::utils::FileUtils::kBufMaxSize);
                 // 支持偏移量
                 while (remaining > 0) {
                     // 读取文件
@@ -232,7 +234,8 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
                 HX::STL::utils::FileUtils::AsyncFile file;
                 co_await file.open(path);
                 file.setOffset(beginPos);
-                std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+                std::vector<char> buf;
+    buf.reserve(HX::STL::utils::FileUtils::kBufMaxSize);
                 // 支持偏移量
                 while (remaining > 0) {
                     // 读取文件
@@ -262,7 +265,8 @@ HX::STL::coroutine::task::Task<> IO<>::sendResponseWithRange(
 
         HX::STL::utils::FileUtils::AsyncFile file;
         co_await file.open(path);
-        std::vector<char> buf(HX::STL::utils::FileUtils::kBufMaxSize);
+        std::vector<char> buf;
+        buf.reserve(HX::STL::utils::FileUtils::kBufMaxSize);
         u_int64_t remaining = fileSize;
         while (remaining > 0) {
             std::size_t size = static_cast<std::size_t>(

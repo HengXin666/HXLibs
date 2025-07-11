@@ -112,6 +112,14 @@ struct TimeNTTP {
     using Rep = typename TimeType::rep;
     using Period = typename TimeType::period;
     static constexpr auto Val = std::chrono::duration<Rep, Period>{Time};
+
+    constexpr decltype(Val) toChrono() const noexcept {
+        return Val;
+    }
+
+    constexpr operator decltype(Val)() {
+        return Val;
+    }
 };
 
 template <char... Time>

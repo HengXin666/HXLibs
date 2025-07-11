@@ -99,7 +99,7 @@ public:
     /**
      * @brief 写入数据, 内部保证完全写入
      * @param buf 
-     * @return coroutine::Task<int> 
+     * @return coroutine::Task<> 
      */
     coroutine::Task<> send(std::span<char const> buf) {
         // io_uring 也不保证其可以完全一次性写入...
@@ -116,7 +116,7 @@ public:
      * @brief 写入数据, 内部保证完全写入
      * @param buf 
      * @param n 
-     * @return coroutine::Task<int> 
+     * @return coroutine::Task<> 
      */
     coroutine::Task<> send(std::span<char const> buf, std::size_t n) {
         co_await send(buf.subspan(0, n));

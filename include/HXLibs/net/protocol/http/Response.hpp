@@ -60,7 +60,10 @@ public:
         , _responseHeadersIt(_responseHeaders.end())
         , _sendBuf()
         , _io{io}
-    {}
+    {
+        // @todo 如果在乎客户端的性能, 就封装为模板, 然后提供 bool, 然后 constexpr if 解决
+        _sendBuf.reserve(IO::kBufMaxSize);
+    }
 
 #if 0
     Response(const Response&) = delete;
@@ -79,7 +82,7 @@ public:
     /**
      * @brief 解析服务端响应
      * @tparam Seconds 超时时间, 单位: 秒 (s)
-     * @return coroutine::Task<> 
+     * @return coroutine::Task<bool> 是否解析完毕 
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(requires { Timeout::Val; })
@@ -197,7 +200,7 @@ public:
             utils::FileUtils::getExtension(filePath)
         );
         setResLine(Status::CODE_200);
-        addHeader("Content-Type"s, std::string{fileType});
+        addHeader("Content-Type"s, fileType);
         addHeader("Transfer-Encoding"s, "chunked"s);
         // 生成响应行和响应头
         _buildResponseLineAndHeaders();
@@ -206,18 +209,22 @@ public:
         
         utils::AsyncFile file{_io};
         co_await file.open(filePath);
-        std::vector<char> buf(utils::FileUtils::kBufMaxSize);
-        while (true) {
-            // 读取文件
-            std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
-            _buildToChunkedEncoding({buf.data(), size});
-            co_await _io.send(_sendBuf);
-            if (size != buf.size()) {
-                // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
-                _buildToChunkedEncoding("");
+        try {
+            std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+            while (true) {
+                // 读取文件
+                std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
+                _buildToChunkedEncoding({buf.data(), size});
                 co_await _io.send(_sendBuf);
-                break;
+                if (size != buf.size()) {
+                    // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
+                    _buildToChunkedEncoding("");
+                    co_await _io.send(_sendBuf);
+                    break;
+                }
             }
+        } catch (std::exception const& e) {
+            // _io.send 会抛异常
         }
         co_await file.close();
     }
@@ -297,22 +304,26 @@ public:
                     
                     utils::AsyncFile file{_io};
                     co_await file.open(filePath);
-                    file.setOffset(beginPos);
-                    std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
-                    // 支持偏移量
-                    while (remaining > 0) {
-                        // 读取文件
-                        std::size_t size = static_cast<std::size_t>(
-                            co_await file.read(
-                                buf,
-                                static_cast<uint32_t>(std::min(remaining, buf.size()))
-                            )
-                        );
-                        if (!size) [[unlikely]] {
-                            break;
+                    try {
+                        file.setOffset(beginPos);
+                        std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
+                        // 支持偏移量
+                        while (remaining > 0) {
+                            // 读取文件
+                            std::size_t size = static_cast<std::size_t>(
+                                co_await file.read(
+                                    buf,
+                                    static_cast<uint32_t>(std::min(remaining, buf.size()))
+                                )
+                            );
+                            if (!size) [[unlikely]] {
+                                break;
+                            }
+                            co_await _io.send(buf);
+                            remaining -= size;
                         }
-                        co_await _io.send(buf);
-                        remaining -= size;
+                    } catch (std::exception const& e) {
+                        // _io.send 会抛异常
                     }
                     co_await file.close();
                 }
@@ -372,23 +383,27 @@ public:
 
                     utils::AsyncFile file{_io};
                     co_await file.open(filePath);
-                    file.setOffset(beginPos);
-                    std::vector<char> buf(utils::FileUtils::kBufMaxSize);
-                    // 支持偏移量
-                    while (remaining > 0) {
-                        // 读取文件
-                        std::size_t size = static_cast<std::size_t>(
-                            co_await file.read(
-                                buf,
-                                static_cast<uint32_t>(std::min(remaining, buf.size()))
-                            )
-                        );
-                        if (!size) [[unlikely]] {
-                            break;
+                    try {
+                        file.setOffset(beginPos);
+                        std::vector<char> buf(utils::FileUtils::kBufMaxSize);
+                        // 支持偏移量
+                        while (remaining > 0) {
+                            // 读取文件
+                            std::size_t size = static_cast<std::size_t>(
+                                co_await file.read(
+                                    buf,
+                                    static_cast<uint32_t>(std::min(remaining, buf.size()))
+                                )
+                            );
+                            if (!size) [[unlikely]] {
+                                break;
+                            }
+                            co_await _io.send(buf);
+                            co_await _io.send(CRLF);
+                            remaining -= size;
                         }
-                        co_await _io.send(buf);
-                        co_await _io.send(CRLF);
-                        remaining -= size;
+                    } catch (std::exception const& e) {
+                        // _io.send 会抛异常
                     }
                     co_await file.close();
                 }
@@ -404,17 +419,21 @@ public:
 
             utils::AsyncFile file{_io};
             co_await file.open(filePath);
-            std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
-            uint64_t remaining = fileSize;
-            while (remaining > 0) {
-                std::size_t size = static_cast<std::size_t>(
-                    co_await file.read(buf)
-                );
-                if (!size) [[unlikely]] {
-                    break;
+            try {
+                std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
+                uint64_t remaining = fileSize;
+                while (remaining > 0) {
+                    std::size_t size = static_cast<std::size_t>(
+                        co_await file.read(buf)
+                    );
+                    if (!size) [[unlikely]] {
+                        break;
+                    }
+                    co_await _io.send(buf);
+                    remaining -= size;
                 }
-                co_await _io.send(buf);
-                remaining -= size;
+            } catch (std::exception const& e) {
+                // _io.send 会抛异常
             }
             co_await file.close();
         }

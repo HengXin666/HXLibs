@@ -37,7 +37,8 @@ HX::STL::coroutine::task::Task<std::string> FileUtils::asyncGetFileContent(
         )
     );
     std::string res;
-    std::vector<char> buf(kBufMaxSize);
+    std::vector<char> buf;
+    buf.reserve(kBufMaxSize);
     std::size_t len = 0;
     uint64_t offset = 0;
     while ((len = static_cast<std::size_t>(

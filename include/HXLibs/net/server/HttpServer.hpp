@@ -41,6 +41,7 @@ public:
         std::string port
     )
         : _router{}
+        , _asyncStopThread{}
         , _name{std::move(name)}
         , _port{std::move(port)}
         , _runNum{0}
@@ -50,16 +51,35 @@ public:
     HttpServer& operator=(HttpServer&&) noexcept = delete;
 
     /**
-     * @brief 关闭服务器
+     * @brief 同步关闭服务器
+     * @warning 该方法不可重入
      */
-    void stop() {
+    void syncStop() {
+        using namespace utils;;
         _isRun.store(false, std::memory_order_release);
-        using namespace utils;
-        HttpClient cli{HttpClientOptions{.timeout = 5_s}};
+        std::size_t errCnt = 0;
         while (_runNum) {
-            cli.get(_name + ":" + _port + "/").wait();
+            HttpClient cli{HttpClientOptions{.timeout = 1_s}};
+            cli.addHeader("Connection", "close");
+            if (cli.get("http://" + _name + ":" + _port + "/").get().status / 100 == 2) {
+                errCnt = 0;
+            } else if (++errCnt > 5) {
+                // 超过 5 次失败, 则认为服务器已经关闭
+                // 特别是是对于在 端点 中按照引用, 传入 *this (HttpServer) 的
+                // 必然是死锁的, 因为当前方法是阻塞的, 希望他是非阻塞的? 也不是不行
+                break;
+            }
         }
         log::hxLog.warning("服务器已关闭...");
+    }
+
+    /**
+     * @brief 异步关闭服务器
+     */
+    void asyncStop() {
+        _asyncStopThread = std::make_unique<std::jthread>([this]{
+            syncStop();
+        });
     }
 
     /**
@@ -90,11 +110,11 @@ public:
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(requires { Timeout::Val; })
-    void sync(
+    void syncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
         Timeout timeout = utils::operator""_s<'3', '0'>()
     ) {
-        async(threadNum, timeout);
+        asyncRun(threadNum, timeout);
         _threads.clear();
     }
 
@@ -107,7 +127,7 @@ public:
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(requires { Timeout::Val; })
-    void async(
+    void asyncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
         Timeout = utils::operator""_s<'3', '0'>()
     ) {
@@ -130,33 +150,32 @@ public:
             + "/\033]8;;\033\\\033[0m\033[1;32m ======");
     }
 
+    ~HttpServer() {
+        syncStop();
+    }
+
 private:
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     void _sync() {
-        container::FutureResult<bool> res;
-        [this, ans = res.getFutureResult()]() {
-            AddressResolver addr;
-            auto entry = addr.resolve(_name, _port);
-            try {
-                coroutine::EventLoop _eventLoop;
-                Acceptor acceptor{_router, _eventLoop, entry};
-                auto mainTask = acceptor.start<Timeout>(_isRun);
-                ++_runNum;
-                _eventLoop.start(mainTask);
-                _eventLoop.run();
-            } catch (std::exception const& ec) {
-                log::hxLog.error("Server Error:", ec.what());
-            }
-            ans->setData(true);
-        }();
-        res.wait();
-        auto _ = --_runNum;
-        log::hxLog.debug("num:", _);
+        AddressResolver addr;
+        auto entry = addr.resolve(_name, _port);
+        ++_runNum;
+        try {
+            coroutine::EventLoop _eventLoop;
+            Acceptor acceptor{_router, _eventLoop, entry};
+            auto mainTask = acceptor.start<Timeout>(_isRun);
+            _eventLoop.start(mainTask);
+            _eventLoop.run();
+        } catch (std::exception const& ec) {
+            log::hxLog.error("Server Error:", ec.what());
+        }
+        --_runNum;
     }
     
     Router _router;
     std::vector<std::jthread> _threads;
+    std::unique_ptr<std::jthread> _asyncStopThread; // 异步关闭服务器时候使用的线程
     std::string _name;
     std::string _port;
     std::atomic_uint16_t _runNum;

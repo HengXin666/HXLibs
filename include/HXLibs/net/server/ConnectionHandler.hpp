@@ -38,9 +38,11 @@ struct ConnectionHandler {
         requires(requires { Timeout::Val; })
     static coroutine::RootTask<> start(
         SocketFdType fd,
+        std::atomic_bool const& isRun,
         Router const& router,
         coroutine::EventLoop& eventLoop
     ) {
+        using namespace std::string_view_literals;
         IO io{fd, eventLoop};
         Request  req{io};
         Response res{io};
@@ -56,7 +58,15 @@ struct ConnectionHandler {
                     req.getReqType(), 
                     req.getReqPath()
                 )(req, res);
-        
+                
+                // 只要不是明确写 close 的, 我就复用连接 (keep-alive)
+                if (auto it = req.getHeaders().find(CONNECTION_SV);
+                    (it != req.getHeaders().end() && it->second == "close"sv)
+                    || !isRun.load(std::memory_order_acquire)
+                ) [[unlikely]] {
+                    break;
+                }
+
                 // 写 (由端点内部完成)
 
                 // 清空

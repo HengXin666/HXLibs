@@ -23,14 +23,14 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <HXLibs/container/NonVoidHelper.hpp>
+#include <HXLibs/container/Uninitialized.hpp>
 
 namespace HX::container {
 
 template <typename T>
 class FutureResult {
     struct _Result {
-        using __DataType = NonVoidType<T>;
+        using __DataType = container::Uninitialized<T>;
 
         _Result()
             : _data{}
@@ -40,16 +40,12 @@ class FutureResult {
             , _isResed(false)
         {}
 
-        ~_Result() noexcept {
-            if (_isResed && !_exception) {
-                _data.~__DataType();
-            }
-        }
+        ~_Result() noexcept = default;
 
-        _Result(_Result&&) = delete;
         _Result(const _Result&) = delete;
         _Result& operator=(const _Result&) = delete;
-        _Result& operator=(_Result&&) = delete;
+        _Result(_Result&&) noexcept = delete;
+        _Result& operator=(_Result&&) noexcept = delete;
 
         void wait() {
             std::unique_lock lck{_mtx};
@@ -64,15 +60,15 @@ class FutureResult {
             _cv.notify_all();
         }
 
-        __DataType data() {
+        T data() {
             if (_exception) [[unlikely]] {
                 std::rethrow_exception(_exception);
             }
-            return std::move(_data);
+            return _data.move();
         }
 
-        void setData(__DataType&& data) {
-            new (std::addressof(_data)) __DataType(std::move(data));
+        void setData(T&& data) {
+            _data.set(std::move(data));
             ready();
         }
 

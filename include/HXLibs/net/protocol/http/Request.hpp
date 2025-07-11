@@ -32,6 +32,8 @@
 #include <HXLibs/utils/StringUtils.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
+#include <HXLibs/log/Log.hpp> // debug
+
 namespace HX::net {
 
 class Router;
@@ -72,7 +74,8 @@ public:
     coroutine::Task<> sendHttpReq() {
         using namespace std::string_literals;
         // 发送请求行
-        std::vector<char> buf(IO::kBufMaxSize);
+        std::vector<char> buf;
+        buf.reserve(IO::kBufMaxSize); // 预留空间
         utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestType]);
         utils::StringUtil::append(buf, " "s);
         utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestPath]);
@@ -392,36 +395,6 @@ private:
     IO& _io;
 
     friend class Router;
-
-    /**
-     * @brief [仅客户端] 生成请求字符串, 用于写入
-     */
-    void createRequestBuffer() {
-        using namespace std::string_literals;
-        using namespace std::string_view_literals;
-        // @todo
-        // _recvBuf.clear();
-        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestType]);
-        // utils::StringUtil::append(_recvBuf, " "s);
-        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::RequestPath]);
-        // utils::StringUtil::append(_recvBuf, " "s);
-        // utils::StringUtil::append(_recvBuf, _requestLine[RequestLineDataType::ProtocolVersion]);
-        // utils::StringUtil::append(_recvBuf, CRLF);
-        // for (const auto& [key, val] : _requestHeaders) {
-        //     utils::StringUtil::append(_recvBuf, key);
-        //     utils::StringUtil::append(_recvBuf, HEADER_SEPARATOR_SV);
-        //     utils::StringUtil::append(_recvBuf, val);
-        //     utils::StringUtil::append(_recvBuf, CRLF);
-        // }
-        // if (_body.size()) {
-        //     utils::StringUtil::append(_recvBuf, CONTENT_LENGTH_SV);
-        //     utils::StringUtil::append(_recvBuf, std::to_string(_body.size()));
-        //     utils::StringUtil::append(_recvBuf, HEADER_END_SV);
-        //     utils::StringUtil::append(_recvBuf, _body);
-        // } else {
-        //     utils::StringUtil::append(_recvBuf, HEADER_END_SV);
-        // }
-    }
 
     /**
      * @brief 解析请求

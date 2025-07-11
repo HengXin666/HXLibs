@@ -28,30 +28,76 @@ namespace HX::container {
 
 template <typename T>
 struct Uninitialized {
-    Uninitialized() noexcept {}
-    Uninitialized(Uninitialized &&) = delete;
-    ~Uninitialized() noexcept {}
+    Uninitialized() noexcept 
+        : _available{false}
+    {}
+    
+    Uninitialized(Uninitialized const&) = delete;
+    Uninitialized& operator=(Uninitialized const&) = delete;
+    
+    Uninitialized(Uninitialized&& that) noexcept 
+        : _available(that._available)
+    {
+        if (that._available) {
+            set(that.move());
+        }
+    }
+    Uninitialized& operator=(Uninitialized&& that) noexcept {
+        del();
+        if (that._available) {
+            set(that.move());
+        }
+        return *this;
+    }
+
+    bool isAvailable() const noexcept {
+        return _available;
+    }
+
+    ~Uninitialized() noexcept {
+        del();
+    }
 
     T move() noexcept {
+        _available = false;
         return std::move(_data);
     }
 
     template <typename... Ts>
     void set(Ts&&... args) {
         new (std::addressof(_data)) T(std::forward<Ts>(args)...);
+        _available = true;
     }
 private:
+    void del() noexcept {
+        if (_available) {
+            _data.~T();
+            _available = false;
+        }
+    }
+
     union {
         T _data;
     };
+    bool _available;
 };
 
 template <>
 struct Uninitialized<void> {
-    Uninitialized() noexcept {}
-    Uninitialized(Uninitialized &&) = delete;
-    ~Uninitialized() noexcept {}
+    Uninitialized() noexcept = default;
     
+    Uninitialized(Uninitialized const&) = delete;
+    Uninitialized& operator=(Uninitialized const&) = delete;
+
+    Uninitialized(Uninitialized&&) noexcept = default;
+    Uninitialized& operator=(Uninitialized&&) noexcept = default;
+    
+    ~Uninitialized() noexcept = default;
+    
+    bool isAvailable() const noexcept {
+        return true;
+    }
+
     auto move() noexcept { return NonVoidHelper<>{}; }
     void set(NonVoidHelper<>) noexcept {}
 };

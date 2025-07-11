@@ -73,9 +73,9 @@ public:
      * @param url 请求的 URL
      * @return container::FutureResult<ResponseData> 
      */
-    container::FutureResult<ResponseData> get(std::string_view url) {
-        return _pool.addTask([this, url] {
-            return coGet(url).start();
+    container::FutureResult<ResponseData> get(std::string url) {
+        return _pool.addTask([this, _url = std::move(url)] {
+            return coGet(std::move(_url)).start();
         });
     }
 
@@ -84,15 +84,15 @@ public:
      * @param url 请求的 URL
      * @return coroutine::Task<ResponseData> 
      */
-    coroutine::Task<ResponseData> coGet(std::string_view url) {
+    coroutine::Task<ResponseData> coGet(std::string url) {
         container::FutureResult<ResponseData> res;
-        auto task = [this, url, ans = res.getFutureResult()]() -> coroutine::Task<> {
+        auto task = [this, ans = res.getFutureResult()](std::string _url) -> coroutine::Task<> {
             if (needConnect()) {
-                co_await makeSocket(url);
+                co_await makeSocket(_url);
             }
-            ans->setData(co_await sendReq<GET>(url));
+            ans->setData(co_await sendReq<GET>(_url));
             co_return;
-        }();
+        }(std::move(url));
         _eventLoop.start(task);
         _eventLoop.run();
         co_return res.get();
@@ -103,7 +103,7 @@ public:
      * @param url 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> connect(std::string_view url) {
+    coroutine::Task<> connect(std::string url) {
         co_await makeSocket(url);
         co_await sendReq<GET>(url);
     }
@@ -170,17 +170,29 @@ private:
     coroutine::Task<ResponseData> sendReq(std::string_view url, Str&& body = std::string_view{}) {
         IO io{_cliFd, _eventLoop};
         Request req{io};
-        req.setReqLine<Method>(url);
+        req.setReqLine<Method>(UrlParse::extractPath(url));
         req.addHeaders(_options.reqHead);
         if (body.size()) {
             req.setBody(std::forward<Str>(body));
         }
-        log::hxLog.debug("发送:", req.getReqPath(), req.getReqType(), req.getProtocolVersion(), req.getHeaders());
-        co_await req.sendHttpReq<Timeout>();
-        Response res{io};
-        co_await res.parserRes<Timeout>();
-        io.reset();
-        co_return res.makeResponseData();
+        do {
+            try {
+                co_await req.sendHttpReq<Timeout>();
+                Response res{io};
+                if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
+                    break;
+                }
+                io.reset();
+                co_return res.makeResponseData();
+            } catch (std::exception const& e) {
+                break;
+            }
+        } while (false);
+        
+        log::hxLog.error("解析出错");
+        co_await io.close();
+        _cliFd = kInvalidSocket;
+        co_return {};
     }
 
     HttpClientOptions<Timeout> _options;

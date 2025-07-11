@@ -2,27 +2,11 @@
 
 using namespace HX;
 using namespace net;
-
-struct TimeLog {
-    decltype(std::chrono::steady_clock::now()) t;
-
-    auto before(Request&, Response&) {
-        t = std::chrono::steady_clock::now();
-        return 1;
-    }
-
-    auto after(Request& req, Response&) {
-        auto t1 = std::chrono::steady_clock::now();
-        auto dt = t1 - t;
-        int64_t us = std::chrono::duration_cast<std::chrono::milliseconds>(dt).count();
-        log::hxLog.info("已响应: ", req.getPureReqPath(), "花费: ", us, " us");
-        return true;
-    }
-};
+using namespace utils;
 
 #include <iostream>
 
-int main() {
+auto __init__ = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
         auto cwd = std::filesystem::current_path();
@@ -32,55 +16,41 @@ int main() {
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Error: " << e.what() << '\n';
     }
+    return 0;
+}();
 
-    HttpServer ser{"127.0.0.1", "28205"};
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
+
+struct Test {
+    auto before(Request&, Response&) {
+        CHECK(true);
+        return 1;
+    }
+
+    auto after(Request&, Response&) {
+        CHECK(true);
+        return true;
+    }
+};
+
+TEST_CASE("测试普通请求") {
+    HttpServer ser{"127.0.0.1", "28205",};
     ser.addEndpoint<GET>("/", [](
         Request& req,
         Response& res
     ) -> coroutine::Task<> {
         (void)req;
         co_await res.setStatusAndContent(
-            Status::CODE_200, "<h1>Hello</h1>" + utils::DateTimeFormat::formatWithMilli())
+            Status::CODE_200, "<h1>Hello HXLibs</h1>")
                     .sendRes();
         co_return;
-    }, TimeLog{})
-    .addEndpoint<GET>("/stop", [&] ENDPOINT {
-        co_await res.setStatusAndContent(
-            Status::CODE_200, "<h1>stop server!</h1>" + utils::DateTimeFormat::formatWithMilli())
-                    .sendRes();
-        ser.stop();
-        co_return;
-    })
-    .addEndpoint<GET>("/favicon.ico", [] ENDPOINT {
-        log::hxLog.debug("get .ico");
-        co_return co_await res.useRangeTransferFile(
-            req.getRangeRequestView(),
-            "static/favicon.ico"
-        );
-    })
-    .addEndpoint<GET, HEAD>("/files/**", [] ENDPOINT {
-        using namespace std::string_literals;
-        using namespace std::string_view_literals;
-        /*
-            警告! 需要自己在 ./static 中创建bigFile文件夹, 因为github中并没有上传, 因为太大了
-        */
-        auto path = req.getUniversalWildcardPath();
-        log::hxLog.debug("请求:", path, "| 断点续传:", req.getReqType() == "HEAD"sv
-            || req.getHeaders().contains("range"));
-        try {
-            co_await res.useRangeTransferFile(
-                req.getRangeRequestView(),
-                "static/bigFile/"s + std::string{path.data(), path.size()}
-            );
-            log::hxLog.debug("发送完备!");
-        } catch (std::exception const& ec) {
-            log::hxLog.error(__FILE__, __LINE__, ":", ec.what());
-        }
-        co_return ;
-    });
-    
-    using namespace utils;
-
-    // ser.sync(); // @todo cli
-    return 0;
+    }, Test{});
+    ser.asyncRun(1, 1500_ms); // 启动服务器
+    std::this_thread::sleep_for((1500_ms).toChrono());
+    HttpClient cli;
+    cli.addHeader("Connection", "close");
+    auto res = cli.get("http://127.0.0.1:28205/").get();
+    CHECK(res.status == 200);
+    CHECK(res.body == "<h1>Hello HXLibs</h1>");
 }
