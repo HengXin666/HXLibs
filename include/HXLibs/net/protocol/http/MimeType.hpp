@@ -532,43 +532,42 @@ inline static const std::map<std::string_view, std::string_view, internal::Less>
 } // namespace internal
 
 /**
- * @brief 响应正文类型
+ * @brief HTTP 正文类型
  */
-enum class ResContentType {
-    html,
-    json,
-    text,
-    string,
-    multipart,
-    form_url_encode,
-    octet_stream,
-    xml,
-    none
+enum class HttpContentType {
+    Html,
+    Json,
+    Text,
+    String,
+    Multipart,
+    FormUrlEncode,
+    OctetStream,
+    Xml,
+    None
 };
 
-inline constexpr auto HTML = ResContentType::html;
-inline constexpr auto JSON = ResContentType::json;
-inline constexpr auto TEXT = ResContentType::string;
-inline constexpr auto NONE = ResContentType::none;
+inline constexpr auto HTML = HttpContentType::Html;
+inline constexpr auto JSON = HttpContentType::Json;
+inline constexpr auto TEXT = HttpContentType::String;
+inline constexpr auto NONE = HttpContentType::None;
 
 /**
- * @brief Get the Content Type Str View object
- * 
+ * @brief 获取响应正文类型
  * @param type 
  * @return std::string_view 
  */
-inline std::string_view getContentTypeStrView(ResContentType type) {
+inline constexpr std::string_view getContentTypeStrView(HttpContentType type) noexcept {
     using namespace std::string_view_literals;
     switch (type) {
-    case ResContentType::html: return "text/html; charset=UTF-8"sv;
-    case ResContentType::json: return "application/json; charset=UTF-8"sv;
-    case ResContentType::text: return "text/plain"sv;
-    case ResContentType::string: return "text/html; charset=UTF-8"sv;
-    case ResContentType::multipart: return "multipart/form-data; boundary="sv;
-    case ResContentType::form_url_encode: return "application/x-www-form-urlencoded"sv;
-    case ResContentType::octet_stream: return "application/octet-stream"sv;
-    case ResContentType::xml: return "application/xml"sv;
-    case ResContentType::none: return ""sv;
+    case HttpContentType::Html: return "text/html; charset=UTF-8"sv;
+    case HttpContentType::Json: return "application/json; charset=UTF-8"sv;
+    case HttpContentType::Text: return "text/plain"sv;
+    case HttpContentType::String: return "text/html; charset=UTF-8"sv;
+    case HttpContentType::Multipart: return "multipart/form-data; boundary="sv;
+    case HttpContentType::FormUrlEncode: return "application/x-www-form-urlencoded"sv;
+    case HttpContentType::OctetStream: return "application/octet-stream"sv;
+    case HttpContentType::Xml: return "application/xml"sv;
+    case HttpContentType::None: return ""sv;
     }
     return ""sv;
 }

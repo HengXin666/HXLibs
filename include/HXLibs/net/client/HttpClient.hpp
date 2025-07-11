@@ -33,6 +33,14 @@
 
 #include <HXLibs/log/Log.hpp>
 
+/**
+ * @todo 还有问题: 如果客户端断线了, 我怎么检测到他是断线了?
+ * @note 无法通过通知检测, 只能在读/写的时候发现
+ * @note 实际上, 可以写一个读取, 在空闲的时候挂后台做哨兵
+ * @note 但是iocp不能取消; 那就只能复用这个读, 但是如果是 https, 我们读取的内容要给openssl啊
+ * @warning 感觉技术实现比较难... 而且用处不大, 不如直接判断是否出问题了来得快...
+ */
+
 namespace HX::net {
 
 template <typename Timeout>
@@ -49,6 +57,8 @@ public:
         , _eventLoop{}
         , _cliFd{kInvalidSocket}
         , _pool{}
+        , _host{}
+        , _headers{}
     {
         _pool.setFixedThreadNum(threadNum);
         _pool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
@@ -73,10 +83,11 @@ public:
      * @param url 请求的 URL
      * @return container::FutureResult<ResponseData> 
      */
-    container::FutureResult<ResponseData> get(std::string url) {
-        return _pool.addTask([this, _url = std::move(url)] {
-            return coGet(std::move(_url)).start();
-        });
+    container::FutureResult<ResponseData> get(
+        std::string url, 
+        HeaderHashMap headers = {}
+    ) {
+        return requst<GET>(std::move(url), std::move(headers));
     }
 
     /**
@@ -84,15 +95,104 @@ public:
      * @param url 请求的 URL
      * @return coroutine::Task<ResponseData> 
      */
-    coroutine::Task<ResponseData> coGet(std::string url) {
+    coroutine::Task<ResponseData> coGet(
+        std::string url,
+        HeaderHashMap headers = {}
+    ) {
+        co_return co_await coRequst<GET>(std::move(url), std::move(headers));
+    }
+
+    /**
+     * @brief 发送一个 POST 请求, 其会在后台线程协程池中执行
+     * @param url 请求的 URL
+     * @param body 请求正文
+     * @param contentType 请求正文类型
+     * @return container::FutureResult<ResponseData> 
+     */
+    container::FutureResult<ResponseData> post(
+        std::string url,
+        HeaderHashMap headers,
+        std::string body,
+        HttpContentType contentType
+    ) {
+        return requst<POST>(
+            std::move(url), std::move(headers), 
+            std::move(body), contentType);
+    }
+
+    /**
+     * @brief 发送一个 POST 请求, 其以协程的方式运行
+     * @param url 请求的 URL
+     * @param body 请求正文
+     * @param contentType 请求正文类型
+     * @return coroutine::Task<ResponseData> 
+     */
+    coroutine::Task<ResponseData> coPost(
+        std::string url,
+        HeaderHashMap headers,
+        std::string body,
+        HttpContentType contentType
+    ) {
+        co_return co_await coRequst<POST>(
+            std::move(url), std::move(headers),
+            std::move(body), contentType);
+    }
+
+    /**
+     * @brief 异步的发送一个请求
+     * @tparam Method 请求类型
+     * @tparam Str 正文字符串类型
+     * @param url url 或者 path (以连接的情况下)
+     * @param body 正文
+     * @param contentType 正文类型 
+     * @return container::FutureResult<ResponseData> 响应数据
+     */
+    template <HttpMethod Method, utils::StringType Str = std::string>
+    container::FutureResult<ResponseData> requst(
+        std::string url,
+        HeaderHashMap headers = {},
+        Str&& body = {},
+        HttpContentType contentType = HttpContentType::None
+    ) {
+        return _pool.addTask([this, _url = std::move(url),
+                              _body = std::move(body), _headers = std::move(headers), 
+                              contentType] {
+            return coRequst<Method>(
+                std::move(_url), std::move(_headers),
+                std::move(_body), contentType
+            ).start();
+        });
+    }
+
+    /**
+     * @brief 协程的发送一个请求
+     * @tparam Method 请求类型
+     * @tparam Str 正文字符串类型
+     * @param url url 或者 path (以连接的情况下)
+     * @param body 正文
+     * @param contentType 正文类型 
+     * @return coroutine::Task<ResponseData> 响应数据
+     */
+    template <HttpMethod Method, utils::StringType Str = std::string>
+    coroutine::Task<ResponseData> coRequst(
+        std::string url,
+        HeaderHashMap headers = {},
+        Str&& body = {},
+        HttpContentType contentType = HttpContentType::None
+    ) {
         container::FutureResult<ResponseData> res;
-        auto task = [this, ans = res.getFutureResult()](std::string _url) -> coroutine::Task<> {
+        _headers = std::move(headers);
+        auto task = [this, ans = res.getFutureResult()](
+            std::string _url, Str&& _body, HttpContentType _contentType
+        ) -> coroutine::Task<> {
             if (needConnect()) {
                 co_await makeSocket(_url);
             }
-            ans->setData(co_await sendReq<GET>(_url));
+            ans->setData(co_await sendReq<Method>(
+                _url, std::move(_body), _contentType)
+            );
             co_return;
-        }(std::move(url));
+        }(std::move(url), std::move(body), contentType);
         _eventLoop.start(task);
         _eventLoop.run();
         co_return res.get();
@@ -106,37 +206,6 @@ public:
     coroutine::Task<> connect(std::string url) {
         co_await makeSocket(url);
         co_await sendReq<GET>(url);
-    }
-
-    /**
-     * @brief 清空请求头
-     */
-    void clearHeader() {
-        _options.reqHead.clear();
-    }
-
-    /**
-     * @brief 添加请求头项
-     * @param key 
-     * @param val 
-     * @return true 添加成功
-     * @return false 添加失败: key 不能为空
-     */
-    bool addHeader(std::string const& key, std::string val) {
-        if (key.empty()) [[unlikely]] {
-            return false;
-        }
-        _options.reqHead[key] = std::move(val);
-        return true;
-    }
-
-    /**
-     * @brief 设置请求头
-     * @param header 
-     */
-    void setHeader(std::unordered_map<std::string, std::string> header) {
-        clearHeader();
-        _options.reqHead = std::move(header);
     }
 
     HttpClient& operator=(HttpClient&&) noexcept = delete;
@@ -167,12 +236,18 @@ private:
     }
 
     template <HttpMethod Method, utils::StringType Str = std::string_view>
-    coroutine::Task<ResponseData> sendReq(std::string_view url, Str&& body = std::string_view{}) {
+    coroutine::Task<ResponseData> sendReq(
+        std::string const& url,
+        Str&& body = std::string_view{},
+        HttpContentType contentType = HttpContentType::None
+    ) {
         IO io{_cliFd, _eventLoop};
         Request req{io};
         req.setReqLine<Method>(UrlParse::extractPath(url));
-        req.addHeaders(_options.reqHead);
+        preprocessHeaders(url, contentType, req);
+        req._requestHeaders = std::move(_headers);
         if (body.size()) {
+            // @todo 请求体还需要支持一些格式!
             req.setBody(std::forward<Str>(body));
         }
         do {
@@ -192,13 +267,43 @@ private:
         log::hxLog.error("解析出错");
         co_await io.close();
         _cliFd = kInvalidSocket;
+        // @todo 日后此次改为异常
         co_return {};
+    }
+
+    /**
+     * @brief 预处理请求头
+     * @param url 
+     * @param req 
+     */
+    void preprocessHeaders(std::string const& url, HttpContentType contentType, Request& req) {
+        using namespace std::string_literals;
+        try {
+            auto host = UrlParse::extractDomainName(url);
+            req.tryAddHeaders("Host"s, host);
+            _host = std::move(host);
+        } catch (std::exception const& e) {
+            if (_host.size()) [[likely]] {
+                req.tryAddHeaders("Host"s, _host);
+            }
+        }
+        req.tryAddHeaders("Accept"s, "*/*"s);
+        req.tryAddHeaders("Connection"s, "keep-alive"s);
+        req.tryAddHeaders("User-Agent"s, "HXLibs/1.0"s);
+        req.tryAddHeaders("Content-Type"s, getContentTypeStrView(contentType));
+        req.tryAddHeaders("Date"s, utils::DateTimeFormat::makeHttpDate());
     }
 
     HttpClientOptions<Timeout> _options;
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
+
+    // 上一次解析的 Host
+    std::string _host;
+
+    // 请求头
+    HeaderHashMap _headers;
 };
 
 HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>())>;

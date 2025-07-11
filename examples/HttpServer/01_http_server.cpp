@@ -51,7 +51,7 @@ int main() {
         co_await res.setStatusAndContent(
             Status::CODE_200, "<h1>stop server!</h1>" + utils::DateTimeFormat::formatWithMilli())
                     .sendRes();
-        req.addHeader("Connection", "close");
+        req.addHeaders("Connection", "close");
         ser.asyncStop();
         co_return;
     })

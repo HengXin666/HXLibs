@@ -30,6 +30,7 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
+#include <HXLibs/utils/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
@@ -185,10 +186,36 @@ public:
      * @param val 值
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
-     * @warning 并且内部所有解析的键都是小写存储的
      */
-    Request& addHeader(const std::string& key, const std::string& val) {
-        _requestHeaders[key] = val;
+    template <utils::StringType Str>
+    Request& addHeaders(const std::string& key, Str&& val) {
+        _requestHeaders[key] = std::forward<Str>(val);
+        return *this;
+    }
+
+    /**
+     * @brief 向请求头添加一个键值对
+     * @param key 键
+     * @param val 值
+     * @return Request&
+     * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
+     */
+    template <typename Char, std::size_t N>
+    Request& addHeaders(const std::string& key, const Char (&val)[N]) {
+        _requestHeaders[key] = std::string{val, N};
+        return *this;
+    }
+
+    /**
+     * @brief 尝试向请求头添加一个键值对, 如果存在则不插入
+     * @param key 键
+     * @param val 值
+     * @return Request&
+     * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
+     */
+    template <utils::StringType Str>
+    Request& tryAddHeaders(const std::string& key, Str&& val) {
+        _requestHeaders.try_emplace(key, std::forward<Str>(val));
         return *this;
     }
     // ===== ↑客户端使用↑ =====
@@ -395,6 +422,10 @@ private:
     IO& _io;
 
     friend class Router;
+
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    friend class HttpClient;
 
     /**
      * @brief 解析请求

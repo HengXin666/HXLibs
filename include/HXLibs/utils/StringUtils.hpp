@@ -250,6 +250,42 @@ struct DateTimeFormat final {
         ss << msDelim << std::setfill('0') << std::setw(3) << ms.count();
         return ss.str();
     }
+
+    /**
+     * @brief 生成 http 头使用的时间 如: "Fri, 11 Jul 2025 06:47:25 GMT"
+     * @return std::string 
+     */
+    static std::string makeHttpDate() noexcept {
+        // Weekday 和 Month 的静态映射表
+        constexpr std::array<std::string_view, 7> kWeekDays{
+            "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+        };
+        constexpr std::array<std::string_view, 12> kMonths{
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        };
+
+        std::time_t now = std::time(nullptr);
+        std::tm tm_buf;
+#if defined(_WIN32)
+        ::gmtime_s(&tm_buf, &now);
+#else
+        ::gmtime_r(&now, &tm_buf);
+#endif
+
+        char buf[30];
+        int n = std::snprintf(buf, sizeof(buf),
+            "%s, %02d %s %d %02d:%02d:%02d GMT",
+            kWeekDays[static_cast<std::size_t>(tm_buf.tm_wday)].data(),
+            tm_buf.tm_mday,
+            kMonths[static_cast<std::size_t>(tm_buf.tm_mon)].data(),
+            tm_buf.tm_year + 1900,
+            tm_buf.tm_hour,
+            tm_buf.tm_min,
+            tm_buf.tm_sec
+        );
+        return std::string{buf, static_cast<size_t>(n)};
+    }
 };
 
 } // namespace HX::utils

@@ -469,7 +469,7 @@ public:
      * @return [this&] 可以链式调用
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setContentType(ResContentType type) {
+    Response& setContentType(HttpContentType type) {
         using namespace std::string_literals;
         _responseHeaders["Content-Type"s] = getContentTypeStrView(type);
         return *this;

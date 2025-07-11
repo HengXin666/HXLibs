@@ -35,9 +35,6 @@ struct HttpClientOptions {
 
     // 超时时间
     Timeout timeout = utils::operator""_ms<'5', '0', '0', '0'>(); // 5000ms
-
-    // 请求头
-    HeaderHashMap reqHead = {};
 };
 
 } // namespace HX::net

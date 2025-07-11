@@ -60,8 +60,10 @@ public:
         std::size_t errCnt = 0;
         while (_runNum) {
             HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-            cli.addHeader("Connection", "close");
-            if (cli.get("http://" + _name + ":" + _port + "/").get().status / 100 == 2) {
+            if (cli.get(
+                "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
+                ).get().status / 100 == 2
+            ) {
                 errCnt = 0;
             } else if (++errCnt > 5) {
                 // 超过 5 次失败, 则认为服务器已经关闭
