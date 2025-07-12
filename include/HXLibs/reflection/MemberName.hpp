@@ -240,7 +240,7 @@ inline constexpr void forEach(T&& obj, Visit&& func) {
     constexpr auto membersArr = getMembersNames<T>();
     auto tr = internal::getObjTie(obj);
     [&] <std::size_t... Is> (std::index_sequence<Is...>) {
-        ((func(Is, membersArr[Is], std::get<Is>(tr))), ...);
+        ((func(std::index_sequence<Is>{}, membersArr[Is], std::get<Is>(tr))), ...);
     } (std::make_index_sequence<Cnt>{});
 }
 

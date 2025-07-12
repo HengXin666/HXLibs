@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-07-07 13:39:32
+ * @Date: 2024-09-07 15:43:57
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,16 @@
 #include <optional>
 #include <tuple>
 #include <variant>
-#include <span>
 #include <format>
 #include <cmath>
 
 #include <HXLibs/utils/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
+
+/**
+ * @brief 本头文件是早期作品, 实现略显不优雅...
+ */
 
 namespace HX::log {
 
@@ -121,19 +124,18 @@ struct ToString<T> {
     static std::string toString(T const& obj) {
         std::string res;
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
-        static_assert(Cnt > 0, "toString is not implemented for this type");
         res.push_back('{');
         if constexpr (Cnt > 0) {
-            reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+            reflection::forEach(const_cast<T&>(obj),
+                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto& val) {
                 res.push_back('"');
                 res.append(name.data(), name.size());
                 res.push_back('"');
 
                 res.push_back(':');
-                auto&& str = ToString<utils::remove_cvref_t<decltype(val)>>::toString(val);
-                res.append(str.data(), str.size());
+                ToString<utils::remove_cvref_t<decltype(val)>>::toString(val, res);
 
-                if (index < Cnt - 1) [[likely]] {
+                if constexpr (I < Cnt - 1) {
                     res.push_back(',');
                 }
             });
@@ -145,10 +147,10 @@ struct ToString<T> {
     template <typename Stream>
     static void toString(T const& obj, Stream& s) {
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
-        static_assert(Cnt > 0, "toString is not implemented for this type");
         s.push_back('{');
         if constexpr (Cnt > 0) {
-            reflection::forEach(const_cast<T&>(obj), [&](auto index, auto name, auto& val) {
+            reflection::forEach(const_cast<T&>(obj),
+                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto& val) {
                 s.push_back('"');
                 s.append(name.data(), name.size());
                 s.push_back('"');
@@ -156,7 +158,7 @@ struct ToString<T> {
                 s.push_back(':');
                 ToString<utils::remove_cvref_t<decltype(val)>>::toString(val, s);
 
-                if (index < Cnt - 1) [[likely]] {
+                if constexpr (I < Cnt - 1) {
                     s.push_back(',');
                 }
             });
@@ -260,39 +262,6 @@ struct ToString<T[N]> {
         s.push_back('[');
         bool once = false;
         for (const auto& it : arr) {
-            if (once)
-                s.push_back(',');
-            else
-                once = true;
-            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
-        }
-        s.push_back(']');
-    }
-};
-
-// span视图
-template <class T>
-struct ToString<std::span<T>> {
-    static std::string toString(std::span<T> t) {
-        std::string res;
-        res += '[';
-        bool once = false;
-        for (const auto& it : t) {
-            if (once)
-                res += ',';
-            else
-                once = true;
-            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
-        }
-        res += ']';
-        return res;
-    }
-
-    template <typename Stream>
-    static void toString(std::span<T> t, Stream& s) {
-        s.push_back('[');
-        bool once = false;
-        for (const auto& it : t) {
             if (once)
                 s.push_back(',');
             else

@@ -65,10 +65,15 @@ concept WStringType = !OStreamWritable<T> && (requires(T t) {
 
 // 概念: 判断类型 T 是否是单元素容器
 template <typename T>
-concept SingleElementContainer = requires(T t) {
+concept SingleElementContainer = (requires(T t) {
     typename T::value_type;
 } && !KeyValueContainer<T>
-  && !(StringType<T> || WStringType<T>);
+  && !(StringType<T> || WStringType<T>)) 
+  || requires (T t) {
+    // std::span
+    typename  T::element_type;
+    t.subspan();
+  };
 
 } // namespace HX::utils
 
