@@ -31,7 +31,7 @@
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
 
-namespace HX::utils {
+namespace HX::log {
 
 // 内部使用的命名空间啊喂!
 namespace internal {
@@ -342,7 +342,7 @@ struct ToString<std::variant<Ts...>> {
 };
 
 // std::pair
-template <PairContainer Container>
+template <utils::PairContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& p) {
         std::string res;
@@ -365,7 +365,7 @@ struct ToString<Container> {
 };
 
 // std::的常见的支持迭代器的单元素容器
-template <SingleElementContainer Container>
+template <utils::SingleElementContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& sc) {
         std::string res;
@@ -398,7 +398,7 @@ struct ToString<Container> {
 };
 
 // std::的常见的支持迭代器的键值对容器
-template <KeyValueContainer Container>
+template <utils::KeyValueContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& map) {
         std::string res;
@@ -435,7 +435,7 @@ struct ToString<Container> {
 };
 
 // str相关的类型
-template <StringType ST>
+template <utils::StringType ST>
 struct ToString<ST> {
     static std::string toString(const ST& t) {
         std::string res;
@@ -454,7 +454,7 @@ struct ToString<ST> {
 };
 
 // wstr相关的类型
-template <WStringType ST>
+template <utils::WStringType ST>
 struct ToString<ST> {
     static std::string toString(const ST& t) {
         std::string res;
@@ -532,12 +532,12 @@ struct ToString<const T*> {
 template <typename T>
 struct ToString<T*> {
     static std::string toString(T* const& p) {
-        return NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p));
+        return utils::NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p));
     }
 
     template <typename Stream>
     static void toString(T* const& p, Stream& s) {
-        s.append(NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p)));
+        s.append(utils::NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p)));
     }
 };
 
@@ -643,6 +643,6 @@ inline void toString(T&& t, Stream& s) {
     internal::ToString<utils::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
 }
 
-} // namespace HX::utils
+} // namespace HX::log
 
 #endif // !_HX_TO_STRING_H_

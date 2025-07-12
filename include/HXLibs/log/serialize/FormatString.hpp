@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-01-16 19:30:27
+ * @Date: 2025-07-12 11:04:09
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,18 +17,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_JSON_WRITE_H_
-#define _HX_JSON_WRITE_H_
+#ifndef _HX_FORMAT_STRING_H_
+#define _HX_FORMAT_STRING_H_
 
-#include <HXLibs/log/serialize/ToString.hpp>
+namespace HX::log {
 
-namespace HX::reflection {
+struct FormatString {
 
-template <typename Obj, typename Stream>
-inline void toJson(Obj&& obj, Stream& s) {
-    log::internal::ToString<Obj>::toString(std::forward<Obj>(obj), s);
-}
+};
 
-} // namespace HX::reflection
+} // namespace HX::log
 
-#endif // !_HX_JSON_WRITE_H_
+#endif // !_HX_FORMAT_STRING_H_
