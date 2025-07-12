@@ -31,7 +31,7 @@ struct Any {
      * @brief 万能类型转换运算符, 只用于模版判断
      */
     template <typename T>
-    constexpr operator T() noexcept;
+    operator T();
 };
 
 /**
@@ -43,7 +43,7 @@ struct Any {
 template <typename T, typename... Args>
 inline consteval std::size_t membersCount() {
     if constexpr (requires {
-        T {Args{}..., internal::Any{}};
+        T { {Args{}}..., {internal::Any{}} }; // 列表初始化
     }) {
         return membersCount<T, Args..., internal::Any>();
     } else {

@@ -162,3 +162,31 @@ TEST_CASE("序列化 variant") {
     u = std::vector<std::string>{"3.14", "qwq", "awa"};
     CHECK(log::formatString(u) == R"(["3.14", "qwq", "awa"])");
 }
+
+TEST_CASE("test") {
+    struct DanmakuElem {
+        int64_t id;               // 弹幕id
+        int32_t progress;         // 出现时间（单位 ms）
+        int32_t mode;             // 弹幕类型
+        int32_t fontsize;         // 字号
+        uint32_t color;           // 颜色（RGB）
+        std::string midHash;      // 发送者mid hash
+        std::string content;      // 弹幕内容
+        int64_t ctime;            // 发送时间
+        int32_t weight;           // 权重
+        std::string action;       // 动作
+        int32_t pool;             // 弹幕池（0普通池）
+        std::string idStr;        // 弹幕id str
+        int32_t attr;             // 属性位（如保护/高赞等）
+        std::string animation;    // 动画（暂未使用）
+        std::optional<int32_t> colorful; // 大会员渐变色（可选）
+    };
+
+    DanmakuElem dm {
+        1, 2, 3, 4, 5, 
+        "6", "7", 8, 9, "10", 
+        11 ,"12", 13, "14", {16}
+    };
+
+    std::cout << log::formatString(dm) << '\n';
+}

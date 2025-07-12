@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(HX_LIBS_VERSION "0.1.1")
+set(HX_LIBS_VERSION "1.0.0")
 
 # 定义工程名称, 并指定语言为C++
 project(HXLibs
