@@ -42,6 +42,15 @@ struct Any {
  */
 template <typename T, typename... Args>
 inline consteval std::size_t membersCount() {
+    /**
+     * T { Args{}..., internal::Any{} } 是逐个直接初始化参数, 构造成类似于:
+     *   T{ Any{}, Any{}, Any{}, Any{} }, 这依赖于 T 的构造函数或聚合顺序。
+     *   若 T 不是聚合类型, 或成员不能隐式接收 Any, 会导致构造失败。
+     *
+     * T { {Args{}}..., {internal::Any{}} } 是通过列表初始化各成员, 构造成:
+     *   T{ U1{Any{}}, U2{Any{}}, U3{Any{}}, U4{Any{}} }, 此形式触发聚合初始化的每个成员, 
+     *   并允许 Any 隐式转换为成员类型, 更稳健地支持结构体成员推导。
+     */
     if constexpr (requires {
         T { {Args{}}..., {internal::Any{}} }; // 列表初始化
     }) {

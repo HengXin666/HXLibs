@@ -110,9 +110,102 @@ TEST_CASE("cnt") {
 
     CHECK(reflection::membersCountVal<Test> == 33);
 
-    struct TestErr {
+    struct TestErr {    // 是聚合类
         std::thread _1; // 不是聚和类
     };
 
     CHECK(reflection::membersCountVal<TestErr> != 1);
+
+    struct HttpHeader {
+        std::string_view name;
+        std::string_view value;
+    };
+
+    CHECK(reflection::membersCountVal<HttpHeader> == 2);
+
+    struct TestOpt {
+        std::optional<int> _;
+    };
+
+#if 0
+    // 转换是模棱两可的
+    // Conversion from 'reflection::internal::Any' to 'std::optional<int>' 
+    // is ambiguousclang(typecheck_ambiguous_condition)
+    if constexpr (requires {
+        TestOpt {reflection::internal::Any{}};
+    }) {
+        CHECK(true);
+        log::hxLog.debug("[ok]: TestOpt {reflection::internal::Any{}}");
+    } else {
+        CHECK(false);
+    }
+#else
+    if constexpr (requires {
+        TestOpt {{reflection::internal::Any{}}};
+    }) {
+        CHECK(true);
+        log::hxLog.debug("[ok]: TestOpt {{reflection::internal::Any{}}}");
+    } else {
+        CHECK(false);
+    }
+#endif
+}
+
+struct Any {
+    template <typename T>
+    operator T() { return {}; }
+};
+
+struct A {
+    // 任意参数构造
+    template <typename U>
+    A(U&&) {
+        log::hxLog.warning("type is", __PRETTY_FUNCTION__);
+    }
+};
+
+// 宏模板妹莉时刻
+#define LJ_DEFINE_2(x, y) x##y
+#define LJ_DEFINE(x, y) LJ_DEFINE_2(x, y)
+
+// 定义一个辅助定义宏, 方便帮我 (void) 掉
+#define B_INTI(CODE)                        \
+B LJ_DEFINE(_hx_, __LINE__) {CODE};         \
+static_cast<void>(LJ_DEFINE(_hx_, __LINE__))
+
+TEST_CASE("demo") {
+    struct B {
+        A _;
+    };
+
+    B_INTI( {Any{}} );
+    B_INTI( A{Any{}} ); // 等价
+
+#if 0
+    B_INTI( Any{} ); // 触发 Any{} -> A
+                     // 发现 A(U&&)
+                     // 由于 U 无法确定为准确类型
+                     // 因为 T 需要一个类型来推导, 而 U 也需要一个类型来推导
+                     // [[推导死锁]] -> 无法确定 (推导失败, 程序非良构, 抛出)
+#endif
+
+#if 0
+    if constexpr (requires {
+        B {reflection::internal::Any{}};
+    }) {
+        CHECK(true);
+        log::hxLog.debug("[ok]: B {reflection::internal::Any{}}");
+    } else {
+        CHECK(false);
+    }
+#else
+    if constexpr (requires {
+        B {{reflection::internal::Any{}}};
+    }) {
+        CHECK(true);
+        log::hxLog.debug("[ok]: B {{reflection::internal::Any{}}}");
+    } else {
+        CHECK(false);
+    }
+#endif
 }

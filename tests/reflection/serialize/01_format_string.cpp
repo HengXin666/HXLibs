@@ -189,4 +189,17 @@ TEST_CASE("test") {
     };
 
     std::cout << log::formatString(dm) << '\n';
+
+    struct HttpHeader {
+        std::string_view name;
+        std::string_view value;
+    };
+
+    std::vector<HttpHeader> hhArr = {
+        {"1", "2"},
+        {"1", "2"},
+        {"1", "2"}
+    };
+    std::span<HttpHeader> spHH = hhArr;
+    std::cout << log::formatString(spHH) << '\n';
 }
