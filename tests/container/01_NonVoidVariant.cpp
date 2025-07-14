@@ -3,7 +3,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-using namespace HX::container;
+#include <HXLibs/log/Log.hpp>
+
+using namespace HX;
+using namespace container;
 
 struct A {
     // std::variant 不允许...
@@ -81,4 +84,46 @@ TEST_CASE("std::variant") {
     // CHECK(v.index() == 0);
     v.emplace<2>(1);
     CHECK(v.index() == 2);
+}
+
+TEST_CASE("构造 U to T") {
+    UninitializedNonVoidVariant<std::string, double, int> u{"123"};
+    CHECK(u.get<0>() == "123");
+    u = "456";
+    CHECK(u.get<0>() == "456");
+    u = 789;
+    CHECK(u.get<int>() == 789);
+    u = 789.101112;
+    CHECK(u.get<double>() == 789.101112);
+
+    struct Base {
+        int a;
+    };
+
+    struct Sub : public Base {
+        Sub(int _1, int _2)
+            : Base(_1)
+            , v{_2}
+        {}
+
+        int v;
+    };
+
+    UninitializedNonVoidVariant<Base, Sub> uu{};
+    uu.emplace<Base>(0);
+    uu.emplace<Sub>(1, 1);
+
+    uu = Base{0};
+    // uu = Sub{1, 1}; // 没人会这样写
+
+#if 0
+    // ub: 不能使用引用作为参数!
+    Base base{1};
+    Sub sub{3, 4};
+    UninitializedNonVoidVariant<Base&, int> uuu;
+    uuu = base;
+    log::hxLog.info("uuu<Base>:", uuu.get<Base&>());
+    uuu = sub;
+    log::hxLog.info("uuu<sub>:", uuu.get<Base&>());
+#endif
 }

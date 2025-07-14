@@ -209,3 +209,48 @@ TEST_CASE("demo") {
     }
 #endif
 }
+
+TEST_CASE("编译期反射名称") {
+    struct A {
+        std::string _name01;
+        std::string _name02;
+        int         _name03;
+        A*          _name04;
+    };
+
+    constexpr auto aName = reflection::getMembersNames<A>();
+
+    for (std::size_t i = 0; i < reflection::membersCountVal<A>; ++i)
+        CHECK(aName[i] == "_name0" + std::to_string(i + 1));
+}
+
+TEST_CASE("编译期反射-for") {
+    struct A {
+        std::string _val01;
+        std::vector<int> _val02;
+    };
+
+    A a{
+        "test",
+        {1, 2, 3, 4, 5 ,6, 7, 8, 9}
+    };
+
+    log::hxLog.debug(a);
+
+    reflection::forEach(a, [] <std::size_t I> (std::index_sequence<I>, 
+        auto name, 
+        auto& val
+    ) {
+        if constexpr (I == 0) {
+            CHECK(name == "_val01");
+            CHECK(val == "test");
+            val = "ok";
+        } else if constexpr (I == 1) {
+            CHECK(name == "_val02");
+            CHECK(val == std::vector{1, 2, 3, 4, 5 ,6, 7, 8, 9});
+            val = {11, 4, 5, 14};
+        }
+    });
+
+    log::hxLog.debug(a);
+}

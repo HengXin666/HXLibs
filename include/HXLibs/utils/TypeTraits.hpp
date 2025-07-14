@@ -53,6 +53,36 @@ using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 template <typename T, typename... Ts>
 constexpr bool has_variant_type_v = internal::has_variant_type<T, Ts...>::value;
 
+
+/**
+ * @brief 判断 T 是否可以从 Ts 中被唯一构造
+ * @tparam T 
+ * @tparam Ts 
+ * @return consteval std::size_t 如果可以从 Ts 中唯一构造, 返回 Ts 元素的索引
+ *                               如果无法从 Ts 中唯一构造, 返回 sizeof...(Ts)
+ */
+template <typename T, typename... Ts>
+consteval std::size_t findUniqueConstructibleIndex() noexcept {
+    constexpr std::size_t N = sizeof...(Ts);
+    std::size_t res = N;
+    std::size_t i = 0, cnt = 0;
+    ([&]() {
+        // 没有 requires 可以使用 std::is_constructible_v<Ts, T&&> 代替
+        if (requires (T&& t) {
+            Ts{std::forward<T>(t)};
+        }) {
+            res = i;
+            ++cnt;
+        }
+        ++i;
+    }(), ...);
+    if (cnt != 1) {
+        // 无法从 U 构造到 T, 可能有0个或者多个匹配
+        return N;
+    }
+    return res;
+}
+
 } // namespace HX::utils
 
 #endif // !_HX_TYPE_TRAITS_H_

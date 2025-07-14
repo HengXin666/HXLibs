@@ -229,7 +229,8 @@ struct FormatString {
     template <typename T>
     constexpr std::string make(T* const& p) {
         std::string res = "0x";
-        res += utils::NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p));
+        res += utils::NumericBaseConverter::hexadecimalConversion(
+            reinterpret_cast<std::size_t>(p));
         return res;
     }
 

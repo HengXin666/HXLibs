@@ -91,9 +91,10 @@ public:
     {}
 
     FutureResult(FutureResult const&) = delete;
-    FutureResult(FutureResult&&) = default;
     FutureResult& operator=(FutureResult const&) = delete;
-    FutureResult& operator=(FutureResult&&) = default;
+
+    FutureResult(FutureResult&&) noexcept = default;
+    FutureResult& operator=(FutureResult&&) noexcept = default;
 
     NonVoidType<T> get() {
         wait();
@@ -108,7 +109,7 @@ public:
         _res->wait();
     }
 private:
-    std::shared_ptr<FutureResultType> _res;
+    std::shared_ptr<FutureResultType> const _res;
 };
 
 } // namespace HX::container
