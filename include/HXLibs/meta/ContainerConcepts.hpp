@@ -22,7 +22,7 @@
 
 #include <ostream>
  
-namespace HX::utils {
+namespace HX::meta {
 
 // 概念: 判断类型 T 是否是键值对的关联容器
 template <typename T>

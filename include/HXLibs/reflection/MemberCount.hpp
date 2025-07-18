@@ -20,7 +20,7 @@
 #ifndef _HX_MEMBER_COUNT_H_
 #define _HX_MEMBER_COUNT_H_
 
-#include <HXLibs/utils/TypeTraits.hpp>
+#include <HXLibs/meta/TypeTraits.hpp>
 
 namespace HX::reflection {
 
@@ -69,7 +69,7 @@ inline consteval std::size_t membersCount() {
  */
 template <typename T>
 inline consteval std::size_t membersCount() {
-    return internal::membersCount<utils::remove_cvref_t<T>>();
+    return internal::membersCount<meta::remove_cvref_t<T>>();
 }
 
 /**

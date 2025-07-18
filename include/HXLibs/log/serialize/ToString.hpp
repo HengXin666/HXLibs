@@ -26,7 +26,7 @@
 #include <format>
 #include <cmath>
 
-#include <HXLibs/utils/ContainerConcepts.hpp>
+#include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
 
@@ -133,7 +133,7 @@ struct ToString<T> {
                 res.push_back('"');
 
                 res.push_back(':');
-                ToString<utils::remove_cvref_t<decltype(val)>>::toString(val, res);
+                ToString<meta::remove_cvref_t<decltype(val)>>::toString(val, res);
 
                 if constexpr (I < Cnt - 1) {
                     res.push_back(',');
@@ -156,7 +156,7 @@ struct ToString<T> {
                 s.push_back('"');
 
                 s.push_back(':');
-                ToString<utils::remove_cvref_t<decltype(val)>>::toString(val, s);
+                ToString<meta::remove_cvref_t<decltype(val)>>::toString(val, s);
 
                 if constexpr (I < Cnt - 1) {
                     s.push_back(',');
@@ -251,7 +251,7 @@ struct ToString<T[N]> {
                 res += ',';
             else
                 once = true;
-            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
+            res += ToString<meta::remove_cvref_t<decltype(it)>>::toString(it);
         }
         res += ']';
         return res;
@@ -266,7 +266,7 @@ struct ToString<T[N]> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
+            ToString<meta::remove_cvref_t<decltype(it)>>::toString(it, s);
         }
         s.push_back(']');
     }
@@ -278,7 +278,7 @@ struct ToString<std::optional<Ts...>> {
     static std::string toString(const std::optional<Ts...>& t) {
         std::string res;
         if (t.has_value())
-            res += ToString<utils::remove_cvref_t<decltype(*t)>>::toString(*t);
+            res += ToString<meta::remove_cvref_t<decltype(*t)>>::toString(*t);
         else
             res += ToString<std::nullopt_t>::toString(std::nullopt);
         return res;
@@ -287,7 +287,7 @@ struct ToString<std::optional<Ts...>> {
     template <typename Stream>
     static void toString(const std::optional<Ts...>& t, Stream& s) {
         if (t.has_value())
-            ToString<utils::remove_cvref_t<decltype(*t)>>::toString(*t, s);
+            ToString<meta::remove_cvref_t<decltype(*t)>>::toString(*t, s);
         else
             ToString<std::nullopt_t>::toString(std::nullopt, s);
     }
@@ -298,27 +298,27 @@ template <typename... Ts>
 struct ToString<std::variant<Ts...>> {
     static std::string toString(const std::variant<Ts...>& t) {
         return std::visit([] (const auto& v) -> std::string { // 访问者模式
-            return ToString<utils::remove_cvref_t<decltype(v)>>::toString(v);
+            return ToString<meta::remove_cvref_t<decltype(v)>>::toString(v);
         }, t);
     }
 
     template <typename Stream>
     static void toString(const std::variant<Ts...>& t, Stream& s) {
         std::visit([&] (const auto& v) -> void { // 访问者模式
-            ToString<utils::remove_cvref_t<decltype(v)>>::toString(v, s);
+            ToString<meta::remove_cvref_t<decltype(v)>>::toString(v, s);
         }, t);
     }
 };
 
 // std::pair
-template <utils::PairContainer Container>
+template <meta::PairContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& p) {
         std::string res;
         res += '(';
-        res += ToString<utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p));
+        res += ToString<meta::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p));
         res += ',';
-        res += ToString<utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
+        res += ToString<meta::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
         res += ')';
         return res;
     }
@@ -326,15 +326,15 @@ struct ToString<Container> {
     template <typename Stream>
     static void toString(const Container& p, Stream& s) {
         s.push_back('(');
-        ToString<utils::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
+        ToString<meta::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
         s.push_back(',');
-        ToString<utils::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
+        ToString<meta::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
         s.push_back(')');
     }
 };
 
 // std::的常见的支持迭代器的单元素容器
-template <utils::SingleElementContainer Container>
+template <meta::SingleElementContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& sc) {
         std::string res;
@@ -345,7 +345,7 @@ struct ToString<Container> {
                 res += ',';
             else
                 once = true;
-            res += ToString<utils::remove_cvref_t<decltype(it)>>::toString(it);
+            res += ToString<meta::remove_cvref_t<decltype(it)>>::toString(it);
         }
         res += ']';
         return res;
@@ -360,14 +360,14 @@ struct ToString<Container> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<utils::remove_cvref_t<decltype(it)>>::toString(it, s);
+            ToString<meta::remove_cvref_t<decltype(it)>>::toString(it, s);
         }
         s.push_back(']');
     }
 };
 
 // std::的常见的支持迭代器的键值对容器
-template <utils::KeyValueContainer Container>
+template <meta::KeyValueContainer Container>
 struct ToString<Container> {
     static std::string toString(const Container& map) {
         std::string res;
@@ -378,9 +378,9 @@ struct ToString<Container> {
                 res += ',';
             else
                 once = true;
-            res += ToString<utils::remove_cvref_t<decltype(k)>>::toString(k);
+            res += ToString<meta::remove_cvref_t<decltype(k)>>::toString(k);
             res += ':';
-            res += ToString<utils::remove_cvref_t<decltype(v)>>::toString(v);
+            res += ToString<meta::remove_cvref_t<decltype(v)>>::toString(v);
         }
         res += '}';
         return res;
@@ -395,16 +395,16 @@ struct ToString<Container> {
                 s.push_back(',');
             else
                 once = true;
-            ToString<utils::remove_cvref_t<decltype(k)>>::toString(k, s);
+            ToString<meta::remove_cvref_t<decltype(k)>>::toString(k, s);
             s.push_back(':');
-            ToString<utils::remove_cvref_t<decltype(v)>>::toString(v, s);
+            ToString<meta::remove_cvref_t<decltype(v)>>::toString(v, s);
         }
         s.push_back('}');
     }
 };
 
 // str相关的类型
-template <utils::StringType ST>
+template <meta::StringType ST>
 struct ToString<ST> {
     static std::string toString(const ST& t) {
         std::string res;
@@ -423,7 +423,7 @@ struct ToString<ST> {
 };
 
 // wstr相关的类型
-template <utils::WStringType ST>
+template <meta::WStringType ST>
 struct ToString<ST> {
     static std::string toString(const ST& t) {
         std::string res;
@@ -541,7 +541,7 @@ std::string tupleToString(
     std::string res;
     res += '(';
     ((
-        res += ToString<utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
+        res += ToString<meta::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
         res += ','
     ), ...);
     res.back() = ')';
@@ -556,7 +556,7 @@ void tupleToString(
 ) {
     s.push_back('(');
     ((
-        ToString<utils::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
+        ToString<meta::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
         s.push_back(',')
     ), ...);
     s.back() = ')';
@@ -609,7 +609,7 @@ inline std::string toString(T const& t) {
  */
 template <typename T, typename Stream>
 inline void toString(T&& t, Stream& s) {
-    internal::ToString<utils::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
+    internal::ToString<meta::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
 }
 
 } // namespace HX::log

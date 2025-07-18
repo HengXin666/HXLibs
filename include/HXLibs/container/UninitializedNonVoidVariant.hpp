@@ -25,7 +25,7 @@
 
 #include <HXLibs/container/NonVoidHelper.hpp>
 #include <HXLibs/container/Uninitialized.hpp>
-#include <HXLibs/utils/TypeTraits.hpp>
+#include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/exception/ExceptionMode.hpp>
 
 namespace HX::container {
@@ -204,7 +204,7 @@ struct UninitializedNonVoidVariant {
         : _idx{UninitializedNonVoidVariantNpos}
     {}
 
-    template <typename U, std::size_t Idx = utils::findUniqueConstructibleIndex<U, Ts...>(),
+    template <typename U, std::size_t Idx = meta::findUniqueConstructibleIndex<U, Ts...>(),
               typename T = UninitializedNonVoidVariantIndexToType<Idx, Ts...>>
         requires(Idx < N)
     UninitializedNonVoidVariant(U&& t) noexcept(std::is_nothrow_constructible_v<U, T&&>)
@@ -340,7 +340,7 @@ struct UninitializedNonVoidVariant {
         return get<Idx, exception::ExceptionMode::Nothrow>();
     }
 
-    template <typename U, std::size_t Idx = utils::findUniqueConstructibleIndex<U, Ts...>(),
+    template <typename U, std::size_t Idx = meta::findUniqueConstructibleIndex<U, Ts...>(),
               typename T = UninitializedNonVoidVariantIndexToType<Idx, Ts...>>
         requires(Idx < N)
     UninitializedNonVoidVariant& operator=(U&& t) noexcept {

@@ -27,7 +27,7 @@
 #include <filesystem>
 #include <format>
 
-#include <HXLibs/utils/ContainerConcepts.hpp>
+#include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
 
@@ -134,7 +134,7 @@ struct FormatString {
     }
     
     // std常见的支持迭代器的单元素容器
-    template <utils::SingleElementContainer Container>
+    template <meta::SingleElementContainer Container>
     constexpr std::string make(Container const& arr) {
         std::string res;
         bool once = false;
@@ -181,7 +181,7 @@ struct FormatString {
     }
 
     // std常见的支持迭代器的键值对容器
-    template <utils::KeyValueContainer Container>
+    template <meta::KeyValueContainer Container>
     constexpr std::string make(const Container& map) {
         std::string res;
         res += BRACE_LEFT;
@@ -205,7 +205,7 @@ struct FormatString {
     }
 
     // str相关的类型
-    template <utils::StringType ST>
+    template <meta::StringType ST>
     constexpr std::string make(const ST& t) {
         std::string res;
         res += '"';

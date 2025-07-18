@@ -30,7 +30,7 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
-#include <HXLibs/utils/ContainerConcepts.hpp>
+#include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
@@ -187,7 +187,7 @@ public:
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
-    template <utils::StringType Str>
+    template <meta::StringType Str>
     Request& addHeaders(const std::string& key, Str&& val) {
         _requestHeaders[key] = std::forward<Str>(val);
         return *this;
@@ -213,7 +213,7 @@ public:
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
-    template <utils::StringType Str>
+    template <meta::StringType Str>
     Request& tryAddHeaders(const std::string& key, Str&& val) {
         _requestHeaders.try_emplace(key, std::forward<Str>(val));
         return *this;

@@ -70,7 +70,7 @@ inline constexpr std::string_view getMemberName() {
  */
 template <typename T>
 struct StaticObj {
-    inline static utils::remove_cvref_t<T> obj;
+    inline static meta::remove_cvref_t<T> obj;
 };
 
 /**
@@ -79,7 +79,7 @@ struct StaticObj {
  * @return constexpr utils::remove_cvref_t<T>& 
  */
 template <typename T>
-inline constexpr utils::remove_cvref_t<T>& getStaticObj() {
+inline constexpr meta::remove_cvref_t<T>& getStaticObj() {
     return StaticObj<T>::obj;
 }
 
@@ -178,7 +178,7 @@ struct ReflectionVisitor<T, N> {                            \
  */
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
-    return ReflectionVisitor<utils::remove_cvref_t<T>, membersCountVal<T>>::visit();
+    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit();
 }
 
 /**
@@ -189,7 +189,7 @@ inline constexpr auto getStaticObjPtrTuple() {
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
-    return ReflectionVisitor<utils::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
 }
 
 /**

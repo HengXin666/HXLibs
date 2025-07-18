@@ -28,7 +28,7 @@
 #include <HXLibs/net/protocol/url/UrlParse.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/container/ThreadPool.hpp>
-#include <HXLibs/utils/ContainerConcepts.hpp>
+#include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
 #include <HXLibs/log/Log.hpp>
@@ -147,7 +147,7 @@ public:
      * @param contentType 正文类型 
      * @return container::FutureResult<ResponseData> 响应数据
      */
-    template <HttpMethod Method, utils::StringType Str = std::string>
+    template <HttpMethod Method, meta::StringType Str = std::string>
     container::FutureResult<ResponseData> requst(
         std::string url,
         HeaderHashMap headers = {},
@@ -173,7 +173,7 @@ public:
      * @param contentType 正文类型 
      * @return coroutine::Task<ResponseData> 响应数据
      */
-    template <HttpMethod Method, utils::StringType Str = std::string>
+    template <HttpMethod Method, meta::StringType Str = std::string>
     coroutine::Task<ResponseData> coRequst(
         std::string url,
         HeaderHashMap headers = {},
@@ -235,7 +235,7 @@ private:
         );
     }
 
-    template <HttpMethod Method, utils::StringType Str = std::string_view>
+    template <HttpMethod Method, meta::StringType Str = std::string_view>
     coroutine::Task<ResponseData> sendReq(
         std::string const& url,
         Str&& body = std::string_view{},

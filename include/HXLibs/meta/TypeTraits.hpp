@@ -23,7 +23,7 @@
 #include <variant>
 #include <type_traits>
 
-namespace HX::utils {
+namespace HX::meta {
 
 namespace internal {
 
