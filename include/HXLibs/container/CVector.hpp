@@ -32,7 +32,7 @@ namespace HX::container {
 template <typename T, std::size_t N>
 class CVector {
     T _data[N]{};
-    std::size_t _dIdx; // 指向位置为无效, 有效索引为 [0, _dIdx)
+    std::size_t _dIdx = 0; // 指向位置为无效, 有效索引为 [0, _dIdx)
 public:
     // 容器 typdefs
     using value_type = T;
@@ -47,7 +47,7 @@ public:
 
     constexpr CVector() = default;
 
-    constexpr CVector(T const& t, std::size_t size)
+    constexpr CVector(std::size_t size, T const& t)
         : _data{}
         , _dIdx{size}
     {
@@ -55,24 +55,36 @@ public:
             _data[i] = t;
     }
 
-    constexpr size_type size() const noexcept {
-        return _dIdx;
-    }
+    constexpr size_type size() const noexcept { return _dIdx; }
+    constexpr static size_type max_size() noexcept { return N; }
     
     // 访问
-    constexpr reference operator[](std::size_t idx) {
-        return _data[idx];
-    }
-
-    constexpr const_reference operator[](std::size_t idx) const {
-        return _data[idx];
-    }
+    constexpr reference operator[](std::size_t idx) { return _data[idx]; }
+    constexpr const_reference operator[](std::size_t idx) const { return _data[idx]; }
 
     constexpr reference front() { return _data[0]; }
     constexpr const_reference front() const { return _data[0]; }
 
     constexpr reference back() { return _data[_dIdx - 1]; }
     constexpr const_reference back() const { return _data[_dIdx - 1]; }
+
+    // constexpr iterator find(T const& v) noexcept {
+    //     for (std::size_t i = 0; i < _dIdx; ++i) {
+    //         if (_data[i] == v) {
+    //             return &_data[i];
+    //         }
+    //     }
+    //     return end();
+    // }
+
+    // constexpr const_iterator find(T const& v) const noexcept { 
+    //     for (std::size_t i = 0; i < _dIdx; ++i) {
+    //         if (_data[i] == v) {
+    //             return &_data[i];
+    //         }
+    //     }
+    //     return end();
+    // }
 
     // 迭代器
     constexpr iterator begin() { return _data; }
@@ -82,18 +94,20 @@ public:
     constexpr const_iterator end() const { return _data + _dIdx + 1; }
 
     // 修改
-    constexpr void push_back(value_type const& t) {
-        _data[_dIdx++] = t;
-    }
+    constexpr void push_back(value_type const& t) { _data[_dIdx++] = t; }
+    constexpr void push_back(value_type&& t) { _data[_dIdx++] = std::move(t); }
 
-    constexpr void push_back(value_type&& t) {
-        _data[_dIdx++] = std::move(t);
-    }
-
-    constexpr void clear() noexcept {
-        _dIdx = 0;
-    }
+    constexpr void clear() noexcept { _dIdx = 0; }
 };
+
+template <typename T, std::size_t N>
+constexpr bool allDifferentFrom(CVector<T, N>& arr, T& v) noexcept {
+    for (std::size_t i = 0; i < arr.size(); ++i) {
+        if (arr[i] == v)
+            return false;
+    }
+    return true;
+}
 
 } // namespace HX::container
 
