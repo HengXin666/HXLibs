@@ -173,11 +173,12 @@ void handleEscapeChar(Str& str, It&& it, It&& end) {
                 throw std::runtime_error(R"(Expected 4 hexadecimal digits)");
             }
             auto code_point = cv::parseUnicodeHex4(it);
-           cv:: encodeUtf8(str, code_point);
+            cv::encodeUtf8(str, code_point); // 内部会移动 it
             return;
         }
         default:  str +=  *it; break;
     }
+    ++it; // 下一个字符
 }
 
 /**
@@ -352,15 +353,15 @@ struct FromJson {
         skipWhiteSpace(it, end);
         // 解析字符串
         verify<'"'>(it, end);
-        for (; it != end; ++it) {
+        while (it != end) {
             if (*it == '"') [[unlikely]] {
                 ++it;
                 break;
             }
             if (*it != '\\') {
-                t += *it;
+                t += *it++; // 下一个字符
             } else {
-                handleEscapeChar(t, it, end);
+                handleEscapeChar(t, it, end); // 内部会处理好 it
             }
         }
     }
