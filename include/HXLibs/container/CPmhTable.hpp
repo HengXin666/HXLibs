@@ -26,6 +26,8 @@
 
 namespace HX::container {
 
+namespace internal {
+
 struct SeedOrIndex {
     using value_type = uint64_t;
 private:
@@ -55,13 +57,15 @@ public:
     }
 };
 
+} // namespace internal
+
 template <std::size_t M, typename Hasher>
 struct CPmhTable {
     // 根种子
     std::size_t _rootSeed;
 
     // 一级哈希表
-    std::array<SeedOrIndex, M> _G;
+    std::array<internal::SeedOrIndex, M> _G;
 
     // 二级哈希表
     std::array<std::size_t, M> _H;
@@ -70,7 +74,7 @@ struct CPmhTable {
 
     constexpr CPmhTable(
         std::size_t rootSeed,
-        std::array<SeedOrIndex, M> G,
+        std::array<internal::SeedOrIndex, M> G,
         std::array<std::size_t, M> H,
         Hasher hash
     )
@@ -98,14 +102,14 @@ struct CPmhTable {
 
 template <std::size_t M, typename Item, std::size_t N, typename Hasher, typename PRG>
 constexpr CPmhTable<M, Hasher> makeCPmhTable(std::array<Item, N> items, Hasher const& hash, PRG prg) {
-    // 1. 创建桶数组, 并且确定 元素键 -> 桶 的哈希种子
+    // 1. 创建桶数组, 并且确定 [元素键 -> 桶] 的哈希种子
     auto bucketArr = makeCPmhBucket<M>(items, hash, prg);
 
     // 2. 按照桶元素从大到小, 排序桶数组, 得到桶引用数组
     auto bucketRefArr = bucketArr.sortBucketRefArr();
 
     // 3. 创建2个哈希表
-    std::array<SeedOrIndex, M> G;
+    std::array<internal::SeedOrIndex, M> G;
     std::array<std::size_t, M> H;
 
     constexpr std::size_t Illegal = static_cast<std::size_t>(-1); // 哨兵, 表示空位
@@ -126,7 +130,8 @@ constexpr CPmhTable<M, Hasher> makeCPmhTable(std::array<Item, N> items, Hasher c
                 isNext = false;
                 for (std::size_t i = 0; i < bucketSize; ++i) {
                     std::size_t idx = hash(meta::getKey(items[bucket[i]]), seed) % M;
-                    if (H[idx] != Illegal || !allDifferentFrom(tmp, idx)) {
+                    // 如果没有在之前的映射中出现就是合法的, 否则重新选择哈希函数
+                    if (H[idx] != Illegal || tmp.find(idx) != tmp.end()) {
                         tmp.clear();
                         isNext = true;
                         break;

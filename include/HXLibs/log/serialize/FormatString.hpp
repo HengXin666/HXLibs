@@ -36,12 +36,13 @@ namespace HX::log {
 namespace internal {
 
 inline constexpr std::string_view DELIMIER          = ", ";
+inline constexpr std::string_view ENTER             = "\n";
 inline constexpr std::string_view PARENTHESES_LEFT  = "(";
 inline constexpr std::string_view PARENTHESES_RIGHT = ")";
 inline constexpr std::string_view BRACKET_LEFT      = "[";
 inline constexpr std::string_view BRACKET_RIGHT     = "]";
 inline constexpr std::string_view KEY_VAK_PAIR      = ": ";
-inline constexpr std::string_view BRACE_LEFT        = "{\n";
+inline constexpr std::string_view BRACE_LEFT        = "{";
 inline constexpr std::string_view BRACE_DELIMIER    = ",\n";
 inline constexpr std::string_view BRACE_RIGHT       = "}";
 
@@ -158,12 +159,17 @@ struct FormatString {
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         std::string res;
         res += BRACE_LEFT;
+        bool notNull = false;
         {
             if constexpr (Cnt > 0) {
                 DepthRAII _{_depth};
                 reflection::forEach(const_cast<T&>(obj), [&] <std::size_t I> (
                     std::index_sequence<I>, auto name, auto& val
                 ) {
+                    if (!notNull) {
+                        res += ENTER;
+                        notNull = true;
+                    }
                     addIndent(res);
                     res += make(name);
                     res += KEY_VAK_PAIR;
@@ -175,7 +181,9 @@ struct FormatString {
                 });
             }
         }
-        addIndent<true>(res);
+        if (notNull) {
+            addIndent<true>(res);
+        }
         res += BRACE_RIGHT;
         return res;
     }
@@ -185,10 +193,15 @@ struct FormatString {
     constexpr std::string make(const Container& map) {
         std::string res;
         res += BRACE_LEFT;
+        bool notNull = false;
         {
             DepthRAII _{_depth};
             bool once = false;
             for (const auto& [k, v] : map) {
+                if (!notNull) {
+                    res += ENTER;
+                    notNull = true;
+                }
                 if (once)
                     res += BRACE_DELIMIER;
                 else
@@ -199,7 +212,9 @@ struct FormatString {
                 res += make(v);
             }
         }
-        addIndent<true>(res);
+        if (notNull) {
+            addIndent<true>(res);
+        }
         res += BRACE_RIGHT;
         return res;
     }
@@ -273,6 +288,13 @@ struct FormatString {
         return std::visit([&](auto&& val) {
             return make(val);
         }, v);
+    }
+
+    // std::智能指针
+    template <typename T>
+        requires (meta::is_smart_pointer_v<T>)
+    constexpr std::string make(T const& ptr) {
+        return ptr ? make(*ptr) : make(nullptr);
     }
 
     std::size_t _depth = 0; // 嵌套深度

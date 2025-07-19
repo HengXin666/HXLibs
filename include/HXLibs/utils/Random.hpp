@@ -25,16 +25,15 @@
 namespace HX::utils {
 
 struct XorShift32 {
-    uint32_t val;
+    using result_type = uint32_t;
+    result_type val;
 
     constexpr XorShift32(std::size_t seed = 0) 
-        : val(static_cast<uint32_t>(seed + 1)) 
+        : val(static_cast<result_type>(seed + 1)) 
     {}
 
-    using result_type = uint32_t;
-
-    constexpr uint32_t operator()() noexcept {
-        uint32_t x = val;
+    constexpr result_type operator()() noexcept {
+        result_type x = val;
         x ^= x << 13;
         x ^= x >> 17;
         x ^= x << 5;

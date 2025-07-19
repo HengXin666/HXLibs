@@ -21,14 +21,13 @@
 #define _HX_HASH_H_
 
 #include <type_traits>
-#include <utility>
 #include <string_view>
 
 namespace HX::meta {
 
-template <typename KV, std::size_t KeyIdx = 0>
+template <typename KV>
 constexpr auto& getKey(KV const& kv) noexcept {
-    return std::get<KeyIdx>(kv);
+    return kv.first;
 }
 
 template <typename String>

@@ -66,7 +66,7 @@ struct UninitializedNonVoidVariantImpl<Idx, T> {
         return std::move(v._head._data);
     }
 
-    ~UninitializedNonVoidVariantImpl() noexcept {
+    constexpr ~UninitializedNonVoidVariantImpl() noexcept {
         if constexpr (std::is_destructible_v<decltype(_head)>) {
             _head.~UninitializedNonVoidVariantHead<Idx, T>();
         }
@@ -111,7 +111,7 @@ struct UninitializedNonVoidVariantImpl<Idx, T, Ts...> {
         }
     }
 
-    ~UninitializedNonVoidVariantImpl() noexcept {
+    constexpr ~UninitializedNonVoidVariantImpl() noexcept {
         if constexpr (std::is_destructible_v<decltype(_head)>) {
             _head.~UninitializedNonVoidVariantHead<Idx, T>();
         }
@@ -195,6 +195,7 @@ using UninitializedNonVoidVariantIndexToType
 /**
  * @brief 一个支持任意类型的 Variant, 内部类型可以重复, 支持 void
  * @tparam ...Ts
+ * @todo 这个还不支持编译期使用, 但是 std::variant 在 C++20 是支持的awa...
  */
 template <typename... Ts>
 struct UninitializedNonVoidVariant {
@@ -207,7 +208,7 @@ struct UninitializedNonVoidVariant {
     template <typename U, std::size_t Idx = meta::findUniqueConstructibleIndex<U, Ts...>(),
               typename T = UninitializedNonVoidVariantIndexToType<Idx, Ts...>>
         requires(Idx < N)
-    UninitializedNonVoidVariant(U&& t) noexcept(std::is_nothrow_constructible_v<U, T&&>)
+    constexpr UninitializedNonVoidVariant(U&& t) noexcept(std::is_nothrow_constructible_v<U, T&&>)
         : _idx{Idx}
     {
         /*
@@ -217,10 +218,14 @@ struct UninitializedNonVoidVariant {
         3) 同时函数返回对应的索引 (不合法就返回 sizeof...(Ts))
         4) 持有索引就可以找到准确的类型 U, 然后 T 构造为 U 了
         */
-        new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) T(std::forward<U>(t));
+        if constexpr (std::is_trivial_v<U> && (std::is_trivial_v<Ts> && ...)) {
+            get<Idx, exception::ExceptionMode::Nothrow>() = T{std::forward<U>(t)};
+        } else {
+            new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) T(std::forward<U>(t));
+        }
     }
 
-    UninitializedNonVoidVariant(UninitializedNonVoidVariant const& that) 
+    constexpr UninitializedNonVoidVariant(UninitializedNonVoidVariant const& that) 
         : UninitializedNonVoidVariant{}
     {
         if (that._idx == UninitializedNonVoidVariantNpos) [[unlikely]] {
@@ -238,7 +243,7 @@ struct UninitializedNonVoidVariant {
         } (std::make_index_sequence<N>{});
     }
 
-    UninitializedNonVoidVariant(UninitializedNonVoidVariant&& that) 
+    constexpr UninitializedNonVoidVariant(UninitializedNonVoidVariant&& that) 
         : UninitializedNonVoidVariant{}
     {
         if (that._idx == UninitializedNonVoidVariantNpos) [[unlikely]] {
@@ -323,8 +328,8 @@ struct UninitializedNonVoidVariant {
     template <typename T, typename... Args, typename NonVT = NonVoidType<T>,
         std::size_t Idx = UninitializedNonVoidVariantIndexVal<NonVT, UninitializedNonVoidVariant>>
             requires (Idx < N)
-    NonVT& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<NonVT, Args...>) {
-        del(std::make_index_sequence<N>{});
+    constexpr NonVT& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<NonVT, Args...>) {
+        del();
         _idx = Idx;
         new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) NonVT(std::forward<Args>(args)...);
         return get<Idx, exception::ExceptionMode::Nothrow>();
@@ -333,8 +338,8 @@ struct UninitializedNonVoidVariant {
     template <std::size_t Idx, typename... Args,
         typename T = UninitializedNonVoidVariantIndexToType<Idx, Ts...>>
             requires (Idx < N)
-    T& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
-        del(std::make_index_sequence<N>{});
+    constexpr T& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
+        del();
         _idx = Idx;
         new (std::addressof(get<Idx, exception::ExceptionMode::Nothrow>())) T(std::forward<Args>(args)...);
         return get<Idx, exception::ExceptionMode::Nothrow>();
@@ -343,12 +348,12 @@ struct UninitializedNonVoidVariant {
     template <typename U, std::size_t Idx = meta::findUniqueConstructibleIndex<U, Ts...>(),
               typename T = UninitializedNonVoidVariantIndexToType<Idx, Ts...>>
         requires(Idx < N)
-    UninitializedNonVoidVariant& operator=(U&& t) noexcept {
+    constexpr UninitializedNonVoidVariant& operator=(U&& t) noexcept {
         emplace<T>(std::forward<U>(t));
         return *this;
     }
 
-    UninitializedNonVoidVariant& operator=(UninitializedNonVoidVariant const& that) noexcept {
+    constexpr UninitializedNonVoidVariant& operator=(UninitializedNonVoidVariant const& that) noexcept {
         if (std::addressof(that) == this) {
             return *this;
         }
@@ -433,19 +438,20 @@ struct UninitializedNonVoidVariant {
         *this = std::move(tmp);
     }
 
-    void reset() noexcept {
-        del(std::make_index_sequence<N>{});
+    constexpr void reset() noexcept {
+        del();
     }
     
-    ~UninitializedNonVoidVariant() noexcept {
-        del(std::make_index_sequence<N>{});
+    constexpr ~UninitializedNonVoidVariant() noexcept {
+        del();
     }
 
 private:
+#if 0
     template <std::size_t... Idx>
-    void del(std::index_sequence<Idx...>) noexcept {
+    constexpr void del(std::index_sequence<Idx...>) noexcept {
         using DelFuncPtr = void (*)(UninitializedNonVoidVariant&);
-        static constexpr DelFuncPtr delFuncs[N] {
+        constexpr DelFuncPtr delFuncs[N] {
             [](UninitializedNonVoidVariant& u) {
                 if constexpr (std::is_reference_v<NonVoidType<Ts>>
                            || std::is_rvalue_reference_v<NonVoidType<Ts>>
@@ -472,6 +478,79 @@ private:
             _idx = UninitializedNonVoidVariantNpos;
         }
     }
+#endif // !0
+
+    constexpr void del() noexcept {
+        if (_idx != UninitializedNonVoidVariantNpos) {
+            if constexpr ((!std::is_trivial_v<Ts> || ...)) {
+                visit([](auto&& v){
+                    std::destroy_at(std::addressof(v));
+                }, *this);
+            }
+            _idx = UninitializedNonVoidVariantNpos;
+        }
+    }
+
+    template <typename Lambda,
+        typename Res = decltype(std::declval<Lambda>()(
+            std::declval<UninitializedNonVoidVariantIndexToType<0, Ts...>>()))>
+    constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...>& uv) {
+        if (uv.index() == UninitializedNonVoidVariantNpos) [[unlikely]] {
+            throw std::runtime_error("get: wrong index for variant");
+        }
+        if constexpr (std::is_void_v<Res>) {
+            // void 返回值
+            auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
+                lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
+                return true;
+            };
+            [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
+                ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
+            }(std::make_index_sequence<sizeof...(Ts)>{});
+            return;
+        } else if constexpr (requires {
+            new (nullptr) Res(std::forward(std::declval<Res&&>()));
+        }) {
+            // 返回 带参数的, 支持移动 or 拷贝构造
+            Uninitialized<Res> res;
+            auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
+                res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
+                return true;
+            };
+            [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
+                ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
+            }(std::make_index_sequence<sizeof...(Ts)>{});
+            return res.move();
+        } else {
+            // 返回 如 Lambda 这类 不支持 移动 or 拷贝构造的
+            // 您可以使用 std::function 来返回 ...
+
+#if 1       // 原因见: 
+            // https://github.com/HengXin666/HXTest/blob/main/src/06-std-analyse/test/08-Lambda/01_Lambda.cpp
+            static_assert(sizeof...(Ts) < 0, 
+                "visit requires the visitor to have the same "
+                "return type for all alternatives of a variant");
+#else
+            return [&] <std::size_t... Idx>(std::index_sequence<Idx...>) -> Res {
+                using FuncPtr = Res (*)(UninitializedNonVoidVariant<Ts...>&, Lambda&);
+                static FuncPtr table[] = {
+                    [] (UninitializedNonVoidVariant<Ts...>& uv, Lambda& ld) -> Res {
+                        if constexpr () {
+                            return ld(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
+                        } else {
+                            // [[unlikely]]
+                            return std::declval<Res>();
+                        }
+                    }...
+                };
+                return table[uv.index()](uv, lambda);
+            }(std::make_index_sequence<sizeof...(Ts)>{});
+#endif
+        }
+    }
+
+    template <typename Lambda, typename... Us, typename Res>
+    friend constexpr Res visit(Lambda&&, UninitializedNonVoidVariant<Us...>&);
 
     std::size_t _idx;
 
@@ -534,58 +613,8 @@ constexpr auto&& get(
 template <typename Lambda, typename... Ts, 
     typename Res = decltype(std::declval<Lambda>()(
         get<0>(std::declval<UninitializedNonVoidVariant<Ts...>>())))>
-constexpr Res visit(UninitializedNonVoidVariant<Ts...>& uv, Lambda&& lambda) {
-    if (uv.index() == UninitializedNonVoidVariantNpos) [[unlikely]] {
-        throw std::runtime_error("get: wrong index for variant");
-    }
-    if constexpr (std::is_void_v<Res>) {
-        // void 返回值
-        auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
-            lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
-            return true;
-        };
-        [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
-            ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
-        }(std::make_index_sequence<sizeof...(Ts)>{});
-        return;
-    } else if constexpr (requires {
-        new (nullptr) Res(std::forward(std::declval<Res&&>()));
-    }) {
-        // 返回 带参数的, 支持移动 or 拷贝构造
-        Uninitialized<Res> res;
-        auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
-            res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
-            return true;
-        };
-        [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
-            ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
-        }(std::make_index_sequence<sizeof...(Ts)>{});
-        return res.move();
-    } else {
-        // 返回 如 Lambda 这类 不支持 移动 or 拷贝构造的
-        // 您可以使用 std::function 来返回 ...
-
-#if 1   // 原因见: https://github.com/HengXin666/HXTest/blob/main/src/06-std-analyse/test/08-Lambda/01_Lambda.cpp
-        static_assert(sizeof...(Ts) < 0, 
-            "visit requires the visitor to have the same "
-            "return type for all alternatives of a variant");
-#else
-        return [&] <std::size_t... Idx>(std::index_sequence<Idx...>) -> Res {
-            using FuncPtr = Res (*)(UninitializedNonVoidVariant<Ts...>&, Lambda&);
-            static FuncPtr table[] = {
-                [] (UninitializedNonVoidVariant<Ts...>& uv, Lambda& ld) -> Res {
-                    if constexpr () {
-                        return ld(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
-                    } else {
-                        // [[unlikely]]
-                        return std::declval<Res>();
-                    }
-                }...
-            };
-            return table[uv.index()](uv, lambda);
-        }(std::make_index_sequence<sizeof...(Ts)>{});
-#endif
-    }
+constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...>& uv) {
+    uv.visit(std::forward<Lambda>(lambda), uv);
 }
 
 } // namespace HX::container

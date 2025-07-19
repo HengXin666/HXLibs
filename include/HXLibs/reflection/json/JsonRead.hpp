@@ -21,11 +21,15 @@
 #define _HX_JSON_READ_H_
 
 #include <cstdint>
+#include <cassert>
 #include <stdexcept>
+#include <variant>
 #include <string_view>
+#include <charconv>
 
-#include <unordered_map>
-
+#include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/container/CHashMap.hpp>
+#include <HXLibs/container/UninitializedNonVoidVariant.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 
 namespace HX::reflection {
@@ -34,6 +38,75 @@ namespace internal {
 
 // 宽松解析
 inline constexpr bool LooseParsing = false;
+
+namespace cv { // 该命名空间内容为复制粘贴
+
+// https://github.com/Tencent/rapidjson/blob/master/include/rapidjson/reader.h
+template <typename Ch = char, typename It>
+inline unsigned parseUnicodeHex4(It&& it) {
+    unsigned codepoint = 0;
+    for (int i = 0; i < 4; i++) {
+        Ch c = *it;
+        codepoint <<= 4;
+        codepoint += static_cast<unsigned>(c);
+        if (c >= '0' && c <= '9')
+            codepoint -= '0';
+        else if (c >= 'A' && c <= 'F')
+            codepoint -= 'A' - 10;
+        else if (c >= 'a' && c <= 'f')
+            codepoint -= 'a' - 10;
+        else {
+            throw std::runtime_error("Invalid Unicode Escape Hex");
+        }
+        ++it;
+    }
+    return codepoint;
+}
+
+// https://github.com/Tencent/rapidjson/blob/master/include/rapidjson/encodings.h
+template <typename Ch = char, typename OutputStream>
+inline void encodeUtf8(OutputStream& os, unsigned codepoint) {
+    if (codepoint <= 0x7F)
+        os.push_back(static_cast<Ch>(codepoint & 0xFF));
+    else if (codepoint <= 0x7FF) {
+        os.push_back(static_cast<Ch>(0xC0 | ((codepoint >> 6) & 0xFF)));
+        os.push_back(static_cast<Ch>(0x80 | ((codepoint & 0x3F))));
+    } else if (codepoint <= 0xFFFF) {
+        os.push_back(static_cast<Ch>(0xE0 | ((codepoint >> 12) & 0xFF)));
+        os.push_back(static_cast<Ch>(0x80 | ((codepoint >> 6) & 0x3F)));
+        os.push_back(static_cast<Ch>(0x80 | (codepoint & 0x3F)));
+    } else {
+        assert(codepoint <= 0x10FFFF);
+        os.push_back(static_cast<Ch>(0xF0 | ((codepoint >> 18) & 0xFF)));
+        os.push_back(static_cast<Ch>(0x80 | ((codepoint >> 12) & 0x3F)));
+        os.push_back(static_cast<Ch>(0x80 | ((codepoint >> 6) & 0x3F)));
+        os.push_back(static_cast<Ch>(0x80 | (codepoint & 0x3F)));
+    }
+}
+
+} // namespace cv
+
+template <std::size_t _I>
+struct SetObjIdx {
+    inline static constexpr std::size_t Idx = _I;
+    constexpr SetObjIdx() = default;
+};
+
+template <typename T>
+constexpr auto makeNameToIdxVariantHashMap() {
+    constexpr auto N = membersCountVal<T>;
+    constexpr auto nameArr = getMembersNames<T>();
+    using CHashMapValType = decltype([] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+        return std::variant<SetObjIdx<Idx>...>{};
+    }(std::make_index_sequence<N>{}));
+    return container::CHashMap<std::string_view, CHashMapValType, N>{
+        [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+            return std::array<std::pair<std::string_view, CHashMapValType>, N>{{
+                {nameArr[Idx], CHashMapValType{SetObjIdx<Idx>{}}}... 
+            }};
+        }(std::make_index_sequence<N>{})
+    };
+}
 
 /**
  * @brief 跳过空白字符
@@ -62,7 +135,7 @@ void skipWhiteSpace(It&& it, It&& end) {
             }
         } else {
             if (static_cast<uint8_t>(*it) < 33
-                && (1U << static_cast<uint8_t>(*it) & WhiteSpaceBitMask)
+                && (1UL << static_cast<uint8_t>(*it) & WhiteSpaceBitMask)
             ) {
                 ++it;
             } else {
@@ -72,8 +145,50 @@ void skipWhiteSpace(It&& it, It&& end) {
     }
 }
 
+/**
+ * @brief 处理转义字符
+ * @tparam It 
+ * @param it 
+ * @param end 
+ */
+template <typename Str, typename It>
+void handleEscapeChar(Str& str, It&& it, It&& end) {
+    // 此时 *it == '\', 因此需要 ++it
+    if (++it == end) [[unlikely]] {
+        throw std::runtime_error{"Unexpected end of input while parsing escape sequence"};
+    }
+    switch (*it) {
+        case 'r': str += '\r'; break;
+        case 'n': str += '\n'; break;
+        case 'b': str += '\b'; break;
+        case 't': str += '\t'; break;
+        case 'a': str += '\a'; break;
+        case 'f': str += '\f'; break;
+        case 'v': str += '\v'; break;
+        case 'u': {
+            ++it;
+            // 此处显然只能 cv 了
+            // https://github.com/alibaba/yalantinglibs/blob/main/include/ylt/standalone/iguana/json_reader.hpp
+            if (std::distance(it, end) <= 4) [[unlikely]] {
+                throw std::runtime_error(R"(Expected 4 hexadecimal digits)");
+            }
+            auto code_point = cv::parseUnicodeHex4(it);
+           cv:: encodeUtf8(str, code_point);
+            return;
+        }
+        default:  str +=  *it; break;
+    }
+}
+
+/**
+ * @brief 验证当前 it 开始 是否为 Cs... 字符, 如果不是则抛出异常
+ * @tparam Cs 
+ * @tparam It 
+ * @param it 
+ * @param end 
+ */
 template <char... Cs, typename It>
-void match(It&& it, It&& end) {
+void verify(It&& it, It&& end) {
     const auto n = static_cast<std::size_t>(std::distance(it, end));
     if (n < sizeof...(Cs)) [[unlikely]] {
         throw std::runtime_error{
@@ -82,76 +197,278 @@ void match(It&& it, It&& end) {
     if (((*it++ != Cs) || ...)) [[unlikely]] {
         throw std::runtime_error{
             std::string{"Characters are not as expected: "}.append(
-                Cs..., sizeof...(Cs))};
+                {Cs..., '\0', sizeof...(Cs)})};
     }
 }
 
-template <std::size_t N>
-constexpr std::size_t nextHighestPowOfTow() noexcept {
-    if constexpr (N > 0x7FFF'FFFF'FFFF'FFFF) {
-        static_assert(!sizeof(N), "N is too big");
-    }
-    // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-    std::size_t v = N;
-    --v;
-    for (std::size_t i = 1; i < sizeof(std::size_t) * 8; i <<= 1)
-        v |= v >> i;
-    ++v;
-    return v;
-}
-
-template <typename K, typename V, std::size_t N>
-struct ConstantHashMap {
-
-private:
-    inline static constexpr std::size_t Size = nextHighestPowOfTow<N>();
-    std::array<V, Size> _data;
-};
-
-template <typename T>
-constexpr auto getNameIdxMap() noexcept {
-    constexpr std::size_t N = membersCountVal<T>;
-    ConstantHashMap<std::string, std::size_t, N> res;
-    return ConstantHashMap<std::string, std::size_t, N>::Size;
-}
-
-template <typename T, typename It>
-void fromJson(T &t, It&& it, It&& end) {
-    // 无需考虑根是数组的情况, 因为我们是反射库!
-    
-    // 找 { (去掉空白, 必然得是, 否则非法)
-    skipWhiteSpace(it, end);
-    match<'{'>(it, end);
-    
-    // 找 "
-    skipWhiteSpace(it, end);
-
-    if (*it == '}') [[unlikely]] {
+template <char... Cs, typename It>
+void findNextIn(It&& it, It&& end) {
+    while (it != end) {
+        if ((... || (*it == Cs)))
+            return;
         ++it;
-        return;
     }
-    
-    constexpr std::size_t N = membersCountVal<T>;
+    [[unlikely]] throw std::runtime_error{"Characters are not as expected"};
+}
 
-    if constexpr (N > 0) {
-        constexpr auto nameArr = getMembersNames<T>();
-        auto& tp = internal::getObjTie<T>(t);
-        // 需要 name -> idx 映射
-        while (it != end) {
-            match<'"'>(it, end);
-            
-            skipWhiteSpace(it, end);
-            // 找 "
-        
-            // 找 :
-        
-            // 解析值 (非空白字符)
-        
-            // 找 , 或者 }
+template <typename It>
+std::string_view findKey(It&& it, It&& end) {
+    skipWhiteSpace(it, end);
+    verify<'"'>(it, end);
+    // 找左 "
+    auto left = it;
+    findNextIn<'"'>(it, end); // 假定 key 没有 '\', 有也会在 at(key) 时候报错
+    return {left, it++};
+}
 
+template <meta::KeyValueContainer T, typename It>
+auto& insertOrAssign(T& t, It&& it, It&& end) {
+    if constexpr (requires (T& t) {
+        t[findKey(it, end)];
+    }) {
+        return t[findKey(it, end)];
+    } else if constexpr (requires (T& t) {
+        t[typename T::key_type {findKey(it, end)}];
+    }) {
+        return t[typename T::key_type {findKey(it, end)}];
+    } else {
+        // 不支持由 std::string_view 构造 key
+        static_assert(!sizeof(T), "Constructing keys from std::string_view is not supported");
+    }
+}
+
+struct FromJson {
+    template <typename T, typename It>
+        requires(std::is_same_v<bool, T>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析布尔
+        if (*it == '0' || *it == '1') {
+            t = *it++ - '0';
+        } else {
+            if (std::distance(it, end) < 4) [[unlikely]] {
+                throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
+            }
+            constexpr uint8_t Mask = static_cast<uint8_t>(~' '); // 大小写掩码
+
+            if ((*(it + 0) & Mask) == 'T'
+             && (*(it + 1) & Mask) == 'R'
+             && (*(it + 2) & Mask) == 'U'
+             && (*(it + 3) & Mask) == 'E'
+            ) {
+                t = true;
+                it += 4;
+                return;
+            }
+
+            if (std::distance(it, end) < 5) [[unlikely]] {
+                throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
+            }
+
+            if ((*(it + 0) & Mask) == 'F'
+             && (*(it + 1) & Mask) == 'A'
+             && (*(it + 2) & Mask) == 'L'
+             && (*(it + 3) & Mask) == 'S'
+             && (*(it + 4) & Mask) == 'E'
+            ) {
+                t = false;
+                it += 5;
+            }
         }
     }
-}
+
+    template <typename T, typename It>
+        requires(!std::is_same_v<bool, T> && (std::is_integral_v<T> || std::is_floating_point_v<T>))
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析数字
+        auto left = it;
+        constexpr static auto IsNumChars = [] {
+            std::array<bool, 128> res{};
+            res['0'] = true;
+            res['1'] = true;
+            res['2'] = true;
+            res['3'] = true;
+            res['4'] = true;
+            res['5'] = true;
+            res['6'] = true;
+            res['7'] = true;
+            res['8'] = true;
+            res['9'] = true;
+            res['+'] = true;
+            res['-'] = true;
+            res['e'] = true;
+            res['E'] = true;
+            res['.'] = true;
+            return res;
+        }();
+        while (it != end) {
+            if (*it > 0 && !IsNumChars[static_cast<std::size_t>(*it)])
+                break;
+            ++it;
+        }
+        if (it == end) [[unlikely]] {
+            throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
+        }
+        auto [ptr, ec] = std::from_chars(left, it, t);
+        if (ec != std::errc() || ptr != it) [[unlikely]] { // 必需保证整个str都是数字
+            // 解析数字出错
+            throw std::runtime_error{
+                "There was an error parsing the number: " + std::string{left, it}};
+        }
+    }
+
+    template <typename T, typename It>
+        requires(meta::is_optional_v<T> || meta::is_smart_pointer_v<T>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析指针 或者 optional
+        constexpr uint8_t Mask = static_cast<uint8_t>(~' '); // 大小写掩码
+        if (std::distance(it, end) < 4) [[unlikely]] {
+            // 只能默认它是合法的, 然后解析键
+            ;
+        } else if ((*(it + 0) & Mask) == 'N'
+                && (*(it + 1) & Mask) == 'U'
+                && (*(it + 2) & Mask) == 'L'
+                && (*(it + 3) & Mask) == 'L'
+        ) {
+            it += 4;
+            return;
+        }
+        if constexpr (meta::is_optional_v<T>) {
+            t = typename T::value_type{}; // 要求支持默认无参构造
+            fromJson(*t, it, end);
+        } else if constexpr (meta::is_smart_pointer_v<T>) {
+            t = T{new typename T::element_type{}}; // 要求支持默认无参构造 并且可以被 new
+            fromJson(*t, it, end);
+        } else {
+            // 不应该匹配到此处
+            static_assert(!sizeof(T), "@todo");
+        }
+    }
+    
+    template <meta::StringType T, typename It>
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析字符串
+        verify<'"'>(it, end);
+        for (; it != end; ++it) {
+            if (*it == '"') [[unlikely]] {
+                ++it;
+                break;
+            }
+            if (*it != '\\') {
+                t += *it;
+            } else {
+                handleEscapeChar(t, it, end);
+            }
+        }
+    }
+
+    template <meta::SingleElementContainer T, typename It>
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        verify<'['>(it, end);
+
+        skipWhiteSpace(it, end);
+        if (*it == ']') [[unlikely]] {
+            ++it;
+            return;
+        }
+        // 解析数组 []
+        if constexpr (requires (T& t) {
+            t.push_back({});
+        }) {
+            while (it != end) {
+                // 把内容移交
+                t.push_back({});
+                fromJson(t.back(), it, end);
+                skipWhiteSpace(it, end);
+                findNextIn<',', ']'>(it, end);
+                if (*it++ == ']') {
+                    break;
+                }
+            }
+        } else if constexpr (requires (T& t) {
+            t.subspan(); // std::span
+        }) {
+            // 没有所有权, 不可反序列化
+            static_assert(!sizeof(T), "No Ownership, Non-deserialization (std::span)");
+        } else {
+            // 对象没有默认无参构造, 显然不是聚合类
+            static_assert(!sizeof(T), "Objects do not have a default parameterless construct");
+        }
+    }
+
+    template <meta::KeyValueContainer T, typename It>
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析字典 {}
+        verify<'{'>(it, end);
+
+        skipWhiteSpace(it, end);
+        if (*it == '}') [[unlikely]] {
+            ++it;
+            return;
+        }
+        while (it != end) {
+            auto& val = insertOrAssign(t, it, end);
+            skipWhiteSpace(it, end);
+            verify<':'>(it, end);
+            fromJson(val, it, end);
+
+            skipWhiteSpace(it, end);
+            findNextIn<',', '}'>(it, end);
+            if (*it++ == '}') {
+                break;
+            }
+        }
+    }
+    
+    // 主模板 聚合类
+    template <typename T, typename It>
+        requires(std::is_aggregate_v<T> 
+             && !std::is_same_v<T, std::monostate>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        // 无需考虑根是数组的情况, 因为我们是反射库!
+        
+        // 找 { (去掉空白, 必然得是, 否则非法)
+        skipWhiteSpace(it, end);
+        verify<'{'>(it, end);
+    
+        skipWhiteSpace(it, end);
+        // 不太可能是空的
+        if (*it == '}') [[unlikely]] {
+            ++it;
+            return;
+        }
+        
+        constexpr std::size_t N = membersCountVal<T>;
+        if constexpr (N > 0) {
+            static constexpr auto nameHash = makeNameToIdxVariantHashMap<T>();
+            auto tp = internal::getObjTie<T>(t);
+            // 需要 name -> idx 映射
+            while (it != end) {
+                auto key = findKey(it, end);
+                // 找 ':'
+                skipWhiteSpace(it, end);
+                verify<':'>(it, end);
+                // 解析值 (非空白字符)
+                // 需要一个运行时可以查找到第 i 个元素的偏移量的方法
+                std::visit([&](auto&& idx) {
+                    fromJson(std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp), it, end);
+                }, nameHash.at(key));
+
+                // 找 ',' 或者 '}'
+                skipWhiteSpace(it, end);
+                if (*it == '}') {
+                    break;
+                }
+                verify<','>(it, end);
+            }
+        }
+    }
+};
 
 } // namespace internal
 
@@ -163,7 +480,7 @@ void fromJson(T &t, It&& it, It&& end) {
 
 template <typename T>
 void fromJson(T& t, std::string_view json) {
-    internal::fromJson(t, json.begin(), json.end());
+    internal::FromJson::fromJson(t, json.begin(), json.end());
 }
 
 } // namespace HX::reflection

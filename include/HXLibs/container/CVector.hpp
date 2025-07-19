@@ -68,23 +68,23 @@ public:
     constexpr reference back() { return _data[_dIdx - 1]; }
     constexpr const_reference back() const { return _data[_dIdx - 1]; }
 
-    // constexpr iterator find(T const& v) noexcept {
-    //     for (std::size_t i = 0; i < _dIdx; ++i) {
-    //         if (_data[i] == v) {
-    //             return &_data[i];
-    //         }
-    //     }
-    //     return end();
-    // }
+    constexpr iterator find(T const& v) noexcept {
+        for (std::size_t i = 0; i < _dIdx; ++i) {
+            if (_data[i] == v) {
+                return &_data[i];
+            }
+        }
+        return end();
+    }
 
-    // constexpr const_iterator find(T const& v) const noexcept { 
-    //     for (std::size_t i = 0; i < _dIdx; ++i) {
-    //         if (_data[i] == v) {
-    //             return &_data[i];
-    //         }
-    //     }
-    //     return end();
-    // }
+    constexpr const_iterator find(T const& v) const noexcept { 
+        for (std::size_t i = 0; i < _dIdx; ++i) {
+            if (_data[i] == v) {
+                return &_data[i];
+            }
+        }
+        return end();
+    }
 
     // 迭代器
     constexpr iterator begin() { return _data; }
@@ -99,15 +99,6 @@ public:
 
     constexpr void clear() noexcept { _dIdx = 0; }
 };
-
-template <typename T, std::size_t N>
-constexpr bool allDifferentFrom(CVector<T, N>& arr, T& v) noexcept {
-    for (std::size_t i = 0; i < arr.size(); ++i) {
-        if (arr[i] == v)
-            return false;
-    }
-    return true;
-}
 
 } // namespace HX::container
 

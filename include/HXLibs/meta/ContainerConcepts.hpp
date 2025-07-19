@@ -21,6 +21,8 @@
 #define _HX_CONTAINER_CONCEPTS_H_
 
 #include <ostream>
+
+#include <HXLibs/meta/TypeTraits.hpp>
  
 namespace HX::meta {
 
@@ -68,13 +70,14 @@ template <typename T>
 concept SingleElementContainer = (requires(T t) {
     typename T::value_type;
 } && !KeyValueContainer<T>
-  && !(StringType<T> || WStringType<T>)) 
+  && !(StringType<T> || WStringType<T>)
+  && !is_optional_v<T>) 
   || requires (T t) {
     // std::span
     typename  T::element_type;
     t.subspan();
   };
 
-} // namespace HX::utils
+} // namespace HX::meta
 
 #endif // !_HX_CONTAINER_CONCEPTS_H_
