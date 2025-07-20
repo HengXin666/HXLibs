@@ -187,7 +187,7 @@ public:
      */
     coroutine::Task<> sendRes() {
         createResponseBuffer();
-        co_await _io.send(_sendBuf);
+        co_await _io.fullySend(_sendBuf);
     }
 
     /**
@@ -205,7 +205,7 @@ public:
         // 生成响应行和响应头
         _buildResponseLineAndHeaders();
         // 先发送一版, 告知我们是分块编码
-        co_await _io.send(_sendBuf);
+        co_await _io.fullySend(_sendBuf);
         
         utils::AsyncFile file{_io};
         co_await file.open(filePath);
@@ -215,11 +215,11 @@ public:
                 // 读取文件
                 std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
                 _buildToChunkedEncoding({buf.data(), size});
-                co_await _io.send(_sendBuf);
+                co_await _io.fullySend(_sendBuf);
                 if (size != buf.size()) {
                     // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
                     _buildToChunkedEncoding("");
-                    co_await _io.send(_sendBuf);
+                    co_await _io.fullySend(_sendBuf);
                     break;
                 }
             }
@@ -259,7 +259,7 @@ public:
             addHeader("Content-Type"s, fileType);
             addHeader("Accept-Ranges"s, "bytes"s);
             _buildResponseLineAndHeaders();
-            co_await _io.send(_sendBuf);
+            co_await _io.fullySend(_sendBuf);
         } else if (auto it = headMap.find("range"); it != headMap.end()) {
             // 开始[断点续传]传输, 先发一下头
             /*
@@ -293,14 +293,14 @@ public:
                     // 范围不合法: 返回416, 表示请求错误
                     setResLine(Status::CODE_416);
                     _buildResponseLineAndHeaders();
-                    co_await _io.send(_sendBuf);
+                    co_await _io.fullySend(_sendBuf);
                 } else {
                     uint64_t remaining = endPos - beginPos + 1;
                     addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
                     addHeader("Content-Type", fileType);
                     addHeader("Content-Length", std::to_string(remaining));
                     _buildResponseLineAndHeaders();
-                    co_await _io.send(_sendBuf); // 先发一个头
+                    co_await _io.fullySend(_sendBuf); // 先发一个头
                     
                     utils::AsyncFile file{_io};
                     co_await file.open(filePath);
@@ -319,7 +319,7 @@ public:
                             if (!size) [[unlikely]] {
                                 break;
                             }
-                            co_await _io.send(buf);
+                            co_await _io.fullySend(buf);
                             remaining -= size;
                         }
                     } catch (std::exception const& e) {
@@ -348,7 +348,7 @@ public:
                 */
                 addHeader("Content-Type", "multipart/byteranges; boundary=BOUNDARY_STRING");
                 _buildResponseLineAndHeaders();
-                co_await _io.send(_sendBuf); // 先发一个头
+                co_await _io.fullySend(_sendBuf); // 先发一个头
                 for (auto& ragen : rangeNumArr) {
                     auto [begin, end] = utils::StringUtil::splitAtFirst(ragen, "-");
                     if (begin.empty()) {
@@ -379,7 +379,7 @@ public:
                     utils::StringUtil::append(_sendBuf, CRLF);
                     utils::StringUtil::append(_sendBuf, "Content-Type: application/octet-stream\r\n"sv);
                     utils::StringUtil::append(_sendBuf, CRLF);
-                    co_await _io.send(_sendBuf); // 先发头
+                    co_await _io.fullySend(_sendBuf); // 先发头
 
                     utils::AsyncFile file{_io};
                     co_await file.open(filePath);
@@ -398,8 +398,8 @@ public:
                             if (!size) [[unlikely]] {
                                 break;
                             }
-                            co_await _io.send(buf);
-                            co_await _io.send(CRLF);
+                            co_await _io.fullySend(buf);
+                            co_await _io.fullySend(CRLF);
                             remaining -= size;
                         }
                     } catch (std::exception const& e) {
@@ -407,7 +407,7 @@ public:
                     }
                     co_await file.close();
                 }
-                co_await _io.send("--BOUNDARY_STRING--\r\n"sv);
+                co_await _io.fullySend("--BOUNDARY_STRING--\r\n"sv);
             }
         } else {
             // 普通的传输文件
@@ -415,7 +415,7 @@ public:
             addHeader("Content-Type"s, fileType);
             addHeader("Content-Length"s, fileSizeStr);
             _buildResponseLineAndHeaders();
-            co_await _io.send(_sendBuf); // 先发一个头
+            co_await _io.fullySend(_sendBuf); // 先发一个头
 
             utils::AsyncFile file{_io};
             co_await file.open(filePath);
@@ -429,7 +429,7 @@ public:
                     if (!size) [[unlikely]] {
                         break;
                     }
-                    co_await _io.send(buf);
+                    co_await _io.fullySend(buf);
                     remaining -= size;
                 }
             } catch (std::exception const& e) {

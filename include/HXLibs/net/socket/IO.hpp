@@ -77,6 +77,36 @@ public:
                                      .prepRecv(_fd, buf.subspan(0, n), 0);
     }
 
+    /**
+     * @brief 完全读取
+     * @param buf 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> fullyRecv(std::span<char> buf) {
+        while (!buf.empty()) {
+            auto sent = static_cast<std::size_t>(
+                exception::IoUringErrorHandlingTools::check(
+                    co_await recv(buf)
+                )
+            );
+            buf = buf.subspan(sent);
+        }
+    }
+
+    /**
+     * @brief 直接将二进制写入到类型T中, 注意需要区分大小端
+     * @tparam T 
+     * @return coroutine::Task<T> 
+     */
+    template <typename T>
+    coroutine::Task<T> recvStruct() {
+        T res;
+        co_await fullyRecv(std::span<char>{
+            reinterpret_cast<char*>(&res), sizeof(T)
+        });
+        co_return res;
+    }
+
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<coroutine::WhenAnyReturnType<
@@ -101,14 +131,16 @@ public:
      * @param buf 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> send(std::span<char const> buf) {
+    coroutine::Task<> fullySend(std::span<char const> buf) {
         // io_uring 也不保证其可以完全一次性写入...
-        for (std::size_t n = buf.size(); n; n -= static_cast<std::size_t>(
+        while (!buf.empty()) {
+            auto sent = static_cast<std::size_t>(
                 exception::IoUringErrorHandlingTools::check(
                     co_await _eventLoop.makeAioTask()
                                        .prepSend(_fd, buf, 0)
-            ))) {
-            ;
+                )
+            );
+            buf = buf.subspan(sent);
         }
     }
 
@@ -118,8 +150,8 @@ public:
      * @param n 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> send(std::span<char const> buf, std::size_t n) {
-        co_await send(buf.subspan(0, n));
+    coroutine::Task<> fullySend(std::span<char const> buf, std::size_t n) {
+        co_await fullySend(buf.subspan(0, n));
     }
 
     template <typename Timeout>

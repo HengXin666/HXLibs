@@ -37,8 +37,6 @@
 
 namespace HX::net {
 
-class Router;
-
 /**
  * @brief 请求类(Request)
  */
@@ -422,6 +420,7 @@ private:
     IO& _io;
 
     friend class Router;
+    friend class WebSocket;
 
     template <typename Timeout>
         requires(requires { Timeout::Val; })
