@@ -26,6 +26,8 @@
 #include <HXLibs/net/protocol/codec/SHA1.hpp>
 #include <HXLibs/net/protocol/codec/Base64.hpp>
 #include <HXLibs/utils/ByteUtils.hpp>
+#include <HXLibs/utils/Random.hpp>
+#include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
 
@@ -66,31 +68,87 @@ inline std::string webSocketSecretHash(std::string userKey) {
  */
 
 /**
+ * @brief 操作码 (协议规定的!)
+ */
+enum class OpCode : uint8_t {
+    Cont = 0,   // 附加数据帧
+    Text = 1,   // 文本数据
+    Binary = 2, // 二进制数据
+    Close = 8,  // 关闭
+    Ping = 9,
+    Pong = 10,
+};
+
+/**
  * @brief WebSocket包
  */
 struct WebSocketPacket {
-    /**
-     * @brief 操作码 (协议规定的!)
-     */
-    enum OpCode : uint8_t {
-        Cont = 0,   // 附加数据帧
-        Text = 1,   // 文本数据
-        Binary = 2, // 二进制数据
-        Close = 8,  // 关闭
-        Ping = 9,
-        Pong = 10,
-    } opCode;
+    OpCode opCode;
 
     /// @brief 内容
-    std::string content;
+    std::string content{};
 };
 
 class WebSocket {
+    using DefaultTimeout = decltype(utils::operator""_s<'5'>());
+
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    auto serverRecvPacket() {
+        return recvPacket<true, Timeout>();
+    }
+
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    auto clientRecvPacket() {
+        return recvPacket<false, Timeout>();
+    }
+
+    auto serverSendPacket(WebSocketPacket&& packet) {
+        return sendPacket<true>(std::move(packet), 0);
+    }
+
+    auto clientSendPacket(WebSocketPacket&& packet, uint32_t mask) {
+        return sendPacket<false>(std::move(packet), mask);
+    }
 public:
     WebSocket(IO& io)
         : _io{io}
+        , _random{}
     {}
 
+    WebSocket(IO& io, std::size_t seed)
+        : _io{io}
+        , _random{seed}
+    {}
+
+    template <typename Timeout = DefaultTimeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<std::string> recv() {
+        auto res = isClient() 
+            ? co_await clientRecvPacket<Timeout>()
+            : co_await serverRecvPacket<Timeout>();
+        co_return (*res).content;
+    }
+
+    coroutine::Task<> send(OpCode opCode, std::string&& str) {
+        isClient() 
+            ? co_await clientSendPacket({
+                    opCode,
+                    std::move(str)
+                }, (*_random)())
+            : co_await serverSendPacket({
+                    opCode,
+                    std::move(str)
+                });
+    }
+
+    /**
+     * @brief 服务端连接, 并且创建 ws 对象
+     * @param req 
+     * @param res 
+     * @return coroutine::Task<WebSocket> 
+     */
     static coroutine::Task<WebSocket> accept(Request& req, Response& res) {
         using namespace std::string_literals;
         auto const& headMap = req.getHeaders();
@@ -122,39 +180,66 @@ public:
         co_return {req._io};
     }
 
+    coroutine::Task<> close() {
+        if (isClient()) {
+            // 发送断线协商
+            co_await clientSendPacket({
+                OpCode::Close
+            }, (*_random)());
+
+            // 等待
+            auto res = co_await clientRecvPacket<DefaultTimeout>();
+
+            if (!res || res->opCode != OpCode::Close) [[unlikely]] {
+                // 超时 或者 协议非期望
+                co_return ; // 那我假设已经完成了
+            }
+
+            // 再次发送, 确定断线
+            co_await clientSendPacket({
+                OpCode::Close
+            }, (*_random)());
+        } else {
+            // 发送断线协商
+            co_await serverSendPacket({
+                OpCode::Close
+            });
+
+            // 等待
+            auto res = co_await serverRecvPacket<DefaultTimeout>();
+
+            if (!res || res->opCode != OpCode::Close) [[unlikely]] {
+                // 超时 或者 协议非期望
+                co_return ; // 那我假设已经完成了
+            }
+
+            // 再次发送, 确定断线
+            co_await serverSendPacket({
+                OpCode::Close
+            });
+        }
+    }
+
 private:
     IO& _io;
+    std::optional<utils::XorShift32> _random;
 
-    template <typename Timeout>
-        requires(requires { Timeout::Val; })
-    auto serverRecvPacket() {
-        return recvPacket<true, Timeout>();
+    // 判断当前是否为客户端
+    bool isClient() const noexcept {
+        return _random.has_value();
     }
 
-    template <typename Timeout>
-        requires(requires { Timeout::Val; })
-    auto clientRecvPacket() {
-        return recvPacket<false, Timeout>();
-    }
-
-    auto serverSendPacket(WebSocketPacket&& packet) {
-        return sendPacket<true>(std::move(packet), 0);
-    }
-
-    auto clientSendPacket(WebSocketPacket&& packet, uint32_t mask) {
-        return sendPacket<false>(std::move(packet), mask);
-    }
-
+    /**
+     * @brief 读取并解析 ws 包
+     * @tparam isServer 当前是否是服务端
+     * @tparam Timeout 超时时间
+     * @note 如果超时则返回 std::nullopt, 如果解析出错, 则抛异常
+     */
     template <bool isServer, typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<std::optional<WebSocketPacket>> recvPacket() {
         WebSocketPacket packet;
         uint8_t head[2];
-        auto res = co_await _io.recvLinkTimeout<Timeout>(head);
-        if (res.index() == 1 || res.template get<0, exception::ExceptionMode::Nothrow> <= 0) [[unlikely]] {
-            // 超时 或者 出错
-            co_return std::nullopt;
-        }
 /*
    0               1               2               3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -187,27 +272,53 @@ private:
   第1字节 FIN + OpCode
   第2字节 MASK=0, 长度
   数据    真正的数据 (没有掩码字段)
+
+  其中 fin = true 是最后一个分片, fin = false 是后面还有分片
 */
         bool fin;
         do {
+            auto res = co_await _io.recvLinkTimeout<Timeout>(
+                std::span<char>{reinterpret_cast<char*>(head), 2});
+            if (res.index() == 1 
+             || res.template get<0, exception::ExceptionMode::Nothrow>() <= 0
+            ) [[unlikely]] {
+                // 超时 或者 出错
+                co_return std::nullopt;
+            }
             uint8_t head0 = head[0];
             uint8_t head1 = head[1];
 
             // 解析 FIN, 为 0 标识当前为最后一个包
-            fin = (head0 & 0x80) != 0; // -127(十进制) & 1000 0000H => true
+            fin = (head0 >> 7); // -127(十进制) & 1000 0000H => true
 
             // 解析 OpCode
-            packet.opCode = static_cast<WebSocketPacket::OpCode>(head0 & 0x0F);
+            packet.opCode = static_cast<OpCode>(head0 & 0x0F);
             
             // 求 MASK 如果非协议要求, 则是协议错误, 应该断开连接
-            if ((head1 & 0x80) ^ isServer) [[unlikely]] {
+            bool mask = head1 & 0x80;
+            if (mask ^ isServer) [[unlikely]] {
                 // 协议错误
                 throw std::runtime_error{"Protocol Error"};
             }
 
             uint8_t payloadLen8 = head1 & 0x7F;
-            if (packet.opCode >= 8 && packet.opCode <= 10) [[unlikely]] {
-                throw std::runtime_error{"OpCode Illegal"};
+            if (static_cast<uint8_t>(packet.opCode) <= 2) {
+                // 合法的数据帧
+            } else if (static_cast<uint8_t>(packet.opCode) >= 8 
+                    && static_cast<uint8_t>(packet.opCode) <= 10
+            ) {
+                // 控制帧, 必须满足:
+                if (!fin) [[unlikely]] {
+                    throw std::runtime_error{
+                        "Control frame cannot be fragmented"};
+                }
+                if (payloadLen8 >= 126) [[unlikely]] {
+                    throw std::runtime_error{
+                        "Control frame too big"};
+                }
+            } else [[unlikely]] {
+                // 其他保留值, 非法
+                throw std::runtime_error{"Unknown OpCode"};
             }
 
             // 解析包的长度
@@ -232,13 +343,11 @@ private:
 
             if constexpr (isServer) {
                 // 获取掩码
-                uint32_t maskKey = co_await _io.recvStruct<uint32_t>();
-                uint8_t mask[] {
-                    static_cast<uint8_t>((maskKey >> 24) & 0xFF),
-                    static_cast<uint8_t>((maskKey >> 16) & 0xFF),
-                    static_cast<uint8_t>((maskKey >>  8) & 0xFF),
-                    static_cast<uint8_t>((maskKey >>  0) & 0xFF)
-                };
+                uint8_t maskKeyArr[4];
+                co_await _io.fullyRecv(std::span<char>{
+                    reinterpret_cast<char*>(maskKeyArr),
+                    4
+                });
     
                 // 解析数据
                 std::string tmp;
@@ -248,7 +357,7 @@ private:
                 const std::size_t len = tmp.size();
                 auto* p = reinterpret_cast<uint8_t*>(tmp.data());
                 for (std::size_t i = 0; i != len; ++i) {
-                    p[i] ^= mask[i % 4];
+                    p[i] ^= maskKeyArr[i % 4];
                 }
                 packet.content += std::move(tmp);
             } else {
@@ -258,7 +367,7 @@ private:
                 co_await _io.fullyRecv(tmp);
                 packet.content += std::move(tmp);
             }
-        } while (fin);
+        } while (!fin);
         co_return packet;
     }
 
@@ -275,6 +384,7 @@ private:
         }
 
         // 假设内容不会太大, 因为一个包可以最大存放是轻轻松松是 GB 级别的了 (1 << 63)
+        // 所以只有一个分片
         constexpr bool fin = true;
 
         // head0
@@ -298,7 +408,6 @@ private:
         } else {
             payloadLen8 = 0x7F;
             data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
-            uint64_t len = static_cast<uint64_t>(packet.content.size());
             auto payloadLen64 = static_cast<uint64_t>(packet.content.size());
             payloadLen64 = utils::ByteUtils::byteswapIfLittle(payloadLen64);
             auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen64);

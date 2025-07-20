@@ -95,6 +95,7 @@ public:
 
     /**
      * @brief 直接将二进制写入到类型T中, 注意需要区分大小端
+     * @warning 默认是网络序(大端), 如果需要使用, 注意转换
      * @tparam T 
      * @return coroutine::Task<T> 
      */

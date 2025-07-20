@@ -40,17 +40,17 @@ inline std::string base64Encode(std::span<uint8_t> str) {
     auto bytesToEncode = str.data();
     std::size_t inLen = str.size();
     while (inLen--) {
-        charArray3[i++] = *(bytesToEncode++);
+        charArray3[i++] = static_cast<char>(*(bytesToEncode++));
         if (i == 3) {
-            charArray4[0] = (charArray3[0] & 0xfc) >> 2;
-            charArray4[1] = ((charArray3[0] & 0x03) << 4)
-                          + ((charArray3[1] & 0xf0) >> 4);
-            charArray4[2] = ((charArray3[1] & 0x0f) << 2)
-                          + ((charArray3[2] & 0xc0) >> 6);
-            charArray4[3] = charArray3[2] & 0x3f;
+            charArray4[0] = static_cast<char>((charArray3[0] & 0xfc) >> 2);
+            charArray4[1] = static_cast<char>(((charArray3[0] & 0x03) << 4)
+                          + ((charArray3[1] & 0xf0) >> 4));
+            charArray4[2] = static_cast<char>(((charArray3[1] & 0x0f) << 2)
+                          + ((charArray3[2] & 0xc0) >> 6));
+            charArray4[3] = static_cast<char>(charArray3[2] & 0x3f);
 
             for (i = 0; i < 4; ++i)
-                res += Base64Chars[charArray4[i]];
+                res += Base64Chars[static_cast<std::size_t>(charArray4[i])];
             i = 0;
         }
     }
@@ -59,15 +59,15 @@ inline std::string base64Encode(std::span<uint8_t> str) {
         for (j = i; j < 3; ++j)
             charArray3[j] = '\0';
 
-        charArray4[0] = (charArray3[0] & 0xfc) >> 2;
-        charArray4[1] = ((charArray3[0] & 0x03) << 4)
-                      + ((charArray3[1] & 0xf0) >> 4);
-        charArray4[2] = ((charArray3[1] & 0x0f) << 2)
-                      + ((charArray3[2] & 0xc0) >> 6);
-        charArray4[3] = charArray3[2] & 0x3f;
+        charArray4[0] = static_cast<char>((charArray3[0] & 0xfc) >> 2);
+        charArray4[1] = static_cast<char>(((charArray3[0] & 0x03) << 4)
+                      + ((charArray3[1] & 0xf0) >> 4));
+        charArray4[2] = static_cast<char>(((charArray3[1] & 0x0f) << 2)
+                      + ((charArray3[2] & 0xc0) >> 6));
+        charArray4[3] = static_cast<char>(charArray3[2] & 0x3f);
 
         for (j = 0; j < i + 1; ++j)
-            res += Base64Chars[charArray4[j]];
+            res += Base64Chars[static_cast<std::size_t>(charArray4[j])];
 
         while (i++ < 3)
             res += '=';
