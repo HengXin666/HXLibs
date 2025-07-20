@@ -367,6 +367,8 @@ struct FromJson {
     }
 
     template <meta::SingleElementContainer T, typename It>
+        requires(!meta::is_std_array_v<T> 
+              && !meta::is_span_v<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
         verify<'['>(it, end);
@@ -378,26 +380,49 @@ struct FromJson {
         }
         // 解析数组 []
         if constexpr (requires (T& t) {
-            t.push_back({});
+            t.emplace_back();
         }) {
             while (it != end) {
                 // 把内容移交
-                t.push_back({});
-                fromJson(t.back(), it, end);
+                fromJson(t.emplace_back(), it, end);
                 skipWhiteSpace(it, end);
                 findNextIn<',', ']'>(it, end);
                 if (*it++ == ']') {
                     break;
                 }
             }
-        } else if constexpr (requires (T& t) {
-            t.subspan(); // std::span
-        }) {
-            // 没有所有权, 不可反序列化
-            static_assert(!sizeof(T), "No Ownership, Non-deserialization (std::span)");
         } else {
             // 对象没有默认无参构造, 显然不是聚合类
             static_assert(!sizeof(T), "Objects do not have a default parameterless construct");
+        }
+    }
+
+    template <typename T, typename It>
+        requires (meta::is_std_array_v<T> 
+               || meta::is_span_v<T>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        verify<'['>(it, end);
+
+        skipWhiteSpace(it, end);
+        if (*it == ']') [[unlikely]] {
+            ++it;
+            return;
+        }
+        // 解析数组 []
+        std::size_t idx = 0;
+        while (it != end) {
+            if (idx >= t.size()) [[unlikely]] {
+                // 数组没有足够的空间存放数据
+                throw std::runtime_error{"The array doesn't have enough space for data"};
+            }
+            // 把内容移交
+            fromJson(t[idx++], it, end);
+            skipWhiteSpace(it, end);
+            findNextIn<',', ']'>(it, end);
+            if (*it++ == ']') {
+                break;
+            }
         }
     }
 
@@ -429,7 +454,8 @@ struct FromJson {
     // 主模板 聚合类
     template <typename T, typename It>
         requires(std::is_aggregate_v<T> 
-             && !std::is_same_v<T, std::monostate>)
+             && !std::is_same_v<T, std::monostate>
+             && !meta::is_std_array_v<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         // 无需考虑根是数组的情况, 因为我们是反射库!
         
@@ -457,6 +483,13 @@ struct FromJson {
                 // 解析值 (非空白字符)
                 // 需要一个运行时可以查找到第 i 个元素的偏移量的方法
                 std::visit([&](auto&& idx) {
+                    if constexpr (std::is_array_v<meta::remove_cvref_t<decltype(
+                        std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp)
+                    )>>) {
+                        // 不支持C风格数组, 至少替换成 std::array
+                        static_assert(!sizeof(T), "Not supporting C-style arrays, "
+                                                  "at least replace with std::array");
+                    }
                     fromJson(std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp), it, end);
                 }, nameHash.at(key));
 
@@ -472,12 +505,6 @@ struct FromJson {
 };
 
 } // namespace internal
-
-/*
-    核心思路:
-    1. 因为顺序解析, 肯定会先解析到 key
-    2. 通过 key 如果可以直接给 obj.key 赋值, 构造 decltype(obj<I>) (显然 先把字段反射到tuple里面才行)
- */
 
 template <typename T>
 void fromJson(T& t, std::string_view json) {

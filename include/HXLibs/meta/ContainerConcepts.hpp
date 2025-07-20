@@ -72,11 +72,7 @@ concept SingleElementContainer = (requires(T t) {
 } && !KeyValueContainer<T>
   && !(StringType<T> || WStringType<T>)
   && !is_optional_v<T>) 
-  || requires (T t) {
-    // std::span
-    typename  T::element_type;
-    t.subspan();
-  };
+  || meta::is_span_v<T>;
 
 } // namespace HX::meta
 

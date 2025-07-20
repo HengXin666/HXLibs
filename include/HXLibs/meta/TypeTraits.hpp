@@ -61,11 +61,28 @@ constexpr bool is_optional_v<std::optional<T>> = true;
  */
 template <typename T>
 concept is_smart_pointer_v = std::same_as<T, std::unique_ptr<typename T::element_type>>
-                        || std::same_as<T, std::shared_ptr<typename T::element_type>>
-                        || std::same_as<T, std::weak_ptr<typename T::element_type>>;
+                          || std::same_as<T, std::shared_ptr<typename T::element_type>>
+                          || std::same_as<T, std::weak_ptr<typename T::element_type>>;
 
+/**
+ * @brief 类型萃取: 是否为 std::array 类型
+ * @tparam T 
+ */
+template <typename T>
+constexpr bool is_std_array_v = false;
 
-                        
+template <typename T, std::size_t N>
+constexpr bool is_std_array_v<std::array<T, N>> = true;
+
+/**
+ * @brief 概念: 是否为 span 类型 (支持 subspan 方法的)
+ * @tparam T 
+ */
+template <typename T>
+concept is_span_v = requires (T&& t) {
+    t.subspan(0);
+};
+
 /**
  * @brief 判断 T 是否可以从 Ts 中被唯一构造
  * @tparam T 

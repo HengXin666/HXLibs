@@ -154,7 +154,8 @@ struct FormatString {
     // 聚合类
     template <typename T>
         requires (std::is_aggregate_v<T> 
-              && !std::is_same_v<T, std::monostate>)
+              && !std::is_same_v<T, std::monostate>
+              && !meta::is_std_array_v<T>)
     constexpr std::string make(T const& obj) {
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         std::string res;

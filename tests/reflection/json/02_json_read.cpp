@@ -33,7 +33,6 @@ TEST_CASE("json") {
         std::shared_ptr<std::string> e;
         double f;
     } t{};
-    log::hxLog.debug(t);
     reflection::fromJson(t, R"({
         "f" : -1.23E-10,
         "d" : "1433223",
@@ -50,7 +49,6 @@ TEST_CASE("json") {
         ],   
         "e" : nuLL
     })");
-    log::hxLog.debug(t);
 }
 
 TEST_CASE("json_all_case") {
@@ -62,8 +60,6 @@ TEST_CASE("json_all_case") {
         std::shared_ptr<std::string> e;
         double f;
     } t{};
-
-    log::hxLog.debug(t);
 
     reflection::fromJson(t, R"({
         "f": -3.1415926E+10,
@@ -83,8 +79,6 @@ TEST_CASE("json_all_case") {
         ],
         "e": "HelloPtr"
     })");
-
-    log::hxLog.debug(t);
 
     // 断言检查
     REQUIRE(t.a == false);
@@ -108,4 +102,17 @@ TEST_CASE("json_all_case") {
     REQUIRE(t.b[2][1] == "特殊字符\"\\\'");
     REQUIRE(t.b[2][2] != "");
     REQUIRE(t.b[2][3] == "中文");
+}
+
+TEST_CASE("json_read_array") {
+    struct A {
+        std::array<double, 10> arr{};
+        std::span<double> span = arr;
+    } t;
+    reflection::fromJson(t, R"(
+    {
+        "arr": [1, 9.1, 10e-10],
+        "span": []
+    }
+    )");
 }
