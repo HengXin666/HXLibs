@@ -23,6 +23,7 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/net/protocol/http/Request.hpp>
 #include <HXLibs/net/protocol/http/Response.hpp>
+#include <HXLibs/net/protocol/url/UrlParse.hpp>
 #include <HXLibs/net/protocol/codec/SHA1.hpp>
 #include <HXLibs/net/protocol/codec/Base64.hpp>
 #include <HXLibs/utils/ByteUtils.hpp>
@@ -31,7 +32,13 @@
 #include <HXLibs/reflection/json/JsonRead.hpp>
 #include <HXLibs/reflection/json/JsonWrite.hpp>
 
+#include <random>
+
 namespace HX::net {
+
+/**
+ * @todo 专属 WS 的异常类型
+ */
 
 namespace internal {
 
@@ -59,6 +66,20 @@ inline std::string webSocketSecretHash(std::string userKey) {
     ctx.finish(buf);
 
     return base64Encode(buf);
+}
+
+/**
+ * @brief 生成一个 ws 的随机的 base64 字符串
+ * @return std::string 
+ */
+inline std::string randomBase64() {
+    std::array<uint8_t, 16> str;
+    std::mt19937 rng{std::random_device{}()};
+    std::uniform_int_distribution<uint8_t> uni(0, 255);
+    for (std::size_t i = 0; i < 16; ++i) {
+        str[i] = uni(rng);
+    }
+    return base64Encode(str);
 }
 
 } // namespace internal
@@ -617,9 +638,20 @@ public:
                         .sendRes();
             throw std::runtime_error{"The client is missing the origin field"};
         }
-        if (auto it = headMap.find("upgrade"); it == headMap.end() || it->second != "websocket") {
+        if (auto it = headMap.find("upgrade");
+            it == headMap.end() || it->second != "websocket"
+        ) [[unlikely]] {
             // 创建 WebSocket 连接失败
+            co_await res.setResLine(Status::CODE_400)
+                        .sendRes();
             throw std::runtime_error{"Failed to create a websocket connection"};
+        }
+        if (auto it = headMap.find("connection");
+            it == headMap.end() || it->second != "Upgrade"
+        ) [[unlikely]] {
+            co_await res.setResLine(Status::CODE_416)
+                        .sendRes();
+            throw std::runtime_error{"Upgrade Required"};
         }
         auto wsKey = headMap.find("sec-websocket-key");
         if (wsKey == headMap.end()) [[unlikely]] {
@@ -628,13 +660,59 @@ public:
         }
 
         co_await res.setResLine(Status::CODE_101)
-                    .addHeader("connection"s, "Upgrade")
-                    .addHeader("upgrade"s, "websocket")
-                    .addHeader("sec-websocket-accept"s, 
+                    .addHeader("Connection"s, "keep-alive, Upgrade")
+                    .addHeader("Upgrade"s, "websocket")
+                    .addHeader("Sec-Websocket-Accept"s, 
                                internal::webSocketSecretHash(wsKey->second))
                     .sendRes();
 
         co_return {req._io};
+    }
+
+    /**
+     * @brief 创建 websocket 客户端
+     * @tparam Timeout 创建连接请求的超时时间
+     */
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    static coroutine::Task<WebSocket<WebSocketModel::Client>> connect(std::string_view url, IO& io) {
+        // 发送 ws 升级协议
+        Request req{io};
+        req.addHeaders("Origin", UrlParse::extractOrigin(url));
+        req.addHeaders("Connection", "Upgrade");
+        req.addHeaders("Upgrade", "websocket");
+        auto key = internal::randomBase64();
+        req.addHeaders("Sec-WebSocket-Key", key);
+        req.addHeaders("Sec-WebSocket-Version", "13");
+        co_await req.sendHttpReq<Timeout>();
+        // 解析响应
+        Response res{io};
+        if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
+            throw std::runtime_error{"Timeout"};
+        }
+        // 校验
+        auto const& headMap = res.getHeaders();
+        if (auto it = headMap.find("connection");
+            // 仅要求包含 Upgrade 即可
+            it == headMap.end() || it->second.find("Upgrade") == std::string::npos
+        ) [[unlikely]] {
+            throw std::runtime_error{
+                "Failed to create a websocket connection (Connection header invalid)"};
+        }
+        if (auto it = headMap.find("upgrade");
+            it == headMap.end() || it->second != "websocket"
+        ) [[unlikely]] {
+            throw std::runtime_error{
+                "Failed to create a websocket connection (Upgrade header invalid)"};
+        }
+        if (auto it = headMap.find("sec-websocket-accept");
+            it == headMap.end() || it->second != internal::webSocketSecretHash(key)
+        ) [[unlikely]] {
+            throw std::runtime_error{
+                "Failed to create a websocket connection (Accept hash mismatch)"};
+        }
+        // ws连接 成功
+        co_return {io, std::random_device{}()};
     }
 
     /**

@@ -1,12 +1,12 @@
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/net/protocol/websocket/WebSocket.hpp>
-#include <list>
 
 using namespace HX;
 using namespace net;
 using namespace utils;
 
 #include <iostream>
+#include <list>
 
 auto __init__ = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
@@ -55,12 +55,11 @@ struct WSPool {
 };
 
 TEST_CASE("测试普通请求") {
-    HttpServer ser{"127.0.0.1", "28205",};
+    HttpServer serv{"127.0.0.1", "28205",};
 
     WSPool pool;
 
-    ser
-        .addEndpoint<GET, POST>("/", [](
+    serv.addEndpoint<GET, POST>("/", [](
             Request& req,
             Response& res
         ) -> coroutine::Task<> {
@@ -110,5 +109,5 @@ TEST_CASE("测试普通请求") {
             pool.wsPool.erase(it);
         })
     ;
-    // ser.syncRun(1, 1500_ms); // 启动服务器
+    // serv.syncRun(1, 1500_ms); // 启动服务器
 }

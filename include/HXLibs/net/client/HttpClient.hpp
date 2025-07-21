@@ -280,18 +280,18 @@ private:
         using namespace std::string_literals;
         try {
             auto host = UrlParse::extractDomainName(url);
-            req.tryAddHeaders("Host"s, host);
+            req.tryAddHeaders("Host", host);
             _host = std::move(host);
         } catch (std::exception const& e) {
             if (_host.size()) [[likely]] {
-                req.tryAddHeaders("Host"s, _host);
+                req.tryAddHeaders("Host", _host);
             }
         }
-        req.tryAddHeaders("Accept"s, "*/*"s);
-        req.tryAddHeaders("Connection"s, "keep-alive"s);
-        req.tryAddHeaders("User-Agent"s, "HXLibs/1.0"s);
-        req.tryAddHeaders("Content-Type"s, getContentTypeStrView(contentType));
-        req.tryAddHeaders("Date"s, utils::DateTimeFormat::makeHttpDate());
+        req.tryAddHeaders("Accept", "*/*");
+        req.tryAddHeaders("Connection", "keep-alive");
+        req.tryAddHeaders("User-Agent", "HXLibs/1.0");
+        req.tryAddHeaders("Content-Type", getContentTypeStrView(contentType));
+        req.tryAddHeaders("Date", utils::DateTimeFormat::makeHttpDate());
     }
 
     HttpClientOptions<Timeout> _options;

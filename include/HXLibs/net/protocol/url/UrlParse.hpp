@@ -49,6 +49,37 @@ struct UrlParse {
     }
 
     /**
+     * @brief 从 URL 提取 Origin (也就是 Path 之前的部分)
+     * @param url 
+     * @return std::string
+     */
+    static std::string extractOrigin(std::string_view url) {
+        std::size_t protocolFind = url.find("://");
+        if (protocolFind == std::string_view::npos) [[unlikely]] {
+            throw std::runtime_error{"Invalid URL, missing protocol: " + std::string(url)};
+        }
+
+        std::string_view protocol = url.substr(0, protocolFind);
+        std::size_t pathFind = url.find("/", protocolFind + 3);
+
+        std::string_view originView = (pathFind == std::string_view::npos) ? url : url.substr(0, pathFind);
+
+        // 转协议，生成新字符串
+        std::string originStr(originView);
+
+        // ws / wss 要替换
+        if (protocol == "ws") {
+            originStr.replace(0, 2, "http");
+        } else if (protocol == "wss") {
+            originStr.replace(0, 3, "https");
+        } else {
+            throw std::runtime_error{"Unsupported protocol in URL: " + std::string(protocol)};
+        }
+
+        return originStr;
+    }
+
+    /**
      * @brief 从 URL 从提取出 域名
      * @param url 
      * @return std::string DomainName

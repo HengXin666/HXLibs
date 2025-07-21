@@ -552,8 +552,8 @@ private:
 #endif
         using namespace std::string_literals;
         using namespace std::string_view_literals;
-        _responseHeaders["Connection"s] = "keep-alive"sv; // 长连接
-        _responseHeaders["Server"s] = "HXLibs::net"sv;
+        _responseHeaders.try_emplace("Connection", "keep-alive"); // 长连接
+        _responseHeaders.try_emplace("Server", "HXLibs::net");
         
         utils::StringUtil::append(_sendBuf, _statusLine[ResponseLineDataType::ProtocolVersion]);
         utils::StringUtil::append(_sendBuf, " "sv);

@@ -26,7 +26,6 @@
 
 #include <HXLibs/container/ArrayBuf.hpp>
 #include <HXLibs/net/protocol/http/Http.hpp>
-#include <HXLibs/net/protocol/http/PathVariable.hpp>
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
@@ -62,7 +61,7 @@ public:
 
     // ===== ↓客户端使用↓ =====
     /**
-     * @brief 发送请求, 并且解析
+     * @brief 发送请求
      * @return coroutine::Task<> 
      * @throw 超时
      */
@@ -88,14 +87,14 @@ public:
         }
         if (_body.empty()) {
             utils::StringUtil::append(buf, CRLF);
-            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(buf));
+            co_await _io.sendLinkTimeout<Timeout>(buf);
         } else {
             // 发送请求体
             utils::StringUtil::append(buf, CONTENT_LENGTH_SV);
             utils::StringUtil::append(buf, std::to_string(_body.size()));
             utils::StringUtil::append(buf, HEADER_END_SV);
-            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(buf));
-            checkTimeout(co_await _io.sendLinkTimeout<Timeout>(_body));
+            co_await _io.sendLinkTimeout<Timeout>(buf);
+            co_await _io.sendLinkTimeout<Timeout>(_body);
         }
         co_return;
     }
@@ -209,9 +208,9 @@ public:
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
-    template <meta::StringType Str>
-    Request& tryAddHeaders(const std::string& key, Str&& val) {
-        _requestHeaders.try_emplace(key, std::forward<Str>(val));
+    template <typename Str1, typename Str2>
+    Request& tryAddHeaders(Str1&& key, Str2&& val) {
+        _requestHeaders.try_emplace(std::forward<Str1>(key), std::forward<Str2>(val));
         return *this;
     }
     // ===== ↑客户端使用↑ =====

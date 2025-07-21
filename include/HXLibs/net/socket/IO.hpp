@@ -155,18 +155,38 @@ public:
         co_await fullySend(buf.subspan(0, n));
     }
 
+    /**
+     * @brief 完整的写入数据, 内部保证写入完成; 如果超时则抛出异常
+     * @tparam Timeout 
+     */
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<coroutine::WhenAnyReturnType<
-        coroutine::AioTask,
-        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
-    >> sendLinkTimeout(std::span<char const> buf) {
+    coroutine::Task<> sendLinkTimeout(std::span<char const> buf) {
 #if defined(__linux__)
-        co_return co_await coroutine::AioTask::linkTimeout(
-            _eventLoop.makeAioTask().prepSend(_fd, buf, 0),
-            _eventLoop.makeAioTask().prepLinkTimeout(
-                internal::getTimePtr<Timeout>(), 0)
-        );
+        // io_uring 也不保证其可以完全一次性写入...
+        while (!buf.empty()) {
+            auto res = co_await coroutine::AioTask::linkTimeout(
+                _eventLoop.makeAioTask().prepSend(_fd, buf, 0),
+                _eventLoop.makeAioTask().prepLinkTimeout(
+                    internal::getTimePtr<Timeout>(), 0)
+            );
+            if (res.index() == 1) [[unlikely]] {
+                throw std::runtime_error{"is Timeout"}; // 超时了
+            }
+            auto sent = static_cast<std::size_t>(
+                exception::IoUringErrorHandlingTools::check(
+                    res.template get<0, exception::ExceptionMode::Nothrow>()
+            ));
+#if 0 // 虽然但是, 有问题再开启
+            if (sent == 0) [[unlikely]] {
+                // 对方优雅的关闭了, 虽然再次发送是必然抛异常然后就关闭的
+                // 但是直接写判断, 可以减少 io_uring 的压力, 减少内核态切换
+                // 但是本身这种事件触发的概率就很低很低了
+                throw std::runtime_error{"is Close"};
+            }
+#endif
+            buf = buf.subspan(sent);
+        }
 #elif defined(_WIN32)
         #error "@todo"
 #else
