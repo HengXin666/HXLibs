@@ -1,5 +1,6 @@
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/net/protocol/websocket/WebSocket.hpp>
+#include <list>
 
 using namespace HX;
 using namespace net;
@@ -35,8 +36,29 @@ struct Test {
     }
 };
 
+// WebSocket 消息池
+// 正确使用应该是 一个 ws 接口专门用来发送消息
+// 而发送数据则应该使用另一个接口, 也就是不能使用这个ws
+struct WSPool {
+    coroutine::Task<> sendAll(std::string_view msg) {
+        if (wsPool.empty())
+            co_return;
+        // 一次生成数据
+        auto pk = WebSocketFactory::makePacketView(OpCode::Text, msg);
+        for (auto& ws : wsPool) {
+            // 多次重发这个数据
+            co_await ws.sendPacketView(pk);
+        }
+    }
+
+    std::list<WebSocket<WebSocketModel::Server>> wsPool;
+};
+
 TEST_CASE("测试普通请求") {
     HttpServer ser{"127.0.0.1", "28205",};
+
+    WSPool pool;
+
     ser
         .addEndpoint<GET, POST>("/", [](
             Request& req,
@@ -50,15 +72,43 @@ TEST_CASE("测试普通请求") {
         }, Test{})
         .addEndpoint<GET>("/ws", [] ENDPOINT {
             auto ws = co_await WebSocketFactory::accept(req, res);
-            co_await ws.send(OpCode::Text, "Hello! Main");
+            struct JsonDataVo {
+                std::string msg;
+                int code;
+            };
+            JsonDataVo const vo{"Hello 客户端, 我只能通信3次!", 200};
+            co_await ws.sendJson(vo);
             for (int i = 0; i < 3; ++i) {
                 auto res = co_await ws.recvText();
                 log::hxLog.info(res);
-                co_await ws.send(OpCode::Text, "Hello! " + res);
+                co_await ws.sendText("Hello! " + res);
             }
             co_await ws.close();
             log::hxLog.info("断开ws");
             co_return ;
-        });
+        })
+        .addEndpoint<GET>("/ws_add_msg/{msg}", [&] ENDPOINT {
+            // 群发内容
+            auto msg = req.getPathParam(0);
+            co_await pool.sendAll({msg.data(), msg.size()});
+            co_await res.setResLine(HX::net::Status::CODE_200)
+                        .sendRes();
+            co_return;
+        })
+        .addEndpoint<GET>("/ws_send_poll", [&] ENDPOINT {
+            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto it = pool.wsPool.emplace(pool.wsPool.end(), ws);
+            try {
+                while (true) {
+                    // 仅维持心跳, 客户端不应该发送除了 ping 以外的任何内容
+                    co_await ws.recvText();
+                }
+            } catch (...) {
+                // ws连接已断开
+            }
+            // 注意线程安全啊! 这里是单线程, 仅示例, 故没有封装和上锁
+            pool.wsPool.erase(it);
+        })
+    ;
     // ser.syncRun(1, 1500_ms); // 启动服务器
 }

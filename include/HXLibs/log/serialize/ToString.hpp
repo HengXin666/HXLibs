@@ -126,8 +126,8 @@ struct ToString<T> {
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         res.push_back('{');
         if constexpr (Cnt > 0) {
-            reflection::forEach(const_cast<T&>(obj),
-                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto& val) {
+            reflection::forEach(obj,
+                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto const& val) {
                 res.push_back('"');
                 res.append(name.data(), name.size());
                 res.push_back('"');
@@ -149,7 +149,7 @@ struct ToString<T> {
         constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         s.push_back('{');
         if constexpr (Cnt > 0) {
-            reflection::forEach(const_cast<T&>(obj),
+            reflection::forEach(obj,
                 [&] <std::size_t I> (std::index_sequence<I>, auto name, auto& val) {
                 s.push_back('"');
                 s.append(name.data(), name.size());

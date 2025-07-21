@@ -113,8 +113,7 @@ struct ReflectionVisitor {
         );
     }
 
-    template <typename Visitor>
-    static constexpr auto visit(T&, Visitor&&) {
+    static constexpr auto visit(T const&) {
         static_assert(
             !sizeof(T),
             "\n\nThis error occurs for one of two reasons:\n\n"
@@ -139,9 +138,8 @@ struct ReflectionVisitor<T, 0> {
         return std::tie();
     }
 
-    template <typename Visitor>
-    static constexpr auto visit(T&, Visitor&& visitor) {
-        return visitor();
+    static constexpr auto visit(T const&) {
+        return std::tie();
     }
 };
 
@@ -164,6 +162,11 @@ struct ReflectionVisitor<T, N> {                            \
         auto& [__VA_ARGS__] = obj;                          \
         return std::tie(__VA_ARGS__);                       \
     }                                                       \
+                                                            \
+    static constexpr auto visit(T const& obj) {             \
+        auto const& [__VA_ARGS__] = obj;                    \
+        return std::tie(__VA_ARGS__);                       \
+    }                                                       \
 };
 
 /**
@@ -182,13 +185,24 @@ inline constexpr auto getStaticObjPtrTuple() {
 }
 
 /**
- * @brief Get the Obj Tie object
+ * @brief 把聚合类成员转为 `tuple<obj成员的左值引用...>`
  * @tparam T `聚合类`类型
  * @param obj 对象实例
  * @return tuple<obj成员的左值引用...>
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
+    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+}
+
+/**
+ * @brief 把聚合类成员转为 `tuple<obj成员的只读引用...>`
+ * @tparam T `聚合类`类型
+ * @param obj 只读的对象实例
+ * @return tuple<obj成员的只读引用...>
+ */
+template <typename T>
+inline constexpr auto getObjTie(T const& obj) {
     return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
 }
 
@@ -229,6 +243,7 @@ inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersName
 
 /**
  * @brief 遍历`聚合类`的所有成员, 并且以(`index`, `name`, `val`)的方式传入`visit`中
+ * @note 如果 obj 是只读的, 那么 val 也是只读的
  * @tparam T `聚合类`类型
  * @tparam Visit 回调函数
  * @param obj 需要被遍历成员的对象实例
@@ -238,7 +253,7 @@ template <typename T, typename Visit>
 inline constexpr void forEach(T&& obj, Visit&& func) {
     constexpr auto Cnt = membersCountVal<T>;
     constexpr auto membersArr = getMembersNames<T>();
-    auto tr = internal::getObjTie(obj);
+    auto tr = internal::getObjTie(std::forward<T>(obj));
     [&] <std::size_t... Is> (std::index_sequence<Is...>) {
         ((func(std::index_sequence<Is>{}, membersArr[Is], std::get<Is>(tr))), ...);
     } (std::make_index_sequence<Cnt>{});

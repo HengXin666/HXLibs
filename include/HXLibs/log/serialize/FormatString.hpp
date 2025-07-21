@@ -164,8 +164,8 @@ struct FormatString {
         {
             if constexpr (Cnt > 0) {
                 DepthRAII _{_depth};
-                reflection::forEach(const_cast<T&>(obj), [&] <std::size_t I> (
-                    std::index_sequence<I>, auto name, auto& val
+                reflection::forEach(obj, [&] <std::size_t I> (
+                    std::index_sequence<I>, auto name, auto const& val
                 ) {
                     if (!notNull) {
                         res += ENTER;

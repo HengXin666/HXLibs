@@ -29,6 +29,7 @@
 #include <HXLibs/utils/Random.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
 #include <HXLibs/reflection/json/JsonRead.hpp>
+#include <HXLibs/reflection/json/JsonWrite.hpp>
 
 namespace HX::net {
 
@@ -89,6 +90,17 @@ struct WebSocketPacket {
 
     /// @brief 内容
     std::string content{};
+};
+
+/**
+ * @brief 该数据结构应该仅用于服务端发送
+ */
+struct WebSocketServerSendView {
+    /// @brief 头部
+    std::vector<uint8_t> head;
+
+    /// @brief 内容
+    std::string_view content{};
 };
 
 /**
@@ -158,16 +170,16 @@ public:
      * @brief 读取文本
      * @return coroutine::Task<std::string> 
      */
-    coroutine::Task<std::string> recvText() {
-        co_return co_await recv<false, DefaultRDTimeout>(OpCode::Text);
+    coroutine::Task<std::string> recvText() const {
+        co_return (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content;
     }
 
     /**
      * @brief 读取二进制
      * @return coroutine::Task<std::string> 
      */
-    coroutine::Task<std::string> recvBytes() {
-        co_return co_await recv<false, DefaultRDTimeout>(OpCode::Binary);
+    coroutine::Task<std::string> recvBytes() const {
+        co_return (co_await recv<false, DefaultRDTimeout>(OpCode::Binary)).content;
     }
 
     /**
@@ -177,10 +189,10 @@ public:
      * @return coroutine::Task<> 
      */
     template <typename T>
-    coroutine::Task<> recvJson(T& obj) {
+    coroutine::Task<> recvJson(T& obj) const {
         reflection::fromJson(
             obj,
-            co_await recv<false, DefaultRDTimeout>(OpCode::Text)
+            (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content
         );
     }
 
@@ -190,11 +202,12 @@ public:
           = true  则会抛异常, 
           = false 则是发送ping, 然后等待pong 再看是否超时, 而抛异常
      * @tparam Timeout 超时时间
-     * @param recvType 读取的类型 (可选为: Text / Binary / Pong) 
+     * @param recvType 读取的类型 (可选为: Text / Binary / Pong)
+     * @param alternative 备选读取类型 (可选为: Text / Binary / Pong), Unknown 为无备选
      */
     template <bool TimeoutIsError = false, typename Timeout = DefaultPPTimeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<std::string> recv(OpCode recvType) {
+    coroutine::Task<WebSocketPacket> recv(OpCode recvType, OpCode alternative = OpCode::Unknown) const {
         for (;;) {
             auto res = co_await recvPacket<Timeout>();
             if (!res) [[unlikely]] {
@@ -205,7 +218,12 @@ public:
                     // 第一次超时就 ping, 然后尝试读取 pong
                     co_await ping();
                     // 如果 pong 超时, 就是异常了!
-                    co_await recv<true>(OpCode::Pong);
+                    auto res = co_await recv<true>(OpCode::Pong, recvType);
+                    if (res.opCode == recvType) [[unlikely]] {
+                        // 特别的: 如果此时 之前 recv 的数据到了, 那么继续把这次的 OpCode::Pong 接收
+                        co_await recv<true>(OpCode::Pong);
+                        co_return res;
+                    }
                     // 没有超时就继续等待数据然后读取
                     continue;
                 }
@@ -216,18 +234,52 @@ public:
                 co_await resClose(std::move(*res).content);
                 // 对方主动关闭连接: 安全关闭
                 throw std::runtime_error{"Connection Closed OK: 1000"};
-            } else if ((*res).opCode != recvType) [[unlikely]] {
+            } else if ((*res).opCode != recvType && (*res).opCode != alternative) [[unlikely]] {
                 // 读取的不是期望的类型
                 throw std::runtime_error{"The type read is not the expected type"};
             }
-            co_return std::move((*res).content);
+            co_return std::move(*res);
         }
     }
 
-    template <typename Timeout = DefaultPPTimeout>
-        requires(requires { Timeout::Val; })
-    coroutine::Task<> ping(std::string data = {}) {
+    /**
+     * @brief 发送 ping
+     * @param data 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> ping(std::string data = {}) const {
         return send(OpCode::Ping, std::move(data));
+    }
+
+    /**
+     * @brief 发送文本
+     * @param text 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> sendText(std::string text) const {
+        co_await send(OpCode::Text, std::move(text));
+    }
+
+    /**
+     * @brief 发送二进制
+     * @param bytes 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> sendBytes(std::string bytes) const {
+        co_await send(OpCode::Binary, std::move(bytes));
+    }
+
+    /**
+     * @brief 发送 json
+     * @tparam T 待序列化对象
+     * @param obj 
+     * @return coroutine::Task<> 
+     */
+    template <typename T>
+    coroutine::Task<> sendJson(T const& obj) const {
+        std::string json;
+        reflection::toJson(obj, json);
+        co_await send(OpCode::Text, std::move(json));
     }
 
     /**
@@ -236,7 +288,7 @@ public:
      * @param str 数据
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> send(OpCode opCode, std::string str = {}) {
+    coroutine::Task<> send(OpCode opCode, std::string str = {}) const {
         if constexpr (IsServer) {
             co_await sendPacket({
                 opCode,
@@ -254,7 +306,7 @@ public:
      * @brief 主动关闭连接
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> close() {
+    coroutine::Task<> close() const {
         // 发送断线协商
         co_await send(OpCode::Close);
 
@@ -270,18 +322,39 @@ public:
         co_await send(OpCode::Close);
     }
 
+    /**
+     * @brief 发送数据, 在群发的情况性能很高, 一次生成 + 多次发送
+     * @param view 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> sendPacketView(WebSocketServerSendView view) const {
+        if constexpr (!IsServer) {
+            // 该 API 为服务端特供
+            static_assert(!sizeof(Model),
+                "This API is exclusively provided for the server");
+        }
+        // 发送ws帧头
+        co_await _io.fullySend(std::span<char const>{
+            reinterpret_cast<char const*>(view.head.data()),
+            view.head.size()
+        });
+
+        // 发送内容
+        co_await _io.fullySend(view.content);
+    }
+
 private:
     IO& _io;
 
     // 响应 pong (无需暴露, 库内部使用即可)
     template <typename Timeout = DefaultPPTimeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<> pong(std::string data) {
+    coroutine::Task<> pong(std::string data) const {
         return send(OpCode::Pong, std::move(data));
     }
 
     // 被动关闭连接 (即对方发送了连接关闭)
-    coroutine::Task<> resClose(std::string data) {
+    coroutine::Task<> resClose(std::string data) const {
         co_await send(OpCode::Close, std::move(data));
     }
 
@@ -293,7 +366,7 @@ private:
      */
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<std::optional<WebSocketPacket>> recvPacket() {
+    coroutine::Task<std::optional<WebSocketPacket>> recvPacket() const {
         WebSocketPacket packet;
         uint8_t head[2];
 /*
@@ -451,7 +524,7 @@ private:
     coroutine::Task<> sendPacket(
         WebSocketPacket&& packet,
         [[maybe_unused]] uint32_t mask
-    ) {
+    ) const {
         std::vector<uint8_t> data;
         if constexpr (IsServer) {
             data.reserve(2 + 8); // 不发送掩码
@@ -562,6 +635,55 @@ public:
                     .sendRes();
 
         co_return {req._io};
+    }
+
+    /**
+     * @brief 生成一个可以复用的发送包, 以减少拷贝开销
+     * @warning 仅服务端可用
+     * @param opCode 
+     * @param msg 
+     * @return WebSocketPacketView 
+     */
+    static WebSocketServerSendView makePacketView(OpCode opCode, std::string_view msg) {
+        WebSocketServerSendView res{};
+        std::vector<uint8_t>& data = res.head;
+        data.reserve(2 + 8); // 不发送掩码
+
+        // 假设内容不会太大, 因为一个包可以最大存放是轻轻松松是 GB 级别的了 (1 << 63)
+        // 所以只有一个分片
+        constexpr bool fin = true;
+
+        // head0
+        data.push_back(fin << 7 | static_cast<uint8_t>(opCode));
+
+        // head1
+        constexpr bool Mask = false;
+        // 设置长度
+        uint8_t payloadLen8 = 0;
+        if (msg.size() < 0x7E) {
+            payloadLen8 = static_cast<uint8_t>(msg.size());
+            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+        } else if (msg.size() <= 0xFFFF) {
+            payloadLen8 = 0x7E;
+            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+            auto payloadLen16 = static_cast<uint16_t>(msg.size());
+            payloadLen16 = utils::ByteUtils::byteswapIfLittle(payloadLen16);
+            auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen16);
+            data.push_back(pLen[0]);
+            data.push_back(pLen[1]);
+        } else {
+            payloadLen8 = 0x7F;
+            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+            auto payloadLen64 = static_cast<uint64_t>(msg.size());
+            payloadLen64 = utils::ByteUtils::byteswapIfLittle(payloadLen64);
+            auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen64);
+            for (std::size_t i = 0; i < 8; ++i) {
+                data.push_back(pLen[i]);
+            }
+        }
+
+        res.content = msg;
+        return res;
     }
 };
 
