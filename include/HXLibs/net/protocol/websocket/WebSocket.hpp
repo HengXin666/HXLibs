@@ -28,6 +28,7 @@
 #include <HXLibs/utils/ByteUtils.hpp>
 #include <HXLibs/utils/Random.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
+#include <HXLibs/reflection/json/JsonRead.hpp>
 
 namespace HX::net {
 
@@ -71,12 +72,13 @@ inline std::string webSocketSecretHash(std::string userKey) {
  * @brief 操作码 (协议规定的!)
  */
 enum class OpCode : uint8_t {
-    Cont = 0,   // 附加数据帧
-    Text = 1,   // 文本数据
-    Binary = 2, // 二进制数据
-    Close = 8,  // 关闭
-    Ping = 9,
-    Pong = 10,
+    Cont    = 0,    // 附加数据帧
+    Text    = 1,    // 文本数据
+    Binary  = 2,    // 二进制数据
+    Close   = 8,    // 关闭
+    Ping    = 9,    // ping
+    Pong    = 10,   // ping
+    Unknown = 255,  // 未初始化的
 };
 
 /**
@@ -90,7 +92,11 @@ struct WebSocketPacket {
 };
 
 class WebSocket {
-    using DefaultTimeout = decltype(utils::operator""_s<'5'>());
+    // 默认Ping-Pong超时时间: 20s
+    using DefaultPPTimeout = decltype(utils::operator""_s<'2', '0'>());
+
+    // 默认读取数据的超时时间: 60s
+    using DefaultRDTimeout = decltype(utils::operator""_s<'3'>());
 
     template <typename Timeout>
         requires(requires { Timeout::Val; })
@@ -122,16 +128,85 @@ public:
         , _random{seed}
     {}
 
-    template <typename Timeout = DefaultTimeout>
-        requires(requires { Timeout::Val; })
-    coroutine::Task<std::string> recv() {
-        auto res = isClient() 
-            ? co_await clientRecvPacket<Timeout>()
-            : co_await serverRecvPacket<Timeout>();
-        co_return (*res).content;
+    /**
+     * @brief 读取文本
+     * @return coroutine::Task<std::string> 
+     */
+    coroutine::Task<std::string> recvText() {
+        co_return co_await recv<false, DefaultRDTimeout>(OpCode::Text);
     }
 
-    coroutine::Task<> send(OpCode opCode, std::string&& str) {
+    /**
+     * @brief 读取二进制
+     * @return coroutine::Task<std::string> 
+     */
+    coroutine::Task<std::string> recvBytes() {
+        co_return co_await recv<false, DefaultRDTimeout>(OpCode::Binary);
+    }
+
+    /**
+     * @brief 读取json并且序列化到结构体
+     * @tparam T 
+     * @param obj 
+     * @return coroutine::Task<> 
+     */
+    template <typename T>
+    coroutine::Task<> recvJson(T& obj) {
+        reflection::fromJson(
+            obj,
+            co_await recv<false, DefaultRDTimeout>(OpCode::Text)
+        );
+    }
+
+    /**
+     * @brief 读取内容
+     * @tparam TimeoutIsError 超时是否就是错误
+          = true  则会抛异常, 
+          = false 则是发送ping, 然后等待pong 再看是否超时, 而抛异常
+     * @tparam Timeout 超时时间
+     * @param recvType 读取的类型 (可选为: Text / Binary / Pong) 
+     */
+    template <bool TimeoutIsError = false, typename Timeout = DefaultPPTimeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<std::string> recv(OpCode recvType) {
+        for (;;) {        
+            auto res = isClient() 
+                ? co_await clientRecvPacket<Timeout>()
+                : co_await serverRecvPacket<Timeout>();
+            if (!res) [[unlikely]] {
+                if constexpr (TimeoutIsError) {
+                    // 读取超时
+                    throw std::runtime_error{"Read Timeout"};
+                } else {
+                    // 第一次超时就 ping, 然后尝试读取 pong
+                    co_await ping();
+                    // 如果 pong 超时, 就是异常了!
+                    co_await recv<true>(OpCode::Pong);
+                    // 没有超时就继续等待数据然后读取
+                    continue;
+                }
+            } else if ((*res).opCode == OpCode::Ping) {
+                co_await pong(std::move(*res).content);
+                continue;
+            } else if ((*res).opCode == OpCode::Close) [[unlikely]] {
+                co_await resClose(std::move(*res).content);
+                // 对方主动关闭连接: 安全关闭
+                throw std::runtime_error{"Connection Closed OK: 1000"};
+            } else if ((*res).opCode != recvType) [[unlikely]] {
+                // 读取的不是期望的类型
+                throw std::runtime_error{"The type read is not the expected type"};
+            }
+            co_return std::move((*res).content);
+        }
+    }
+
+    template <typename Timeout = DefaultPPTimeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> ping(std::string data = {}) {
+        return send(OpCode::Ping, std::move(data));
+    }
+
+    coroutine::Task<> send(OpCode opCode, std::string str) {
         isClient() 
             ? co_await clientSendPacket({
                     opCode,
@@ -180,6 +255,10 @@ public:
         co_return {req._io};
     }
 
+    /**
+     * @brief 主动关闭连接
+     * @return coroutine::Task<> 
+     */
     coroutine::Task<> close() {
         if (isClient()) {
             // 发送断线协商
@@ -188,7 +267,7 @@ public:
             }, (*_random)());
 
             // 等待
-            auto res = co_await clientRecvPacket<DefaultTimeout>();
+            auto res = co_await clientRecvPacket<DefaultPPTimeout>();
 
             if (!res || res->opCode != OpCode::Close) [[unlikely]] {
                 // 超时 或者 协议非期望
@@ -206,7 +285,7 @@ public:
             });
 
             // 等待
-            auto res = co_await serverRecvPacket<DefaultTimeout>();
+            auto res = co_await serverRecvPacket<DefaultPPTimeout>();
 
             if (!res || res->opCode != OpCode::Close) [[unlikely]] {
                 // 超时 或者 协议非期望
@@ -227,6 +306,18 @@ private:
     // 判断当前是否为客户端
     bool isClient() const noexcept {
         return _random.has_value();
+    }
+
+    // 响应 pong (无需暴露, 库内部使用即可)
+    template <typename Timeout = DefaultPPTimeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> pong(std::string data) {
+        return send(OpCode::Pong, std::move(data));
+    }
+
+    // 被动关闭连接 (即对方发送了连接关闭)
+    coroutine::Task<> resClose(std::string data) {
+        co_await send(OpCode::Close, std::move(data));
     }
 
     /**
@@ -274,8 +365,14 @@ private:
   数据    真正的数据 (没有掩码字段)
 
   其中 fin = true 是最后一个分片, fin = false 是后面还有分片
+  以及, 如果分片 (fin = false), 那么它的第一个包是 (Test / Binary), 之后的只能是 Cont
+  注意, 分片的数据只能是 Test / Binary
 */
+        // 记录是否为最后一个分片
         bool fin;
+
+        // 记录第一帧数据内容
+        OpCode firstOpCode{OpCode::Unknown};
         do {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 std::span<char>{reinterpret_cast<char*>(head), 2});
@@ -289,7 +386,7 @@ private:
             uint8_t head1 = head[1];
 
             // 解析 FIN, 为 0 标识当前为最后一个包
-            fin = (head0 >> 7); // -127(十进制) & 1000 0000H => true
+            fin = (head0 >> 7);
 
             // 解析 OpCode
             packet.opCode = static_cast<OpCode>(head0 & 0x0F);
@@ -304,6 +401,13 @@ private:
             uint8_t payloadLen8 = head1 & 0x7F;
             if (static_cast<uint8_t>(packet.opCode) <= 2) {
                 // 合法的数据帧
+                if (firstOpCode == OpCode::Unknown) [[likely]] {
+                    // 第一包必然是这里
+                    firstOpCode = packet.opCode;
+                } else if (packet.opCode != OpCode::Cont) [[unlikely]] {
+                    // 分片情况下
+                    throw std::runtime_error{"Fragmentation Error: OpCode != Cont"};
+                }
             } else if (static_cast<uint8_t>(packet.opCode) >= 8 
                     && static_cast<uint8_t>(packet.opCode) <= 10
             ) {
@@ -316,6 +420,7 @@ private:
                     throw std::runtime_error{
                         "Control frame too big"};
                 }
+                firstOpCode = packet.opCode;
             } else [[unlikely]] {
                 // 其他保留值, 非法
                 throw std::runtime_error{"Unknown OpCode"};
@@ -368,9 +473,17 @@ private:
                 packet.content += std::move(tmp);
             }
         } while (!fin);
+        packet.opCode = firstOpCode;
         co_return packet;
     }
 
+    /**
+     * @brief 发送 ws 包
+     * @tparam isServer 当前是否是服务端
+     * @param packet ws 包
+     * @param mask 掩码 (每次需要随机生成, 仅客户端需要传参, 服务端传参无效)
+     * @return coroutine::Task<> 
+     */
     template <bool isServer>
     coroutine::Task<> sendPacket(
         WebSocketPacket&& packet,
