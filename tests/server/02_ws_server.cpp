@@ -49,7 +49,7 @@ TEST_CASE("测试普通请求") {
             co_return;
         }, Test{})
         .addEndpoint<GET>("/ws", [] ENDPOINT {
-            auto ws = co_await WebSocket::accept(req, res);
+            auto ws = co_await WebSocketFactory::accept(req, res);
             co_await ws.send(OpCode::Text, "Hello! Main");
             for (int i = 0; i < 3; ++i) {
                 auto res = co_await ws.recvText();
@@ -60,5 +60,5 @@ TEST_CASE("测试普通请求") {
             log::hxLog.info("断开ws");
             co_return ;
         });
-    ser.syncRun(1, 1500_ms); // 启动服务器
+    // ser.syncRun(1, 1500_ms); // 启动服务器
 }

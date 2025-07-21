@@ -91,41 +91,67 @@ struct WebSocketPacket {
     std::string content{};
 };
 
-class WebSocket {
+/**
+ * @brief ws的模型: 服务端 / 客户端
+ */
+enum class WebSocketModel : bool {
+    Client = false,
+    Server = true
+};
+
+namespace internal {
+
+/**
+ * @brief 通过空基类优化掉服务端时候的随机数生成器
+ * @note https://cppreference.cn/w/cpp/language/ebo
+ */
+
+template <WebSocketModel Model>
+struct WebSocketBase {
+    // 断言失败则是内部错误
+    static_assert(Model == WebSocketModel::Server,
+        "Internal error in the library");
+
+    WebSocketBase() = default;
+
+    WebSocketBase(std::size_t) 
+        : WebSocketBase{} 
+    {}
+};
+
+template <>
+struct WebSocketBase<WebSocketModel::Client> {
+    WebSocketBase() = default;
+
+    WebSocketBase(std::size_t seed)
+        : _random{seed}
+    {}
+
+    std::optional<utils::XorShift32> _random;
+};
+
+} // namespace internal
+
+template <WebSocketModel Model>
+class WebSocket : public internal::WebSocketBase<Model> {
+    using Base = internal::WebSocketBase<Model>;
+    inline static constexpr bool IsServer = Model == WebSocketModel::Server;
+
+public:
     // 默认Ping-Pong超时时间: 20s
     using DefaultPPTimeout = decltype(utils::operator""_s<'2', '0'>());
 
     // 默认读取数据的超时时间: 60s
-    using DefaultRDTimeout = decltype(utils::operator""_s<'3'>());
+    using DefaultRDTimeout = decltype(utils::operator""_s<'6', '0'>());
 
-    template <typename Timeout>
-        requires(requires { Timeout::Val; })
-    auto serverRecvPacket() {
-        return recvPacket<true, Timeout>();
-    }
-
-    template <typename Timeout>
-        requires(requires { Timeout::Val; })
-    auto clientRecvPacket() {
-        return recvPacket<false, Timeout>();
-    }
-
-    auto serverSendPacket(WebSocketPacket&& packet) {
-        return sendPacket<true>(std::move(packet), 0);
-    }
-
-    auto clientSendPacket(WebSocketPacket&& packet, uint32_t mask) {
-        return sendPacket<false>(std::move(packet), mask);
-    }
-public:
     WebSocket(IO& io)
-        : _io{io}
-        , _random{}
+        : Base{}
+        , _io{io}
     {}
 
     WebSocket(IO& io, std::size_t seed)
-        : _io{io}
-        , _random{seed}
+        : Base{seed}
+        , _io{io}
     {}
 
     /**
@@ -169,10 +195,8 @@ public:
     template <bool TimeoutIsError = false, typename Timeout = DefaultPPTimeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<std::string> recv(OpCode recvType) {
-        for (;;) {        
-            auto res = isClient() 
-                ? co_await clientRecvPacket<Timeout>()
-                : co_await serverRecvPacket<Timeout>();
+        for (;;) {
+            auto res = co_await recvPacket<Timeout>();
             if (!res) [[unlikely]] {
                 if constexpr (TimeoutIsError) {
                     // 读取超时
@@ -206,53 +230,24 @@ public:
         return send(OpCode::Ping, std::move(data));
     }
 
-    coroutine::Task<> send(OpCode opCode, std::string str) {
-        isClient() 
-            ? co_await clientSendPacket({
-                    opCode,
-                    std::move(str)
-                }, (*_random)())
-            : co_await serverSendPacket({
-                    opCode,
-                    std::move(str)
-                });
-    }
-
     /**
-     * @brief 服务端连接, 并且创建 ws 对象
-     * @param req 
-     * @param res 
-     * @return coroutine::Task<WebSocket> 
+     * @brief 发送数据
+     * @param opCode 数据类型
+     * @param str 数据
+     * @return coroutine::Task<> 
      */
-    static coroutine::Task<WebSocket> accept(Request& req, Response& res) {
-        using namespace std::string_literals;
-        auto const& headMap = req.getHeaders();
-        if (headMap.find("origin") == headMap.end()) {
-            // Origin字段是必须的
-            // 如果缺少origin字段, WebSocket服务器需要回复HTTP 403 状态码
-            // https://web.archive.org/web/20170306081618/https://tools.ietf.org/html/rfc6455
-            co_await res.setResLine(Status::CODE_403)
-                        .sendRes();
-            throw std::runtime_error{"The client is missing the origin field"};
+    coroutine::Task<> send(OpCode opCode, std::string str = {}) {
+        if constexpr (IsServer) {
+            co_await sendPacket({
+                opCode,
+                std::move(str)
+            }, 0);
+        } else {
+            co_await sendPacket({
+                opCode,
+                std::move(str)
+            }, (*this->_random)());
         }
-        if (auto it = headMap.find("upgrade"); it == headMap.end() || it->second != "websocket") {
-            // 创建 WebSocket 连接失败
-            throw std::runtime_error{"Failed to create a websocket connection"};
-        }
-        auto wsKey = headMap.find("sec-websocket-key");
-        if (wsKey == headMap.end()) [[unlikely]] {
-            // 在标头中找不到 sec-websocket-key
-            throw std::runtime_error{"Not Find sec-websocket-key in headers"};
-        }
-
-        co_await res.setResLine(Status::CODE_101)
-                    .addHeader("connection"s, "Upgrade")
-                    .addHeader("upgrade"s, "websocket")
-                    .addHeader("sec-websocket-accept"s, 
-                               internal::webSocketSecretHash(wsKey->second))
-                    .sendRes();
-
-        co_return {req._io};
     }
 
     /**
@@ -260,53 +255,23 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> close() {
-        if (isClient()) {
-            // 发送断线协商
-            co_await clientSendPacket({
-                OpCode::Close
-            }, (*_random)());
+        // 发送断线协商
+        co_await send(OpCode::Close);
 
-            // 等待
-            auto res = co_await clientRecvPacket<DefaultPPTimeout>();
+        // 等待
+        auto res = co_await recvPacket<DefaultPPTimeout>();
 
-            if (!res || res->opCode != OpCode::Close) [[unlikely]] {
-                // 超时 或者 协议非期望
-                co_return ; // 那我假设已经完成了
-            }
-
-            // 再次发送, 确定断线
-            co_await clientSendPacket({
-                OpCode::Close
-            }, (*_random)());
-        } else {
-            // 发送断线协商
-            co_await serverSendPacket({
-                OpCode::Close
-            });
-
-            // 等待
-            auto res = co_await serverRecvPacket<DefaultPPTimeout>();
-
-            if (!res || res->opCode != OpCode::Close) [[unlikely]] {
-                // 超时 或者 协议非期望
-                co_return ; // 那我假设已经完成了
-            }
-
-            // 再次发送, 确定断线
-            co_await serverSendPacket({
-                OpCode::Close
-            });
+        if (!res || res->opCode != OpCode::Close) [[unlikely]] {
+            // 超时 或者 协议非期望
+            co_return ; // 那我假设已经完成了
         }
+
+        // 再次发送, 确定断线
+        co_await send(OpCode::Close);
     }
 
 private:
     IO& _io;
-    std::optional<utils::XorShift32> _random;
-
-    // 判断当前是否为客户端
-    bool isClient() const noexcept {
-        return _random.has_value();
-    }
 
     // 响应 pong (无需暴露, 库内部使用即可)
     template <typename Timeout = DefaultPPTimeout>
@@ -326,7 +291,7 @@ private:
      * @tparam Timeout 超时时间
      * @note 如果超时则返回 std::nullopt, 如果解析出错, 则抛异常
      */
-    template <bool isServer, typename Timeout>
+    template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<std::optional<WebSocketPacket>> recvPacket() {
         WebSocketPacket packet;
@@ -393,7 +358,7 @@ private:
             
             // 求 MASK 如果非协议要求, 则是协议错误, 应该断开连接
             bool mask = head1 & 0x80;
-            if (mask ^ isServer) [[unlikely]] {
+            if (mask ^ IsServer) [[unlikely]] {
                 // 协议错误
                 throw std::runtime_error{"Protocol Error"};
             }
@@ -446,7 +411,7 @@ private:
                 payloadLen = static_cast<std::size_t>(payloadLen8);
             }
 
-            if constexpr (isServer) {
+            if constexpr (IsServer) {
                 // 获取掩码
                 uint8_t maskKeyArr[4];
                 co_await _io.fullyRecv(std::span<char>{
@@ -479,18 +444,16 @@ private:
 
     /**
      * @brief 发送 ws 包
-     * @tparam isServer 当前是否是服务端
      * @param packet ws 包
      * @param mask 掩码 (每次需要随机生成, 仅客户端需要传参, 服务端传参无效)
      * @return coroutine::Task<> 
      */
-    template <bool isServer>
     coroutine::Task<> sendPacket(
         WebSocketPacket&& packet,
         [[maybe_unused]] uint32_t mask
     ) {
         std::vector<uint8_t> data;
-        if constexpr (isServer) {
+        if constexpr (IsServer) {
             data.reserve(2 + 8); // 不发送掩码
         } else {
             data.reserve(2 + 8 + 4);
@@ -504,7 +467,7 @@ private:
         data.push_back(fin << 7 | static_cast<uint8_t>(packet.opCode));
 
         // head1
-        constexpr bool Mask = !isServer;
+        constexpr bool Mask = !IsServer;
         // 设置长度
         uint8_t payloadLen8 = 0;
         if (packet.content.size() < 0x7E) {
@@ -529,7 +492,7 @@ private:
             }
         }
 
-        if constexpr (!isServer) {
+        if constexpr (!IsServer) {
             // 发送掩码, 注意掩码必需是客户端随机生成的
             uint8_t maskArr[] {
                 static_cast<uint8_t>(mask >>  0 & 0xFF),
@@ -558,6 +521,53 @@ private:
         co_await _io.fullySend(packet.content);
     }
 };
+
+/**
+ * @brief WebSocket的工厂方法
+ */
+class WebSocketFactory {
+public:
+    /**
+     * @brief 服务端连接, 并且创建 ws 对象
+     * @param req 
+     * @param res 
+     * @return coroutine::Task<WebSocket> 
+     */
+    static coroutine::Task<WebSocket<WebSocketModel::Server>> accept(Request& req, Response& res) {
+        using namespace std::string_literals;
+        auto const& headMap = req.getHeaders();
+        if (headMap.find("origin") == headMap.end()) {
+            // Origin字段是必须的
+            // 如果缺少origin字段, WebSocket服务器需要回复HTTP 403 状态码
+            // https://web.archive.org/web/20170306081618/https://tools.ietf.org/html/rfc6455
+            co_await res.setResLine(Status::CODE_403)
+                        .sendRes();
+            throw std::runtime_error{"The client is missing the origin field"};
+        }
+        if (auto it = headMap.find("upgrade"); it == headMap.end() || it->second != "websocket") {
+            // 创建 WebSocket 连接失败
+            throw std::runtime_error{"Failed to create a websocket connection"};
+        }
+        auto wsKey = headMap.find("sec-websocket-key");
+        if (wsKey == headMap.end()) [[unlikely]] {
+            // 在标头中找不到 sec-websocket-key
+            throw std::runtime_error{"Not Find sec-websocket-key in headers"};
+        }
+
+        co_await res.setResLine(Status::CODE_101)
+                    .addHeader("connection"s, "Upgrade")
+                    .addHeader("upgrade"s, "websocket")
+                    .addHeader("sec-websocket-accept"s, 
+                               internal::webSocketSecretHash(wsKey->second))
+                    .sendRes();
+
+        co_return {req._io};
+    }
+};
+
+// 断言: 大小不一样, 否则是库内部错误
+static_assert(sizeof(WebSocket<WebSocketModel::Client>) != sizeof(WebSocket<WebSocketModel::Server>), 
+    "Internal error in the library");
 
 } // namespace HX::net
 

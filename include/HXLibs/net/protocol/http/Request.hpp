@@ -33,8 +33,6 @@
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
-#include <HXLibs/log/Log.hpp> // debug
-
 namespace HX::net {
 
 /**
@@ -420,7 +418,7 @@ private:
     IO& _io;
 
     friend class Router;
-    friend class WebSocket;
+    friend class WebSocketFactory;
 
     template <typename Timeout>
         requires(requires { Timeout::Val; })
