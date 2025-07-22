@@ -645,10 +645,6 @@ public:
             it == headMap.end() || it->second != "websocket"
         ) [[unlikely]] {
             // 创建 WebSocket 连接失败
-            log::hxLog.error(it == headMap.end(), it->second != "websocket", *it);
-            auto _ = std::string{"websocket"};
-            log::hxLog.error(it->second, "websocket", _);
-            log::hxLog.error(it->second.size(), _.size());
             co_await res.setResLine(Status::CODE_400)
                         .sendRes();
             throw std::runtime_error{"Failed to create a websocket connection"};

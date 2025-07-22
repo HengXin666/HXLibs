@@ -32,7 +32,7 @@
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
-#include <HXLibs/log/Log.hpp>
+#include <HXLibs/log/Log.hpp> // debug
 
 /**
  * @todo 还有问题: 如果客户端断线了, 我怎么检测到他是断线了?
@@ -65,17 +65,12 @@ public:
         _pool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
     }
 
-    void run(coroutine::Task<> const& coMain) {
-        _eventLoop.start(coMain);
-        _eventLoop.run();
-    }
-
     /**
      * @brief 判断是否需要重新建立连接
      * @return true 
      * @return false 
      */
-    bool needConnect() const {
+    bool needConnect() const noexcept {
         return _cliFd == kInvalidSocket;
     }
 
@@ -184,12 +179,16 @@ public:
         container::FutureResult<ResponseData> res;
         _headers = std::move(headers);
         auto task = [&, ans = res.getFutureResult()]() -> coroutine::Task<> {
-            if (needConnect()) {
-                co_await makeSocket(url);
+            try {
+                if (needConnect()) {
+                    co_await makeSocket(url);
+                }
+                ans->setData(co_await sendReq<Method>(
+                    url, std::move(body), contentType)
+                );
+            } catch (...) {
+                ans->unhandledException();
             }
-            ans->setData(co_await sendReq<Method>(
-                url, std::move(body), contentType)
-            );
             co_return;
         };
         auto taskMain = task();
@@ -208,6 +207,13 @@ public:
         co_await sendReq<GET>(url);
     }
 
+    /**
+     * @brief 创建一个 WebSocket 循环, 其以线程池的方式独立运行
+     * @tparam Func 
+     * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
+     * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
+     * @return container::FutureResult<>
+     */
     template <typename Func>
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
     container::FutureResult<> wsLoop(std::string url, Func&& func) {
@@ -281,6 +287,15 @@ private:
         );
     }
 
+    /**
+     * @brief 发送 Http 请求
+     * @tparam Method 请求类型
+     * @tparam Str 
+     * @param url 请求 url
+     * @param body 请求体
+     * @param contentType 正文类型, 如 HTML / JSON / TEXT 等等
+     * @return coroutine::Task<ResponseData> 
+     */
     template <HttpMethod Method, meta::StringType Str = std::string_view>
     coroutine::Task<ResponseData> sendReq(
         std::string const& url,
@@ -296,25 +311,24 @@ private:
             // @todo 请求体还需要支持一些格式!
             req.setBody(std::forward<Str>(body));
         }
-        do {
-            try {
-                co_await req.sendHttpReq<Timeout>();
-                Response res{io};
-                if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
-                    break;
-                }
-                io.reset();
-                co_return res.makeResponseData();
-            } catch (std::exception const& e) {
-                break;
+        std::exception_ptr exceptionPtr{};
+        try {
+            co_await req.sendHttpReq<Timeout>();
+            Response res{io};
+            if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
+                // 读取超时
+                throw std::runtime_error{"Send Timed Out"};
             }
-        } while (false);
+            io.reset();
+            co_return res.makeResponseData();
+        } catch (...) {
+            exceptionPtr = std::current_exception();
+        }
         
         log::hxLog.error("解析出错");
         co_await io.close();
         _cliFd = kInvalidSocket;
-        // @todo 日后此次改为异常
-        co_return {};
+        std::rethrow_exception(exceptionPtr);
     }
 
     /**
