@@ -154,9 +154,9 @@ struct UrlParse {
      * @throw 不在常见的协议内
      * @return u_int16_t 
      */
-    static uint16_t getProtocolPort(std::string const& protocol) {
+    static uint16_t getProtocolPort(std::string_view protocol) {
         // 协议和端口号的映射
-        static const std::unordered_map<std::string, uint16_t> protocolPorts = {
+        static const std::unordered_map<std::string_view, uint16_t> protocolPorts = {
             {"http", 80},
             {"https", 443},
             {"ftp", 21},
@@ -178,8 +178,8 @@ struct UrlParse {
             it != protocolPorts.end()
         ) {
             return it->second;
-        } else {
-            return static_cast<uint16_t>(std::stoi(protocol)); // 未知协议, 则假设它是端口
+        } else [[unlikely]] {
+            return static_cast<uint16_t>(std::stoi(protocol.data())); // 未知协议, 则假设它是端口
         }
     }
 };

@@ -406,7 +406,7 @@ private:
     friend class Router;
     friend class WebSocketFactory;
 
-    template <typename Timeout>
+    template <typename Timeout, typename Proxy>
         requires(requires { Timeout::Val; })
     friend class HttpClient;
 

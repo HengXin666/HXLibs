@@ -44,7 +44,7 @@
 
 namespace HX::net {
 
-template <typename Timeout>
+template <typename Timeout, typename Proxy>
     requires(requires { Timeout::Val; })
 class HttpClient {
 public:
@@ -53,7 +53,7 @@ public:
      * @param options 选项
      * @param threadNum 线程数
      */
-    HttpClient(HttpClientOptions<Timeout>&& options = HttpClientOptions{}, uint32_t threadNum = 1) 
+    HttpClient(HttpClientOptions<Timeout, Proxy>&& options = HttpClientOptions{}, uint32_t threadNum = 1) 
         : _options{std::move(options)}
         , _eventLoop{}
         , _cliFd{kInvalidSocket}
@@ -269,7 +269,7 @@ private:
      */
     coroutine::Task<> makeSocket(std::string_view url) {
         AddressResolver resolver;
-        UrlInfoExtractor parser{_options.proxy.size() ? _options.proxy : url};
+        UrlInfoExtractor parser{_options.proxy.get().size() ? _options.proxy.get() : url};
         auto entry = resolver.resolve(parser.getHostname(), parser.getService());
         _cliFd = exception::IoUringErrorHandlingTools::check(
             co_await _eventLoop.makeAioTask().prepSocket(
@@ -285,6 +285,14 @@ private:
             sockaddr._addr,
             sockaddr._addrlen
         );
+        if (_options.proxy.get().size()) {
+            // 初始化代理
+            IO io{_cliFd, _eventLoop};
+            Proxy proxy{io};
+            co_await proxy.connect(_options.proxy.get(), url);
+            io.reset();
+        }
+        // 初始化连接 (如 Https 握手)
     }
 
     /**
@@ -325,7 +333,7 @@ private:
             exceptionPtr = std::current_exception();
         }
         
-        log::hxLog.error("解析出错");
+        log::hxLog.error("解析出错"); // debug
         co_await io.close();
         _cliFd = kInvalidSocket;
         std::rethrow_exception(exceptionPtr);
@@ -336,8 +344,7 @@ private:
      * @param url 
      * @param req 
      */
-    void preprocessHeaders(std::string const& url, HttpContentType contentType, Request& req) {
-        using namespace std::string_literals;
+    void preprocessHeaders(std::string const& url, HttpContentType contentType, Request& req) { 
         try {
             auto host = UrlParse::extractDomainName(url);
             req.tryAddHeaders("Host", host);
@@ -354,7 +361,7 @@ private:
         req.tryAddHeaders("Date", utils::DateTimeFormat::makeHttpDate());
     }
 
-    HttpClientOptions<Timeout> _options;
+    HttpClientOptions<Timeout, Proxy> _options;
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
@@ -366,7 +373,7 @@ private:
     HeaderHashMap _headers;
 };
 
-HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>())>;
+HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>()), Socks5Proxy>;
 
 } // namespace HX::net
 

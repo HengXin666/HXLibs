@@ -17,26 +17,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HTTPCLIENTOPTIONS_H_
-#define _HX_HTTPCLIENTOPTIONS_H_
+#ifndef _HX_HTTP_CLIENT_OPTIONS_H_
+#define _HX_HTTP_CLIENT_OPTIONS_H_
 
 #include <string>
 
 #include <HXLibs/net/protocol/http/Http.hpp>
+#include <HXLibs/net/protocol/proxy/Proxy.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
 
-template <typename Timeout = decltype(utils::operator""_ms<'5', '0', '0', '0'>())>
+template <typename T>
+    requires(std::is_same_v<T, typename T::ProxyBase::Type>)
+struct ProxyType {
+    using Type = T;
+    std::string url = {};
+
+    operator std::string() const noexcept {
+        return url;
+    }
+
+    std::string get() const noexcept {
+        return *this;
+    }
+};
+
+template <typename Timeout = decltype(utils::operator""_ms<'5', '0', '0', '0'>()), typename Proxy = Socks5Proxy>
     requires(requires { Timeout::Val; })
 struct HttpClientOptions {
     // 代理地址
-    std::string proxy = {};
+    ProxyType<Proxy> proxy = {};
 
     // 超时时间
-    Timeout timeout = Timeout(); // 5000ms
+    Timeout timeout = Timeout{}; // 5000ms
 };
 
 } // namespace HX::net
 
-#endif // !_HX_HTTPCLIENTOPTIONS_H_
+#endif // !_HX_HTTP_CLIENT_OPTIONS_H_
