@@ -195,6 +195,31 @@ struct IoUringErrorHandlingTools {
 
 #elif defined(_WIN32)
 
+#include <stdexcept>
+#include <string>
+
+#include <HXLibs/platform/EventLoopApi.hpp>
+
+namespace HX::exception {
+
+inline void* checkWinError(void* data) {
+    if (!data) {
+        throw std::runtime_error{std::to_string(::GetLastError())};
+    }
+    return data;
+}
+
+} // namespace HX::exception
+
+#else
+    #error "Does not support the current operating system."
+#endif
+
+#if defined(__linux__)
+    #define HXLIBS_CHECK_EVENT_LOOP(__CODE__) \
+        exception::IoUringErrorHandlingTools::check(__CODE__)
+#elif defined(_WIN32)
+    #define HXLIBS_CHECK_EVENT_LOOP(__CODE__)       __CODE__
 #else
     #error "Does not support the current operating system."
 #endif

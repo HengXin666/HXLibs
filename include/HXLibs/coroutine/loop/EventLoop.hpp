@@ -24,6 +24,11 @@
 #include <chrono>
 #include <coroutine>
 
+#if defined (_WIN32)
+#include <unordered_set>
+#include <array>
+#endif
+
 #include <HXLibs/platform/EventLoopApi.hpp>
 
 #include <HXLibs/coroutine/task/Task.hpp>
@@ -48,7 +53,26 @@ constexpr struct ::__kernel_timespec durationToKernelTimespec(
     return ts;
 }
 
-#endif // !defined(__linux__)
+#elif defined (_WIN32)
+
+inline DWORD toDwMilliseconds(std::chrono::system_clock::duration dur) {
+    using namespace std::chrono;
+
+    // 转换为毫秒（有符号 64 位整数）
+    auto ms = duration_cast<milliseconds>(dur).count();
+
+    // 如果负数或太大，就处理为 0 或 INFINITE
+    if (ms <= 0)
+        return 0;
+    if (ms >= std::numeric_limits<DWORD>::max())
+        return INFINITE;
+
+    return static_cast<::DWORD>(ms);
+}
+
+#else
+    #error "Does not support the current operating system."
+#endif
 
 namespace internal {
 
@@ -179,7 +203,109 @@ private:
 };
 
 #elif defined(_WIN32)
-    /// @todo ...
+
+struct Iocp {
+    Iocp() 
+        : _iocpHandle{exception::checkWinError(::CreateIoCompletionPort(
+            INVALID_HANDLE_VALUE,
+            nullptr,
+            0,
+            0))}
+        , _runingHandle{}
+        , _tasks{}
+    {}
+
+    Iocp& operator=(Iocp&&) = delete;
+
+    AioTask makeAioTask() {
+        return {_iocpHandle, _runingHandle};
+    }
+
+    /**
+     * @brief 是否还有任务在等待
+     * @warning 如果您发现您卡在这里, 那么请检查是否有 fd 没有被 close!
+     * @return true 还有任务
+     * @return false 无任务
+     */
+    bool isRun() const {
+        return _runingHandle.size();
+    }
+
+    void run(std::optional<std::chrono::system_clock::duration> timeout) {
+/*
+// 只能一次获取一个
+BOOL GetQueuedCompletionStatus(
+    [in]  HANDLE       CompletionPort,             // 完成端口的句柄
+    [out] LPDWORD      lpNumberOfBytesTransferred, // 指针: 接收完成的I/O操作传输的字节数
+    [out] PULONG_PTR   lpCompletionKey,            // 指针: 接收与完成的I/O操作关联的完成键
+    [out] LPOVERLAPPED *lpOverlapped,              // 指针: 接收指向完成的I/O操作的OVERLAPPED结构的指针
+    [in]  DWORD        dwMilliseconds              // 等待操作完成的超时时间, 以毫秒为单位
+);
+
+// 一次获取多个
+BOOL GetQueuedCompletionStatusEx(
+  HANDLE               CompletionPort,          // 完成端口的句柄
+  LPOVERLAPPED_ENTRY   lpCompletionPortEntries, // 批量接收的数组
+  ULONG                ulCount,                 // 最大获取个数
+  PULONG               ulNumEntriesRemoved,     // 实际返回个数
+  DWORD                dwMilliseconds,          // 等待操作完成的超时时间, 以毫秒为单位
+  BOOL                 fAlertable               // 是否可被 APC (异步过程调用) 或 IO Completion Callback 中断
+                                                // 一般写 false, 不允许!
+);
+*/
+        std::array<::OVERLAPPED_ENTRY, 64> arr;
+        ::ULONG n = 0;
+        decltype(toDwMilliseconds(*timeout)) dw = INFINITE;
+        if (timeout) {
+            dw = toDwMilliseconds(*timeout);
+        }
+        bool ok = ::GetQueuedCompletionStatusEx(
+            _iocpHandle,
+            arr.data(),
+            static_cast<::DWORD>(arr.size()),
+            &n,
+            dw,
+            false
+        );
+
+        if (!ok) [[unlikely]] { // 超时
+            return;
+        }
+
+        for (::ULONG i = 0; i < n; ++i) {
+            auto ptr = arr[i];
+            auto task = std::unique_ptr<AioTask::_AioIocpData>{
+                reinterpret_cast<AioTask::_AioIocpData*>(ptr.lpOverlapped)
+            };
+            if (task->isCancel()) { // 垃圾 winApi 读过书吗老弟? 还要用 WSAGetOverlappedResult
+                                    // 来获取错误? 乱搞! 这不又有内核态切换开销?
+                                    // 因为我们期望的错误都是我们自己产生的, 比如我希望取消, 则 close
+                                    // 所以close之前, 我们可以记录一下其状态!
+                continue;
+            }
+            task->_self._res = ptr.dwNumberOfBytesTransferred;
+            _tasks.push_back(task->_self._previous);
+        }
+
+        for (const auto& t : _tasks) {
+            t.resume();
+        }
+
+        _tasks.clear();
+    }
+
+    ~Iocp() noexcept {
+        if (_iocpHandle) {
+            ::CloseHandle(_iocpHandle);
+        }
+    }
+
+private:
+    ::HANDLE _iocpHandle;
+    std::unordered_set<::HANDLE> _runingHandle;
+    std::vector<std::coroutine_handle<>> _tasks;
+};
+
 #else
     #error "Does not support the current operating system."
 #endif

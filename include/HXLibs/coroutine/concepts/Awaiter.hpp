@@ -25,7 +25,7 @@
 namespace HX::coroutine {
 
 template <typename T>
-concept Awaiter = requires(T const& t, std::coroutine_handle<> h) {
+concept Awaiter = requires(T&& t, std::coroutine_handle<> h) {
     { t.await_ready() } -> std::convertible_to<bool>; // trailing-return-type requirement (后置返回类型要求)
     t.await_suspend(h);
     t.await_resume();

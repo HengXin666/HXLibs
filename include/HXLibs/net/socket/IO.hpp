@@ -23,6 +23,7 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/net/socket/SocketFd.hpp>
+#include <HXLibs/exception/ExceptionMode.hpp>
 
 #ifndef NDEBUG
     #include <HXLibs/log/Log.hpp>
@@ -68,13 +69,14 @@ public:
     IO& operator=(IO&&) noexcept = delete;
 
     coroutine::Task<int> recv(std::span<char> buf) {
-        co_return co_await _eventLoop.makeAioTask()
-                                     .prepRecv(_fd, buf, 0);
+        co_return static_cast<int>(
+            co_await _eventLoop.makeAioTask().prepRecv(_fd, buf, 0));
     }
 
     coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
-        co_return co_await _eventLoop.makeAioTask()
-                                     .prepRecv(_fd, buf.subspan(0, n), 0);
+        co_return static_cast<int>(
+            co_await _eventLoop.makeAioTask().prepRecv(
+                _fd, buf.subspan(0, n), 0));
     }
 
     /**
@@ -85,7 +87,7 @@ public:
     coroutine::Task<> fullyRecv(std::span<char> buf) {
         while (!buf.empty()) {
             auto sent = static_cast<std::size_t>(
-                exception::IoUringErrorHandlingTools::check(
+                HXLIBS_CHECK_EVENT_LOOP(
                     co_await recv(buf)
                 )
             );
@@ -108,24 +110,37 @@ public:
         co_return res;
     }
 
+#if defined(__linux__)
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<coroutine::WhenAnyReturnType<
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >> recvLinkTimeout(std::span<char> buf) {
-#if defined(__linux__)
         co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(
                 internal::getTimePtr<Timeout>(), 0)
         );
-#elif defined(_WIN32)
-        #error "@todo"
-#else
-        #error "Does not support the current operating system."
-#endif
     }
+#elif defined(_WIN32)
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<coroutine::WhenAnyReturnType<
+        decltype(std::declval<coroutine::AioTask>().linkTimeout(
+            std::declval<coroutine::AioTask>(),
+            std::declval<coroutine::TimerLoop::TimerAwaiter>()
+        ))>> recvLinkTimeout(std::span<char> buf) {
+        co_return co_await coroutine::AioTask::linkTimeout(
+            _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
+            _eventLoop.makeAioTask().prepLinkTimeout(
+                _eventLoop.makeTimer().sleepFor(Timeout::Val))
+        );
+    }
+#else
+    #error "Does not support the current operating system."
+#endif
+
 
     /**
      * @brief 写入数据, 内部保证完全写入
@@ -136,7 +151,7 @@ public:
         // io_uring 也不保证其可以完全一次性写入...
         while (!buf.empty()) {
             auto sent = static_cast<std::size_t>(
-                exception::IoUringErrorHandlingTools::check(
+                HXLIBS_CHECK_EVENT_LOOP(
                     co_await _eventLoop.makeAioTask()
                                        .prepSend(_fd, buf, 0)
                 )
@@ -174,7 +189,7 @@ public:
                 throw std::runtime_error{"is Timeout"}; // 超时了
             }
             auto sent = static_cast<std::size_t>(
-                exception::IoUringErrorHandlingTools::check(
+                HXLIBS_CHECK_EVENT_LOOP(
                     res.template get<0, exception::ExceptionMode::Nothrow>()
             ));
 #if 0 // 虽然但是, 有问题再开启
@@ -188,7 +203,21 @@ public:
             buf = buf.subspan(sent);
         }
 #elif defined(_WIN32)
-        #error "@todo"
+        while (!buf.empty()) {
+            auto res = co_await coroutine::AioTask::linkTimeout(
+                _eventLoop.makeAioTask().prepSend(_fd, buf, 0),
+                _eventLoop.makeAioTask().prepLinkTimeout(
+                    _eventLoop.makeTimer().sleepFor(Timeout::Val))
+            );
+            if (res.index() == 1) [[unlikely]] {
+                throw std::runtime_error{"is Timeout"}; // 超时了
+            }
+            auto sent = static_cast<std::size_t>(
+                HXLIBS_CHECK_EVENT_LOOP(
+                    (res.template get<0, exception::ExceptionMode::Nothrow>())
+            ));
+            buf = buf.subspan(sent);
+        }
 #else
         #error "Does not support the current operating system."
 #endif
@@ -236,19 +265,6 @@ private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;
 };
-
-inline auto checkTimeout(
-    coroutine::WhenAnyReturnType<
-        coroutine::AioTask,
-        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
-    >&& res
-) {
-    if (res.index() == 0) {
-        return res.get<0, exception::ExceptionMode::Nothrow>();
-    } else [[unlikely]] {
-        throw std::runtime_error{"is Timeout"}; // 超时了
-    }
-}
 
 } // namespace HX::net
 

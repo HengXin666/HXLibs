@@ -54,6 +54,7 @@ struct TimerLoop {
     ) {
         return _timerTree.insert({expireTime, coroutine});
     }
+
     struct [[nodiscard]] TimerAwaiter {
         TimerAwaiter(TimerLoop* timerLoop)
             : _timerLoop{timerLoop}
@@ -70,7 +71,7 @@ struct TimerLoop {
         bool await_ready() const noexcept {
             return false;
         }
-        auto await_suspend(std::coroutine_handle<> coroutine) const noexcept {
+        void await_suspend(std::coroutine_handle<> coroutine) const noexcept {
             _it = _timerLoop->addTimer(_expireTime, coroutine);
         }
         void await_resume() const noexcept {
