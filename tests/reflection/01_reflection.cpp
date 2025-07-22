@@ -22,10 +22,13 @@ TEST_CASE("initializer_list") {
     };
     constexpr auto Cnt = reflection::membersCount<Test>();
     CHECK(Cnt == 2);
+    static_assert(Cnt == 2, "");
 
     constexpr auto Name = reflection::getMembersNames<Test>();
     CHECK(Name[0] == "name01");
     CHECK(Name[1] == "name02");
+    static_assert(Name[0] == "name01", "");
+    static_assert(Name[1] == "name02", "");
 
     log::hxLog.info(test);
 }

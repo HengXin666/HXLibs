@@ -76,15 +76,12 @@ struct [[nodiscard]] Task {
 
     /**
      * @brief 立即执行协程
-     * @warning 如果其可以返回, 并且返回值是 FutureResultType 类型, 则可以获取返回值
-     * @warning 使用者必须保证其被正确使用, 即必须要返回一个 FutureResult
+     * @warning 除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法
      * @return constexpr auto 
      */
     constexpr auto start() const {
         _handle.resume();
         if constexpr (requires {
-            // 如果它可以返回值则返回, 并且返回值是 FutureResultType 类型
-            // 则进行返回, 否则为 void, 因为不能保证其永远可以立即执行完毕
             _handle.promise().result();
         }) {
             if (_handle.done()) [[likely]] {

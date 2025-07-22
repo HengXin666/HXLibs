@@ -55,7 +55,7 @@ struct WSPool {
 };
 
 TEST_CASE("测试普通请求") {
-    HttpServer serv{"127.0.0.1", "28205",};
+    HttpServer serv{"127.0.0.1", "28205"};
 
     WSPool pool;
 
