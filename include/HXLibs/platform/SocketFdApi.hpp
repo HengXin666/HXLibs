@@ -38,7 +38,7 @@
     // #include <Windows.h>
     namespace HX::platform {
         using SocketFdType = ::SOCKET;
-        inline constexpr SocketFdType kInvalidSocket = ::INVALID_SOCKET;
+        inline constexpr SocketFdType kInvalidSocket = INVALID_SOCKET;
     } // namespace HX::platform
 #else
     #error "Unsupported operating system"

@@ -34,6 +34,8 @@
 
 namespace HX::coroutine {
 
+#if defined(__linux__)
+
 template <typename Rep, typename Period>
 constexpr struct ::__kernel_timespec durationToKernelTimespec(
     std::chrono::duration<Rep, Period> dur
@@ -45,6 +47,8 @@ constexpr struct ::__kernel_timespec durationToKernelTimespec(
     ts.tv_nsec = static_cast<__kernel_time64_t>(nsecs.count());
     return ts;
 }
+
+#endif // !defined(__linux__)
 
 namespace internal {
 

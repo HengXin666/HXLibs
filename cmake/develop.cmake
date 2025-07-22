@@ -1,6 +1,6 @@
 # 改用 clang 编译器
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
+# set(CMAKE_C_COMPILER clang)
+# set(CMAKE_CXX_COMPILER clang++)
 
 # 是否开启单元测试
 option(BUILD_UNIT_TESTS "Build unit tests" ON)
@@ -37,11 +37,15 @@ set(CMAKE_CXX_EXTENSIONS OFF) # 禁用编译器的扩展
 option(ENABLE_WARNING "Enable warning for all project" ON)
 if(ENABLE_WARNING) # 如果用户在配置时启用了警告选项
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") # 判断是否为 MSVC 编译器
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20")
+        message("启动 c++20")
         # 为 MSVC 编译器添加警告选项
         list(APPEND MSVC_OPTIONS "/W3") # 启用中等级别警告 (MSVC 默认支持 /W1 ~ /W4, /W3 是常用的平衡选项)
         if(MSVC_VERSION GREATER 1900) # 如果是 MSVC 2015 或更高版本
             list(APPEND MSVC_OPTIONS "/WX") # 将所有警告视为错误
         endif()
+        # 使用utf-8编译
+        add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
         add_compile_options(${MSVC_OPTIONS}) # 添加这些选项到编译命令中
     else()
         # 为 GCC/Clang 编译器添加警告选项

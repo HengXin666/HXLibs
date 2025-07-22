@@ -8,6 +8,8 @@
 
 #include <HXLibs/container/CHashMap.hpp>
 
+#include <span>
+
 using namespace HX;
 
 TEST_CASE("CHashMap") {

@@ -20,6 +20,8 @@
 #ifndef _HX_ERROR_HANDLING_TOOLS_H_
 #define _HX_ERROR_HANDLING_TOOLS_H_
 
+#if defined(__linux__)
+
 #include <cerrno>
 #include <system_error>
 #include <type_traits>
@@ -190,5 +192,11 @@ struct IoUringErrorHandlingTools {
 };
 
 } // namespace HX::exception
+
+#elif defined(_WIN32)
+
+#else
+    #error "Does not support the current operating system."
+#endif
 
 #endif // _HX_ERROR_HANDLING_TOOLS_H_
