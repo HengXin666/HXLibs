@@ -133,7 +133,7 @@ struct ThreadPool {
         ]() mutable {
             try {
                 if constexpr (std::is_void_v<Res>) {
-                    static_cast<void>(ans);
+                    ans->setData(NonVoidType<void>{});
                     moveApply(std::move(func), std::move(argWap));
                 } else {
                     ans->setData(moveApply(std::move(func), std::move(argWap)));

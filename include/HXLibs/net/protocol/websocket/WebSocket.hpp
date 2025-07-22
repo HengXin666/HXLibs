@@ -160,7 +160,7 @@ struct WebSocketBase<WebSocketModel::Client> {
         : _random{seed}
     {}
 
-    std::optional<utils::XorShift32> _random;
+    mutable std::optional<utils::XorShift32> _random;
 };
 
 } // namespace internal
@@ -616,6 +616,9 @@ private:
     }
 };
 
+using WebSocketServer = WebSocket<WebSocketModel::Server>;
+using WebSocketClient = WebSocket<WebSocketModel::Client>;
+
 /**
  * @brief WebSocket的工厂方法
  */
@@ -627,7 +630,7 @@ public:
      * @param res 
      * @return coroutine::Task<WebSocket> 
      */
-    static coroutine::Task<WebSocket<WebSocketModel::Server>> accept(Request& req, Response& res) {
+    static coroutine::Task<WebSocketServer> accept(Request& req, Response& res) {
         using namespace std::string_literals;
         auto const& headMap = req.getHeaders();
         if (headMap.find("origin") == headMap.end()) {
@@ -642,6 +645,10 @@ public:
             it == headMap.end() || it->second != "websocket"
         ) [[unlikely]] {
             // 创建 WebSocket 连接失败
+            log::hxLog.error(it == headMap.end(), it->second != "websocket", *it);
+            auto _ = std::string{"websocket"};
+            log::hxLog.error(it->second, "websocket", _);
+            log::hxLog.error(it->second.size(), _.size());
             co_await res.setResLine(Status::CODE_400)
                         .sendRes();
             throw std::runtime_error{"Failed to create a websocket connection"};
@@ -660,9 +667,9 @@ public:
         }
 
         co_await res.setResLine(Status::CODE_101)
-                    .addHeader("Connection"s, "keep-alive, Upgrade")
-                    .addHeader("Upgrade"s, "websocket")
-                    .addHeader("Sec-Websocket-Accept"s, 
+                    .addHeader("Connection", "keep-alive, Upgrade")
+                    .addHeader("Upgrade", "websocket")
+                    .addHeader("Sec-Websocket-Accept", 
                                internal::webSocketSecretHash(wsKey->second))
                     .sendRes();
 
@@ -675,15 +682,17 @@ public:
      */
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    static coroutine::Task<WebSocket<WebSocketModel::Client>> connect(std::string_view url, IO& io) {
+    static coroutine::Task<WebSocketClient> connect(std::string_view url, IO& io) {
+        using namespace std::string_view_literals;
         // 发送 ws 升级协议
         Request req{io};
-        req.addHeaders("Origin", UrlParse::extractOrigin(url));
-        req.addHeaders("Connection", "Upgrade");
-        req.addHeaders("Upgrade", "websocket");
         auto key = internal::randomBase64();
-        req.addHeaders("Sec-WebSocket-Key", key);
-        req.addHeaders("Sec-WebSocket-Version", "13");
+        req.setReqLine<GET>(UrlParse::extractPath(url))
+           .addHeaders("Origin", UrlParse::extractWsOrigin(url))
+           .addHeaders("Connection", "Upgrade")
+           .addHeaders("Upgrade", "websocket")
+           .addHeaders("Sec-WebSocket-Key", key)
+           .addHeaders("Sec-WebSocket-Version", "13");
         co_await req.sendHttpReq<Timeout>();
         // 解析响应
         Response res{io};
@@ -766,7 +775,7 @@ public:
 };
 
 // 断言: 大小不一样, 否则是库内部错误
-static_assert(sizeof(WebSocket<WebSocketModel::Client>) != sizeof(WebSocket<WebSocketModel::Server>), 
+static_assert(sizeof(WebSocketClient) != sizeof(WebSocketServer), 
     "Internal error in the library");
 
 } // namespace HX::net

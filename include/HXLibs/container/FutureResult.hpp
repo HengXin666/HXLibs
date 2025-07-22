@@ -27,7 +27,7 @@
 
 namespace HX::container {
 
-template <typename T>
+template <typename T = void>
 class FutureResult {
     struct _Result {
         using __DataType = container::Uninitialized<T>;
@@ -60,14 +60,14 @@ class FutureResult {
             _cv.notify_all();
         }
 
-        T data() {
+        NonVoidType<T> data() {
             if (_exception) [[unlikely]] {
                 std::rethrow_exception(_exception);
             }
             return _data.move();
         }
 
-        void setData(T&& data) {
+        void setData(NonVoidType<T>&& data) {
             _data.set(std::move(data));
             ready();
         }

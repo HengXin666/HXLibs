@@ -26,6 +26,7 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/net/socket/AddressResolver.hpp>
 #include <HXLibs/net/protocol/url/UrlParse.hpp>
+#include <HXLibs/net/protocol/websocket/WebSocket.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/container/ThreadPool.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
@@ -182,18 +183,17 @@ public:
     ) {
         container::FutureResult<ResponseData> res;
         _headers = std::move(headers);
-        auto task = [this, ans = res.getFutureResult()](
-            std::string _url, Str&& _body, HttpContentType _contentType
-        ) -> coroutine::Task<> {
+        auto task = [&, ans = res.getFutureResult()]() -> coroutine::Task<> {
             if (needConnect()) {
-                co_await makeSocket(_url);
+                co_await makeSocket(url);
             }
             ans->setData(co_await sendReq<Method>(
-                _url, std::move(_body), _contentType)
+                url, std::move(body), contentType)
             );
             co_return;
-        }(std::move(url), std::move(body), contentType);
-        _eventLoop.start(task);
+        };
+        auto taskMain = task();
+        _eventLoop.start(taskMain);
         _eventLoop.run();
         co_return res.get();
     }
@@ -206,6 +206,52 @@ public:
     coroutine::Task<> connect(std::string url) {
         co_await makeSocket(url);
         co_await sendReq<GET>(url);
+    }
+
+    template <typename Func>
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
+    container::FutureResult<> wsLoop(std::string url, Func&& func) {
+        return _pool.addTask([this, _url = std::move(url),
+                              _func = std::forward<Func>(func)] {
+            return coWsLoop(std::move(_url), _func).start();
+        });
+    }
+
+    /**
+     * @brief 一个独立的 WebSocket 循环
+     * @tparam Func 
+     * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
+     * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
+     * @return coroutine::Task<> 
+     */
+    template <typename Func>
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
+    coroutine::Task<> coWsLoop(std::string url, Func&& func) {
+        std::exception_ptr exceptionPtr{};
+        auto taskObj = [&]() -> coroutine::Task<> {
+            if (needConnect()) {
+                co_await makeSocket(url);
+            }
+            IO io{_cliFd, _eventLoop};
+            try {            
+                co_await func(
+                    co_await WebSocketFactory::connect<Timeout>(url, io)
+                );
+            } catch (...) {
+                // 如果内部没有捕获异常, 就重抛给外部
+                exceptionPtr = std::current_exception();
+            }
+            // 断开连接
+            co_await io.close();
+            _cliFd = kInvalidSocket;
+        };
+        auto taskMain = taskObj();
+        _eventLoop.start(taskMain);
+        _eventLoop.run();
+        if (exceptionPtr) [[unlikely]] {
+            std::rethrow_exception(exceptionPtr);
+        }
+        co_return;
     }
 
     HttpClient& operator=(HttpClient&&) noexcept = delete;

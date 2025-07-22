@@ -34,7 +34,7 @@ struct HttpClientOptions {
     std::string proxy = {};
 
     // 超时时间
-    Timeout timeout = utils::operator""_ms<'5', '0', '0', '0'>(); // 5000ms
+    Timeout timeout = Timeout(); // 5000ms
 };
 
 } // namespace HX::net

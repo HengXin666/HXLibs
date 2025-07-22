@@ -196,7 +196,7 @@ struct StringUtil final {
     /**
      * @brief 为 vector<char> 尾部添加字符串
      * @param buf 
-     * @param sv 
+     * @param sv 不要试图传递裸C数组, 这样会被构造为含有'\0'的内容, 至少使用 ""sv
      */
     inline static void append(std::vector<char>& buf, std::span<char const> sv) {
         buf.insert(buf.end(), sv.begin(), sv.end());

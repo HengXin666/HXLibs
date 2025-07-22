@@ -56,9 +56,11 @@ TEST_CASE("基本任务提交与获取结果(固定容量版本)") {
         std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
         return a = 99; 
     }, a);
+    auto res5 = pool.addTask([]{ return; });
 
     REQUIRE(res1.get() == 42);
     REQUIRE(res2.get() == 3);
     REQUIRE(res3.get() == 99);
     REQUIRE(res4.get() == a);
+    REQUIRE(res5.get() == NonVoidType<void>{});
 }

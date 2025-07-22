@@ -68,14 +68,14 @@ public:
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<> sendHttpReq() {
-        using namespace std::string_literals;
+        using namespace std::string_view_literals;
         // 发送请求行
         std::vector<char> buf;
         buf.reserve(IO::kBufMaxSize); // 预留空间
         utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestType]);
-        utils::StringUtil::append(buf, " "s);
+        utils::StringUtil::append(buf, " "sv);
         utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestPath]);
-        utils::StringUtil::append(buf, " "s);
+        utils::StringUtil::append(buf, " "sv);
         utils::StringUtil::append(buf, _requestLine[RequestLineDataType::ProtocolVersion]);
         utils::StringUtil::append(buf, CRLF);
         // 发送请求头
@@ -102,16 +102,16 @@ public:
     /**
      * @brief 设置请求行 (协议使用HTTP/1.1)
      * @param method 请求方法 (如 "GET")
-     * @param url url (如 "www.baidu.com")
+     * @param path url的path部分 (如 "www.baidu.com/loli" 的 /loli)
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
     template <HttpMethod Method>
-    Request& setReqLine(std::string_view url) {
+    Request& setReqLine(std::string_view path) {
         using namespace std::string_literals;
         _requestLine.resize(3);
         _requestLine[RequestLineDataType::RequestType] = getMethodStringView(Method);
-        _requestLine[RequestLineDataType::RequestPath] = url;
-        _requestLine[RequestLineDataType::ProtocolVersion] = "HTTP/1.1"s;
+        _requestLine[RequestLineDataType::RequestPath] = path;
+        _requestLine[RequestLineDataType::ProtocolVersion] = "HTTP/1.1";
         return *this;
     }
 
@@ -182,22 +182,9 @@ public:
      * @return Request&
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
-    template <meta::StringType Str>
-    Request& addHeaders(const std::string& key, Str&& val) {
-        _requestHeaders[key] = std::forward<Str>(val);
-        return *this;
-    }
-
-    /**
-     * @brief 向请求头添加一个键值对
-     * @param key 键
-     * @param val 值
-     * @return Request&
-     * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
-     */
-    template <typename Char, std::size_t N>
-    Request& addHeaders(const std::string& key, const Char (&val)[N]) {
-        _requestHeaders[key] = std::string{val, N};
+    template <typename Str1, typename Str2>
+    Request& addHeaders(Str1&& key, Str2&& val) {
+        _requestHeaders[std::forward<Str1>(key)] = std::forward<Str2>(val);
         return *this;
     }
 

@@ -49,11 +49,11 @@ struct UrlParse {
     }
 
     /**
-     * @brief 从 URL 提取 Origin (也就是 Path 之前的部分)
-     * @param url 
+     * @brief 从 ws URL 提取 Origin (也就是 Path 之前的部分)
+     * @param url 必须包含 `ws://` 或 `wss://`
      * @return std::string
      */
-    static std::string extractOrigin(std::string_view url) {
+    static std::string extractWsOrigin(std::string_view url) {
         std::size_t protocolFind = url.find("://");
         if (protocolFind == std::string_view::npos) [[unlikely]] {
             throw std::runtime_error{"Invalid URL, missing protocol: " + std::string(url)};
