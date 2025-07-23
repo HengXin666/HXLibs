@@ -201,6 +201,8 @@ template <typename... Ts>
 struct UninitializedNonVoidVariant {
     inline static constexpr std::size_t N = sizeof...(Ts);
 
+    static_assert(N > 1, "");
+
     constexpr UninitializedNonVoidVariant() noexcept
         : _idx{UninitializedNonVoidVariantNpos}
     {}

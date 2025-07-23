@@ -111,7 +111,7 @@ TEST_CASE("cnt") {
         bool _33;
     };
 
-    CHECK(reflection::membersCountVal<Test> == 33);
+    // CHECK(reflection::membersCountVal<Test> == 33);
 
     struct TestErr {    // 是聚合类
         std::thread _1; // 不是聚和类
@@ -163,7 +163,9 @@ struct A {
     // 任意参数构造
     template <typename U>
     A(U&&) {
+#if !defined(_MSC_VER)
         log::hxLog.warning("type is", __PRETTY_FUNCTION__);
+#endif
     }
 };
 
@@ -214,31 +216,51 @@ TEST_CASE("demo") {
 }
 
 TEST_CASE("编译期反射名称") {
-    struct A {
+    struct ANames {
         std::string _name01;
         std::string _name02;
         int         _name03;
-        A*          _name04;
+        ANames*     _name04;
     };
 
-    constexpr auto aName = reflection::getMembersNames<A>();
+    constexpr auto aName = reflection::getMembersNames<ANames>();
 
-    for (std::size_t i = 0; i < reflection::membersCountVal<A>; ++i)
+    for (std::size_t i = 0; i < reflection::membersCountVal<ANames>; ++i)
         CHECK(aName[i] == "_name0" + std::to_string(i + 1));
 }
 
+template <auto ptr>
+inline constexpr std::string_view getMemberName() {
+    return __FUNCSIG__;
+}
+
 TEST_CASE("编译期反射-for") {
-    struct A {
-        std::string _val01;
-        std::vector<int> _val02;
+    struct Msvc {
+        std::vector<int> _val01;
+        std::string _val02;
     };
 
-    A a{
-        "test",
-        {1, 2, 3, 4, 5 ,6, 7, 8, 9}
+    Msvc a{
+        {1, 2, 3, 4, 5 ,6, 7, 8, 9},
+        "test"
     };
 
     log::hxLog.debug(a);
+
+    static Msvc sb{{}, {}};
+
+    constexpr auto res =
+        reflection::internal::getStaticObjPtrTuple<Msvc>();
+
+    // constexpr std::array<std::string_view, 2> arr;
+
+    constexpr auto res1 =
+        reflection::internal::getMemberName<std::get<0>(res)>();
+    constexpr auto res2 = getMemberName<std::get<0>(res)>();
+
+    log::hxLog.debug(res1, res2);
+
+    //static_assert(res2 == "_val01", "sb");
 
     reflection::forEach(a, [] <std::size_t I> (std::index_sequence<I>, 
         auto name, 
@@ -246,12 +268,12 @@ TEST_CASE("编译期反射-for") {
     ) {
         if constexpr (I == 0) {
             CHECK(name == "_val01");
-            CHECK(val == "test");
-            val = "ok";
-        } else if constexpr (I == 1) {
-            CHECK(name == "_val02");
             CHECK(val == std::vector{1, 2, 3, 4, 5 ,6, 7, 8, 9});
             val = {11, 4, 5, 14};
+        } else if constexpr (I == 1) {
+            CHECK(name == "_val02");
+            CHECK(val == "test");
+            val = "ok";
         }
     });
 

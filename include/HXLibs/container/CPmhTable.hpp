@@ -38,9 +38,9 @@ private:
     // 特别的, 种子应该为 uint32_t 类型, 负责可能出错
     value_type _val = 0;
 public:
-    consteval SeedOrIndex() = default;
+    constexpr SeedOrIndex() = default;
 
-    consteval SeedOrIndex(bool isSeed, std::size_t seedOrIndex)
+    constexpr SeedOrIndex(bool isSeed, std::size_t seedOrIndex)
         : _val{seedOrIndex | (isSeed * HighMask)}
     {}
 

@@ -7,6 +7,7 @@ using namespace HX;
 
 #include <list>
 #include <unordered_map>
+#include <span>
 
 #define HX_TEST_INFO(val, goodVal)                  \
     std::cout << log::formatString(val) << '\n';    \

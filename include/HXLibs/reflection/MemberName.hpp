@@ -151,7 +151,7 @@ template <typename T>                                       \
 struct ReflectionVisitor<T, N> {                            \
     static constexpr auto visit() {                         \
         auto& [__VA_ARGS__] = internal::getStaticObj<T>();  \
-        constexpr auto t = std::tie(__VA_ARGS__);           \
+        auto t = std::tie(__VA_ARGS__);                     \
         constexpr auto f = [](auto&... fs) {                \
             return std::make_tuple((&fs)...);               \
         };                                                  \
