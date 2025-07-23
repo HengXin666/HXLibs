@@ -50,14 +50,14 @@ struct Acceptor {
     coroutine::Task<> start(std::atomic_bool const& isRun) {
         auto serverFd = co_await makeServerFd();
         for (;;) [[likely]] {
-            auto fd = exception::IoUringErrorHandlingTools::check(
+            auto fd = HXLIBS_CHECK_EVENT_LOOP((
                 co_await _eventLoop.makeAioTask().prepAccept(
                     serverFd,
                     nullptr,    // 如果需要, 可以 getpeername(fd, ...) 获取的说...
                     nullptr,
                     0
                 )
-            );
+            ));
             log::hxLog.debug("有新的连接:", fd);
             ConnectionHandler::start<Timeout>(fd, isRun, _router, _eventLoop).detach();
             if (!isRun.load(std::memory_order_acquire)) [[unlikely]] {
@@ -105,7 +105,7 @@ private:
 
     Router const& _router;
     coroutine::EventLoop& _eventLoop;
-    AddressResolver::AddressInfo const& _entry;
+    [[maybe_unused]] AddressResolver::AddressInfo const& _entry;
 };
 
 } // namespace HX::net

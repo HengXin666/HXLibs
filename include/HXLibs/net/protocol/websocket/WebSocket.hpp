@@ -75,9 +75,9 @@ inline std::string webSocketSecretHash(std::string userKey) {
 inline std::string randomBase64() {
     std::array<uint8_t, 16> str;
     std::mt19937 rng{std::random_device{}()};
-    std::uniform_int_distribution<uint8_t> uni(0, 255);
+    std::uniform_int_distribution<uint16_t> uni(0, 255); // msvc 不支持 uint8_t 作为模版
     for (std::size_t i = 0; i < 16; ++i) {
-        str[i] = uni(rng);
+        str[i] = static_cast<uint8_t>(uni(rng));
     }
     return base64Encode(str);
 }

@@ -88,6 +88,12 @@ public:
         requires(requires { Timeout::Val; })
     coroutine::Task<bool> parserRes() {
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserRes()) {
+            // 八嘎!!!
+            // using _ = decltype(coroutine::AwaiterReturnValue<decltype(
+            //     std::declval<coroutine::AioTask>().linkTimeout(
+            //         std::declval<coroutine::AioTask>(),
+            //         std::declval<coroutine::TimerLoop::TimerAwaiter>()
+            // ))>());
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
@@ -95,8 +101,8 @@ public:
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
             }
-            auto recvN = exception::IoUringErrorHandlingTools::check(
-                res.template get<0, exception::ExceptionMode::Nothrow>()
+            auto recvN = HXLIBS_CHECK_EVENT_LOOP(
+                (res.template get<0, exception::ExceptionMode::Nothrow>())
             );
             if (recvN == 0) [[unlikely]] {
                 co_return false; // 连接断开
@@ -223,8 +229,9 @@ public:
                     break;
                 }
             }
-        } catch (std::exception const& e) {
+        } catch (...) {
             // _io.send 会抛异常
+            ;
         }
         co_await file.close();
     }
@@ -322,8 +329,8 @@ public:
                             co_await _io.fullySend(buf);
                             remaining -= size;
                         }
-                    } catch (std::exception const& e) {
-                        // _io.send 会抛异常
+                    } catch (...) {
+                        ;
                     }
                     co_await file.close();
                 }
@@ -402,8 +409,9 @@ public:
                             co_await _io.fullySend(CRLF);
                             remaining -= size;
                         }
-                    } catch (std::exception const& e) {
+                    } catch (...) {
                         // _io.send 会抛异常
+                        ;
                     }
                     co_await file.close();
                 }
@@ -432,8 +440,9 @@ public:
                     co_await _io.fullySend(buf);
                     remaining -= size;
                 }
-            } catch (std::exception const& e) {
+            } catch (...) {
                 // _io.send 会抛异常
+                ;
             }
             co_await file.close();
         }

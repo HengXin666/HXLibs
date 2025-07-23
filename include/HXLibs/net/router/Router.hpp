@@ -134,7 +134,7 @@ private:
         auto isParseWildcardPath = path.find("/**"sv) != std::string_view::npos;
         std::function<coroutine::Task<>(
             Request &, Response &)> realEndpoint;
-        switch (isResolvePathVariable | (isParseWildcardPath << 1)) {
+        switch (static_cast<int>(isResolvePathVariable) | (isParseWildcardPath << 1)) {
             case 0x0: // 不解析任何参数
                 realEndpoint = [this, endpoint = std::move(endpoint),
                                 ... interceptors = interceptors](

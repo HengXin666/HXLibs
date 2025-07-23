@@ -126,7 +126,7 @@ public:
 #elif defined(_WIN32)
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<coroutine::WhenAnyReturnType<
+    coroutine::Task<coroutine::AwaiterReturnValue<
         decltype(std::declval<coroutine::AioTask>().linkTimeout(
             std::declval<coroutine::AioTask>(),
             std::declval<coroutine::TimerLoop::TimerAwaiter>()

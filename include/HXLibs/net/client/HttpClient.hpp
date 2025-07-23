@@ -271,14 +271,14 @@ private:
         AddressResolver resolver;
         UrlInfoExtractor parser{_options.proxy.get().size() ? _options.proxy.get() : url};
         auto entry = resolver.resolve(parser.getHostname(), parser.getService());
-        _cliFd = exception::IoUringErrorHandlingTools::check(
+        _cliFd = HXLIBS_CHECK_EVENT_LOOP((
             co_await _eventLoop.makeAioTask().prepSocket(
                 entry._curr->ai_family,
                 entry._curr->ai_socktype,
                 entry._curr->ai_protocol,
                 0
             )
-        );
+        ));
         auto sockaddr = entry.getAddress();
         co_await _eventLoop.makeAioTask().prepConnect(
             _cliFd,
@@ -349,7 +349,7 @@ private:
             auto host = UrlParse::extractDomainName(url);
             req.tryAddHeaders("Host", host);
             _host = std::move(host);
-        } catch (std::exception const& e) {
+        } catch ([[maybe_unused]] std::exception const& e) {
             if (_host.size()) [[likely]] {
                 req.tryAddHeaders("Host", _host);
             }

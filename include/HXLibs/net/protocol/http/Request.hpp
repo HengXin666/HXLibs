@@ -218,8 +218,8 @@ public:
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
             }
-            auto recvN = exception::IoUringErrorHandlingTools::check(
-                res.template get<0, exception::ExceptionMode::Nothrow>()
+            auto recvN = HXLIBS_CHECK_EVENT_LOOP(
+                (res.template get<0, exception::ExceptionMode::Nothrow>())
             );
             if (recvN == 0) [[unlikely]] {
                 co_return false; // 连接断开

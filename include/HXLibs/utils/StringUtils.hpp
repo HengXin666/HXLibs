@@ -20,11 +20,14 @@
 #ifndef _HX_STRING_UTILS_H_
 #define _HX_STRING_UTILS_H_
 
+#include <cstdint>
 #include <vector>
+#include <array>
 #include <string>
 #include <string_view>
 #include <chrono>
-#include <cstdint>
+#include <format>
+#include <span>
 
 namespace HX::utils {
 
@@ -208,47 +211,22 @@ struct StringUtil final {
  */
 struct DateTimeFormat final {
     /**
-     * @brief 格式化当前时间为如: `%Y-%m-%d %H:%M:%S`的格式
-     * @param fmt 格式字符串
+     * @brief 格式化当前时间为: `%Y-%m-%d %H:%M:%S`的格式
      * @return 当前时间格式化都的字符串
      */
-    static std::string format(const std::string& fmt = "%Y-%m-%d %H:%M:%S") {
-        // 获取当前时间
-        auto now = std::chrono::system_clock::now();
-        
-        // 格式时间
-        std::stringstream ss;
-        auto tNow = std::chrono::system_clock::to_time_t(now);
-        ss << std::put_time(std::localtime(&tNow), fmt.c_str());
-        return ss.str();
+    static std::string format() {
+        using namespace std::chrono;
+        return std::format("{:%Y-%m-%d %H:%M:%S}", floor<seconds>(system_clock::now()));
     }
 
     /**
-     * @brief 格式化当前时间为如: `%Y-%m-%d %H:%M:%S`的格式, 并且带毫秒时间获取
-     * @param fmt 格式字符串
-     * @param msDelim 毫秒与前部分的分割符，默认是空格
+     * @brief 格式化当前时间为: `%Y-%m-%d %H:%M:%S`的格式, 并且带毫秒时间获取
      * @return 当前时间格式化都的字符串
      */
-    static std::string formatWithMilli(
-        const std::string& fmt = "%Y-%m-%d %H:%M:%S",
-        const std::string msDelim = " "
-    ) {
-        // 获取当前时间
-        auto now = std::chrono::system_clock::now();
-        
-        // 格式化时间
-        std::stringstream ss;
-        auto tNow = std::chrono::system_clock::to_time_t(now);
-        ss << std::put_time(std::localtime(&tNow), fmt.c_str());
-
-        // 获取当前时间的秒数
-        auto tSeconds = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
-        // 获取当前时间的毫秒
-        auto tMilli = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-        // 作差求出毫秒数
-        auto ms = tMilli - tSeconds;
-        ss << msDelim << std::setfill('0') << std::setw(3) << ms.count();
-        return ss.str();
+    static std::string formatWithMilli() {
+        using namespace std::chrono;
+        auto now = floor<milliseconds>(system_clock::now());
+        return std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", now, now.time_since_epoch().count() % 1000);
     }
 
     /**
@@ -257,10 +235,10 @@ struct DateTimeFormat final {
      */
     static std::string makeHttpDate() noexcept {
         // Weekday 和 Month 的静态映射表
-        constexpr std::array<std::string_view, 7> kWeekDays{
+        static constexpr std::array<std::string_view, 7> kWeekDays{
             "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
         };
-        constexpr std::array<std::string_view, 12> kMonths{
+        static constexpr std::array<std::string_view, 12> kMonths{
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         };

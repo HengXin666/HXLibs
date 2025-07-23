@@ -55,7 +55,7 @@ struct ByteUtils {
         return bruteForceByteSwap(value);
 #endif
 #else
-        return brute_force_byteswap(value);
+        return bruteForceByteSwap(value);
 #endif
     }
 

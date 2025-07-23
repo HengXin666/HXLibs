@@ -49,10 +49,57 @@
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <WinSock2.h>
     #include <MSWSock.h>
+    #include <ws2tcpip.h>
     #include <Windows.h>
 
     #pragma comment(lib, "Ws2_32.lib")
     #pragma comment(lib, "Mswsock.lib")
+
+    #include <stdexcept>
+
+    namespace HX::platform::internal {
+        
+    class ConnectExLoader {
+    public:
+        using ConnectExType = BOOL (PASCAL*)(SOCKET, const sockaddr*, int, PVOID, DWORD, LPDWORD, LPOVERLAPPED);
+
+        static ConnectExType get() {
+            static ConnectExType ptr = []() -> ConnectExType {
+                GUID guidConnectEx = WSAID_CONNECTEX;
+                ConnectExType result = nullptr;
+                DWORD bytesReturned = 0;
+
+                SOCKET tempSocket = ::WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
+                if (tempSocket == INVALID_SOCKET) {
+                    throw std::runtime_error("WSASocketW failed");
+                }
+
+                int res = ::WSAIoctl(
+                    tempSocket,
+                    SIO_GET_EXTENSION_FUNCTION_POINTER,
+                    &guidConnectEx,
+                    sizeof(guidConnectEx),
+                    &result,
+                    sizeof(result),
+                    &bytesReturned,
+                    nullptr,
+                    nullptr
+                );
+
+                ::closesocket(tempSocket);
+
+                if (res == SOCKET_ERROR || result == nullptr) {
+                    throw std::runtime_error("WSAIoctl failed to get ConnectEx pointer");
+                }
+
+                return result;
+            }();
+
+            return ptr;
+        }
+    };
+    
+    } // namespace HX::platform::
 #else
     #error "Does not support the current operating system."
 #endif

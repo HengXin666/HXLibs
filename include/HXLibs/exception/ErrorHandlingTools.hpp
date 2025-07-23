@@ -203,10 +203,17 @@ struct IoUringErrorHandlingTools {
 namespace HX::exception {
 
 inline void* checkWinError(void* data) {
-    if (!data) {
+    if (!data) [[unlikely]] {
         throw std::runtime_error{std::to_string(::GetLastError())};
     }
     return data;
+}
+
+inline int checkSocketError(std::string msg, int code) {
+    if (code == SOCKET_ERROR) [[unlikely]] {
+        throw std::runtime_error{msg += std::to_string(::GetLastError())};
+    }
+    return code;
 }
 
 } // namespace HX::exception

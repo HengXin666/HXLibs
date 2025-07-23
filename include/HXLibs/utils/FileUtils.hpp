@@ -39,12 +39,17 @@ namespace HX::utils {
 
 using platform::LocalFdType;
 using platform::kInvalidLocalFd;
+using platform::OpenMode;
+using platform::ModeType;
 
 /**
  * @brief 文件操作类
  */
 struct FileUtils {
+    /// @brief 读取文件buf数组的缓冲区大小
+    inline static constexpr std::size_t kBufMaxSize = 1 << 12;
 private:
+#if defined (__linux__)
 #if IO_URING_DIRECT
     // O_DIRECT 可以用来减少操作系统内存复制的开销 (但需要注意可能的对齐要求)
     static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC | O_DIRECT;
@@ -53,18 +58,8 @@ private:
     // O_CLOEXEC 确保在执行新程序时, 文件描述符不会继承到子进程
     static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC;
 #endif
+#endif // !defined (__linux__)
 public:
-    /// @brief 读取文件buf数组的缓冲区大小
-    inline static constexpr std::size_t kBufMaxSize = 1 << 12;
-
-    enum class OpenMode : int {
-        Read = O_RDONLY | kOpenModeDefaultFlags,                        // 只读模式 (r)
-        Write = O_WRONLY | O_TRUNC | O_CREAT | kOpenModeDefaultFlags,   // 只写模式 (w)
-        ReadWrite = O_RDWR | O_CREAT | kOpenModeDefaultFlags,           // 读写模式 (a+)
-        Append = O_WRONLY | O_APPEND | O_CREAT | kOpenModeDefaultFlags, // 追加模式 (w+)
-        Directory = O_RDONLY | O_DIRECTORY | kOpenModeDefaultFlags,     // 目录
-    };
-
     /**
      * @brief 获取文件拓展名 (如`loli.png`->`.png`)
      * @param name 文件名
@@ -132,7 +127,7 @@ public:
     static HX::coroutine::Task<std::string> asyncGetFileContent(
         std::string_view path,
         OpenMode flags = OpenMode::Read,
-        mode_t mode = 0644
+        ModeType mode = 0644
     ) {
         (void)path;
         (void)flags;
@@ -158,7 +153,7 @@ public:
         co_return (res.append(std::string_view {buf.data(), len}));
 #else
         co_return {};
-#endif // __HX_TODO__
+#endif // !__HX_TODO__
     }
 
     /**
@@ -173,7 +168,7 @@ public:
         const std::string& path,
         std::string_view content,
         OpenMode flags,
-        mode_t mode = 0644
+        ModeType mode = 0644
     ) {
         (void)path;
         (void)content;
@@ -193,9 +188,10 @@ public:
         co_return res;
 #else
         co_return {};
-#endif // __HX_TODO__
+#endif // !__HX_TODO__
     }
 
+#ifdef __HX_TODO__
     /**
      * @brief 设置套接字为非阻塞
      * @param fd 
@@ -208,6 +204,7 @@ public:
         }
         return ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
+#endif // !__HX_TODO__
 };
 
 /**
@@ -226,19 +223,50 @@ public:
      * @param path 文件路径
      * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Write | OpenMode::Append)
      * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
-     * @return HX::STL::coroutine::task::Task<> 
+     * @param dirfd 目录文件描述符, 它表示相对路径的基目录; `AT_FDCWD`, 则表示相对于当前工作目录
+     * @return coroutine::Task<> 
      */
     coroutine::Task<> open(
         std::string_view path,
-        FileUtils::OpenMode flags = FileUtils::OpenMode::ReadWrite,
-        mode_t mode = 0644
+        OpenMode flags = OpenMode::ReadWrite,
+        int dirfd = AT_FDCWD,
+        ModeType mode = 0644
     ) {
-        _fd = exception::IoUringErrorHandlingTools::check(
+#if defined(__linux__)
+        _fd = HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepOpenat(
-                AT_FDCWD, path.data(), static_cast<int>(flags), mode
+                dirfd, path.data(), static_cast<int>(flags), mode
             )
         );
+#elif defined(_WIN32)
+        HANDLE dirHandle = INVALID_HANDLE_VALUE;
+
+        if (dirfd == AT_FDCWD) [[likely]] {
+            dirHandle = nullptr; // 相当于从当前工作目录开始
+        }
+
+        // 把 UTF-8 的 path 转成 UTF-16
+        std::wstring wpath = platform::internal::utf8ToUtf16(path);
+
+        HANDLE fileHandle = platform::internal::openRelativeToDir(
+            dirHandle,
+            wpath,
+            platform::internal::toWinAccess(flags),
+            platform::internal::toWinDisposition(flags),
+            platform::internal::toWinFlags(flags),
+            mode
+        );
+
+        if (fileHandle == INVALID_HANDLE_VALUE)
+            throw std::system_error(GetLastError(), std::system_category(), "openRelativeToDir failed");
+
+        _fd = reinterpret_cast<LocalFdType>(fileHandle); // HANDLE 强转为 fd 存储, 你可自定义类型
+#else
+        static_assert(false, "Unsupported platform.");
+#endif
+        co_return;
     }
+
 
     /**
      * @brief 读取文件内容到 buf
@@ -246,11 +274,11 @@ public:
      * @return int 读取的字节数
      */
     coroutine::Task<int> read(std::span<char> buf) {
-        int len = exception::IoUringErrorHandlingTools::check(
+        int len = static_cast<int>(HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepRead(
                 _fd, buf, _offset
             )
-        );
+        ));
         _offset += static_cast<uint64_t>(len);
         co_return len;
     }
@@ -262,11 +290,11 @@ public:
      * @return int 读取的字节数
      */
     coroutine::Task<int> read(std::span<char> buf, unsigned int size) {
-        int len = exception::IoUringErrorHandlingTools::check(
+        int len = static_cast<int>(HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepRead(
                 _fd, buf, size, _offset
             )
-        );
+        ));
         _offset += static_cast<uint64_t>(len);
         co_return len;
     }
@@ -277,11 +305,11 @@ public:
      * @return int 写入的字节数
      */
     coroutine::Task<int> write(std::span<char> buf) {
-        co_return exception::IoUringErrorHandlingTools::check(
+        co_return static_cast<int>(HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepWrite(
                 _fd, buf, static_cast<std::uint64_t>(-1)
             )
-        );
+        ));
     }
 
     /**
@@ -289,7 +317,7 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> close() {
-        exception::IoUringErrorHandlingTools::check(
+        HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepClose(_fd)
         );
         _fd = kInvalidLocalFd;
@@ -323,14 +351,14 @@ private:
 
 /**
  * @brief OpenMode 位运算符重载 (目前有意义的只有 Read | Append (r+))
- * @warning 几乎用不到这个! 如果使用了请看看`FileUtils::OpenMode`是什么东西先!
+ * @warning 几乎用不到这个! 如果使用了请看看`OpenMode`是什么东西先!
  */
-constexpr FileUtils::OpenMode operator|(FileUtils::OpenMode lhs, FileUtils::OpenMode rhs) {
-    return static_cast<FileUtils::OpenMode>(
-        static_cast<int>(lhs) |
-        static_cast<int>(rhs)
-        // static_cast<std::underlying_type<FileUtils::OpenMode>::type>(lhs) |
-        // static_cast<std::underlying_type<FileUtils::OpenMode>::type>(rhs)
+constexpr OpenMode operator|(OpenMode lhs, OpenMode rhs) {
+    return static_cast<OpenMode>(
+        // static_cast<int>(lhs) |
+        // static_cast<int>(rhs)
+        static_cast<std::underlying_type_t<OpenMode>>(lhs) |
+        static_cast<std::underlying_type_t<OpenMode>>(rhs)
     );
 }
 

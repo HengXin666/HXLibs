@@ -23,6 +23,7 @@
 #include <span>
 
 #include <HXLibs/platform/EventLoopApi.hpp>
+#include <HXLibs/platform/LocalFdApi.hpp>
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 
 #if defined(__linux__)
@@ -88,9 +89,9 @@ public:
      */
     [[nodiscard]] AioTask&& prepOpenat(
         int dirfd, 
-        char const *path, 
+        char const* path, 
         int flags,
-        mode_t mode
+        platform::ModeType mode
     ) && {
         ::io_uring_prep_openat(_sqe, dirfd, path, flags, mode);
         return std::move(*this);
@@ -466,9 +467,9 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
      */
     // [[nodiscard]] AioTask&& prepOpenat(
     //     int dirfd, 
-    //     char const *path, 
+    //     char const* path, 
     //     int flags,
-    //     mode_t mode
+    //     platform::ModeType mode
     // ) && {
     //     // ::io_uring_prep_openat(_sqe, dirfd, path, flags, mode);
     //     return std::move(*this);
@@ -501,13 +502,14 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
      * @brief 异步建立连接
      * @param fd 服务端套接字
      * @param addr [out] 客户端信息
+     * @param addrlen 必须传入 nullptr
      * @param flags 
-     * @return AioTask&& 
+     * @return Task<::SOCKET>
      */
     [[nodiscard]] Task<::SOCKET> prepAccept(
         ::SOCKET serSocket,
-        struct ::sockaddr* addr, 
-        // ::socklen_t *addrlen, // 内部决定
+        struct ::sockaddr* addr,
+        [[maybe_unused]] std::nullptr_t addrlen,
         int flags
     ) && {
         // ::io_uring_prep_accept(_sqe, fd, addr, addrlen, flags);
@@ -563,16 +565,45 @@ BOOL AcceptEx(
      * @param fd 客户端套接字
      * @param addr [out] 服务端信息
      * @param addrlen 服务端信息长度指针
-     * @return AioTask&& 
+     * @return Task<::SOCKET>
      */
-    // [[nodiscard]] AioTask&& prepConnect(
-    //     int fd, 
-    //     const struct sockaddr *addr,
-    //     socklen_t addrlen
-    // ) && {
-    //     // ::io_uring_prep_connect(_sqe, fd, addr, addrlen);
-    //     return std::move(*this);
-    // }
+    [[nodiscard]] Task<::SOCKET> prepConnect(
+        ::SOCKET fd, 
+        const struct sockaddr *addr,
+        [[maybe_unused]] int addrlen
+    ) && {
+        // ::io_uring_prep_connect(_sqe, fd, addr, addrlen);
+        auto cliSocket = 
+            ::WSASocket(AF_INET, SOCK_STREAM, 0,
+                        nullptr, 0, WSA_FLAG_OVERLAPPED);
+        
+        if (cliSocket == INVALID_SOCKET) [[unlikely]] {
+            throw std::runtime_error{
+                "socket ERROR: " + std::to_string(::WSAGetLastError())};
+        }
+        associateHandle(cliSocket);
+        
+        char addrBuf[2 * (sizeof(::sockaddr) + 16)] {};
+        ::DWORD bytes = 0;
+
+        bool ok = platform::internal::ConnectExLoader::get()(
+            fd,
+            reinterpret_cast<const sockaddr*>(&addrBuf),
+            sizeof(addrBuf),
+            nullptr,      // optional send buffer
+            0,            // length of optional send
+            &bytes,
+            static_cast<::OVERLAPPED*>(_data)
+        );
+        if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            throw std::runtime_error{
+                "AcceptEx ERROR: " + std::to_string(::GetLastError())};
+        }
+        return [](AioTask&& task, ::SOCKET _fd) -> Task<::SOCKET> {
+            co_await task;
+            co_return _fd;
+        }(std::move(*this), fd);
+    }
 
     /**
      * @brief 异步读取文件
@@ -787,7 +818,7 @@ int WSASend(
      * @param fd 文件描述符
      * @return std::suspend_never 
      */
-    [[nodiscard]] std::suspend_never prepClose(::HANDLE fd) && {
+    [[nodiscard]] Task<int> prepClose(::HANDLE fd) && {
         // ::io_uring_prep_close(_sqe, fd);
         auto&& runingHandleRef = _runingHandle.get();
         bool ok = ::CloseHandle(fd);
@@ -805,7 +836,7 @@ int WSASend(
             runingHandleRef.erase(fd);
         }
         // @!!! 这里只能是同步的...
-        return {};
+        co_return 0;
     }
 
     /**
