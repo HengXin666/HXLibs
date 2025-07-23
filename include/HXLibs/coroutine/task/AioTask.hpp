@@ -490,7 +490,7 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
         unsigned int flags
     ) && {
         // ::io_uring_prep_socket(_sqe, domain, type, protocol, flags);
-        auto socket = ::WSASocket(domain, type, protocol, NULL, 0, flags);;
+        auto socket = ::WSASocket(domain, type, protocol, NULL, 0, flags);
         if (socket == INVALID_SOCKET) [[unlikely]] {
             throw std::runtime_error{"socket ERROR: " + std::to_string(::WSAGetLastError())};
         }
@@ -508,7 +508,7 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
      */
     [[nodiscard]] Task<::SOCKET> prepAccept(
         ::SOCKET serSocket,
-        struct ::sockaddr* addr,
+        ::sockaddr* addr,
         [[maybe_unused]] std::nullptr_t addrlen,
         int flags
     ) && {

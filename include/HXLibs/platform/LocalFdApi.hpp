@@ -30,6 +30,15 @@
     #include <unistd.h>
     #include <fcntl.h>
 
+#if IO_URING_DIRECT
+    // O_DIRECT 可以用来减少操作系统内存复制的开销 (但需要注意可能的对齐要求)
+    static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC | O_DIRECT;
+#else
+    // O_LARGEFILE 允许文件大小超过 2GB
+    // O_CLOEXEC 确保在执行新程序时, 文件描述符不会继承到子进程
+    static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC;
+#endif
+
     namespace HX::platform {
         using LocalFdType = int;
         inline constexpr LocalFdType kInvalidLocalFd = -1;
@@ -45,8 +54,6 @@
         using ModeType = ::mode_t;
     } // namespace HX::platform
 #elif defined(_WIN32)
-    #include <string>
-    #include <string_view>
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
@@ -100,97 +107,96 @@
         inline constexpr auto kInvalidLocalFd 
             = internal::__FUCK_WINDOWS_INVALID_HANDLE_VALUE{};
 
-        enum class OpenMode : ::DWORD {
-            Read       = GENERIC_READ,
-            Write      = GENERIC_WRITE,
-            ReadWrite  = GENERIC_READ | GENERIC_WRITE,
-            Append     = FILE_APPEND_DATA,
-            Directory  = FILE_LIST_DIRECTORY
+        enum class OpenMode : int {
+            Read       = 1 << 1,
+            Write      = 1 << 2 | 1 << 3 | 1 << 4,
+            ReadWrite  = 1 << 7 | 1 << 4,
+            Append     = 1 << 2 | 1 << 5 | 1 << 4,
+            Directory  = 1 << 1 | 1 << 6,
+        };
+
+        inline OpenMode operator|(OpenMode lhs, OpenMode rhs) {
+            return static_cast<OpenMode>(static_cast<int>(lhs) | static_cast<int>(rhs));
+        }
+
+        struct Win32FileParams {
+            DWORD access = 0;
+            DWORD creation = 0;
+            DWORD flags = FILE_ATTRIBUTE_NORMAL;
+
+            inline static constexpr DWORD shareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
+
+            // 设置是否开启 IOCP (FILE_FLAG_OVERLAPPED)
+            Win32FileParams& enableIocp(bool enable = true) {
+                if (enable) {
+                    flags |= FILE_FLAG_OVERLAPPED;
+                } else {
+                    flags &= ~FILE_FLAG_OVERLAPPED;
+                }
+                return *this;
+            }
+        };
+
+        class Win32FileParamsBuilder {
+            OpenMode mode_;
+            bool iocp_ = false;
+            inline static constexpr int kReadFlag    = 1 << 1;
+            inline static constexpr int kWriteFlag   = 1 << 2;
+            inline static constexpr int kTruncFlag   = 1 << 3;
+            inline static constexpr int kCreateFlag  = 1 << 4;
+            inline static constexpr int kAppendFlag  = 1 << 5;
+            inline static constexpr int kDirectoryFlag = 1 << 6;
+            inline static constexpr int kReadWriteFlag = 1 << 7;
+
+        public:
+            explicit Win32FileParamsBuilder(OpenMode mode) : mode_(mode) {}
+
+            Win32FileParamsBuilder& enableIocp(bool enable = true) {
+                iocp_ = enable;
+                return *this;
+            }
+
+            Win32FileParams build() const {
+                Win32FileParams params{};
+                params.flags = FILE_ATTRIBUTE_NORMAL;
+
+                int m = static_cast<int>(mode_);
+
+                if (m & kDirectoryFlag) {
+                    params.access = GENERIC_READ;
+                    params.creation = OPEN_EXISTING;
+                    params.flags |= FILE_FLAG_BACKUP_SEMANTICS;
+                } else if ((m & kReadWriteFlag) && (m & kCreateFlag)) {
+                    params.access = GENERIC_READ | GENERIC_WRITE;
+                    params.creation = OPEN_ALWAYS;
+                } else if (m & kWriteFlag) {
+                    if (m & kAppendFlag) {
+                        params.access = FILE_APPEND_DATA;
+                        params.creation = (m & kCreateFlag) ? OPEN_ALWAYS : OPEN_EXISTING;
+                    } else if (m & kTruncFlag) {
+                        params.access = GENERIC_WRITE;
+                        params.creation = CREATE_ALWAYS;
+                    } else {
+                        params.access = GENERIC_WRITE;
+                        params.creation = OPEN_EXISTING;
+                    }
+                } else if (m & kReadFlag) {
+                    params.access = GENERIC_READ;
+                    params.creation = OPEN_EXISTING;
+                } else {
+                    params.access = GENERIC_READ;
+                    params.creation = OPEN_EXISTING;
+                }
+
+                if (iocp_) {
+                    params.flags |= FILE_FLAG_OVERLAPPED;
+                }
+
+                return params;
+            }
         };
 
         using ModeType = int;
-
-        namespace internal {
-
-            // --------------------- 编码转换 ---------------------
-            inline std::wstring utf8ToUtf16(std::string_view utf8) {
-                int len = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
-                std::wstring wstr(len, L'\0');
-                MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), wstr.data(), len);
-                return wstr;
-            }
-
-            // --------------------- 模式转换 ---------------------
-            inline DWORD toWinAccess(OpenMode mode) {
-                return static_cast<DWORD>(mode);
-            }
-
-            inline DWORD toWinDisposition(OpenMode mode) {
-                switch (mode) {
-                    case OpenMode::Read:
-                    case OpenMode::Append:
-                    case OpenMode::Directory:
-                        return OPEN_EXISTING;
-                    case OpenMode::Write:
-                        return CREATE_ALWAYS;
-                    case OpenMode::ReadWrite:
-                        return OPEN_ALWAYS;
-                    default:
-                        return OPEN_EXISTING;
-                }
-            }
-
-            inline DWORD toWinFlags(OpenMode mode) {
-                DWORD flags = FILE_ATTRIBUTE_NORMAL | FILE_SYNCHRONOUS_IO_NONALERT;
-                if (mode == OpenMode::Directory)
-                    flags |= FILE_FLAG_BACKUP_SEMANTICS;
-                return flags;
-            }
-
-            // --------------------- NtCreateFile 封装 ---------------------
-            inline HANDLE openRelativeToDir(
-                HANDLE dirHandle,
-                std::wstring_view relativePath,
-                DWORD desiredAccess,
-                DWORD creationDisposition,
-                DWORD fileFlags,
-                ModeType /* mode 参数保留 */
-            ) {
-                UNICODE_STRING name;
-                OBJECT_ATTRIBUTES attr;
-                IO_STATUS_BLOCK ioStatus{};
-
-                auto buffer = const_cast<wchar_t*>(relativePath.data());
-                name.Length = static_cast<USHORT>(relativePath.size() * sizeof(wchar_t));
-                name.MaximumLength = name.Length;
-                name.Buffer = buffer;
-
-                InitializeObjectAttributes(&attr, &name, OBJ_CASE_INSENSITIVE, dirHandle, nullptr);
-
-                HANDLE resultHandle = nullptr;
-                NTSTATUS status = ::NtCreateFile(
-                    &resultHandle,
-                    desiredAccess,
-                    &attr,
-                    &ioStatus,
-                    nullptr,
-                    FILE_ATTRIBUTE_NORMAL,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                    creationDisposition,
-                    fileFlags,
-                    nullptr,
-                    0
-                );
-
-                if (!NT_SUCCESS(status)) {
-                    ::SetLastError(::RtlNtStatusToDosError(status));
-                    return INVALID_HANDLE_VALUE;
-                }
-
-                return resultHandle;
-            }
-
-        } // namespace internal
 
     } // namespace HX::platform
 #else

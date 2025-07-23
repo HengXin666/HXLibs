@@ -97,7 +97,26 @@ private:
 
         co_return serverFd;
 #elif defined(_WIN32)
-        co_return kInvalidSocket;
+        auto serSocket 
+            = co_await _eventLoop.makeAioTask()
+                                 .prepSocket(
+                                    _entry._curr->ai_family,
+                                    _entry._curr->ai_socktype,
+                                    _entry._curr->ai_protocol,
+                                    WSA_FLAG_OVERLAPPED // 重叠 IO
+                                );
+        
+        auto serve_addr = _entry.getAddress();
+        
+        if (::bind(serSocket, serve_addr._addr, serve_addr._addrlen) == SOCKET_ERROR) [[unlikely]] {
+            throw std::runtime_error{"bind error!"};
+        }
+
+        if (::listen(serSocket, 64) == SOCKET_ERROR) [[unlikely]] {
+            throw std::runtime_error{"listen error!"};
+        }
+        
+        co_return serSocket;
 #else
     #error "Unsupported operating system"
 #endif

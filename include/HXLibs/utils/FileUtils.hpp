@@ -48,17 +48,6 @@ using platform::ModeType;
 struct FileUtils {
     /// @brief 读取文件buf数组的缓冲区大小
     inline static constexpr std::size_t kBufMaxSize = 1 << 12;
-private:
-#if defined (__linux__)
-#if IO_URING_DIRECT
-    // O_DIRECT 可以用来减少操作系统内存复制的开销 (但需要注意可能的对齐要求)
-    static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC | O_DIRECT;
-#else
-    // O_LARGEFILE 允许文件大小超过 2GB
-    // O_CLOEXEC 确保在执行新程序时, 文件描述符不会继承到子进程
-    static constexpr int kOpenModeDefaultFlags = O_LARGEFILE | O_CLOEXEC;
-#endif
-#endif // !defined (__linux__)
 public:
     /**
      * @brief 获取文件拓展名 (如`loli.png`->`.png`)
@@ -239,30 +228,31 @@ public:
             )
         );
 #elif defined(_WIN32)
-        HANDLE dirHandle = INVALID_HANDLE_VALUE;
+        auto params =
+            platform::Win32FileParamsBuilder(flags).enableIocp(true)
+                                                         .build();
 
-        if (dirfd == AT_FDCWD) [[likely]] {
-            dirHandle = nullptr; // 相当于从当前工作目录开始
-        }
-
-        // 把 UTF-8 的 path 转成 UTF-16
-        std::wstring wpath = platform::internal::utf8ToUtf16(path);
-
-        HANDLE fileHandle = platform::internal::openRelativeToDir(
-            dirHandle,
-            wpath,
-            platform::internal::toWinAccess(flags),
-            platform::internal::toWinDisposition(flags),
-            platform::internal::toWinFlags(flags),
-            mode
+        HANDLE fileHandle = ::CreateFileA(
+            path.data(),                            // 文件名
+            params.access,                          // 读写权限
+            platform::Win32FileParams::shareMode,   // 共享模式
+            nullptr,                                // 默认安全属性
+            params.creation,                        // 如果文件不存在则创建
+            params.flags,                           // 必须带 FILE_FLAG_OVERLAPPED
+            nullptr                                 // 不拷贝句柄
         );
 
-        if (fileHandle == INVALID_HANDLE_VALUE)
-            throw std::system_error(GetLastError(), std::system_category(), "openRelativeToDir failed");
+        if (fileHandle == INVALID_HANDLE_VALUE) [[unlikely]] {
+            throw std::system_error(
+                GetLastError(),
+                std::system_category(),
+                "CreateFileW failed"
+            );
+        }
 
-        _fd = reinterpret_cast<LocalFdType>(fileHandle); // HANDLE 强转为 fd 存储, 你可自定义类型
+        _fd = reinterpret_cast<LocalFdType>(fileHandle);
 #else
-        static_assert(false, "Unsupported platform.");
+        #error "Unsupported platform"
 #endif
         co_return;
     }

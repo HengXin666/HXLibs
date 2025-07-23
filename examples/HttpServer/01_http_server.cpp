@@ -71,6 +71,7 @@ int main() {
         auto path = req.getUniversalWildcardPath();
         log::hxLog.debug("请求:", path, "| 断点续传:", req.getReqType() == "HEAD"sv
             || req.getHeaders().contains("range"));
+        bool isError = false;
         try {
             co_await res.useRangeTransferFile(
                 req.getRangeRequestView(),
@@ -79,8 +80,15 @@ int main() {
             log::hxLog.debug("发送完备!");
         } catch (std::exception const& ec) {
             log::hxLog.error(__FILE__, __LINE__, ":", ec.what());
+            isError = true;
+        }
+        if (isError) {
+            co_await res.setStatusAndContent(
+                            Status::CODE_404,
+                            "<h1>路径错误, 文件不存在<h1/>")
+                        .sendRes();
         }
         co_return ;
     });
-    ser.syncRun(); // 启动服务器, 并且阻塞
+    ser.syncRun(2); // 启动服务器, 并且阻塞
 }
