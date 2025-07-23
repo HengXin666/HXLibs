@@ -60,15 +60,19 @@ public:
         std::size_t errCnt = 0;
         while (_runNum) {
             HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-            if (cli.get(
-                "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
-                ).get().status / 100 == 2
-            ) {
-                errCnt = 0;
-            } else if (++errCnt > 5) {
-                // 超过 5 次失败, 则认为服务器已经关闭
-                // 特别是是对于在 端点 中按照引用, 传入 *this (HttpServer) 的
-                // 必然是死锁的, 因为当前方法是阻塞的, 希望他是非阻塞的? 也不是不行
+            try {            
+                if (cli.get(
+                    "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
+                    ).get().status / 100 == 2
+                ) {
+                    errCnt = 0;
+                } else if (++errCnt > 5) {
+                    // 超过 5 次失败, 则认为服务器已经关闭
+                    // 特别是是对于在 端点 中按照引用, 传入 *this (HttpServer) 的
+                    // 必然是死锁的, 因为当前方法是阻塞的, 希望他是非阻塞的? 也不是不行
+                    break;
+                }
+            } catch (...) {
                 break;
             }
         }

@@ -56,6 +56,7 @@
     #pragma comment(lib, "Mswsock.lib")
 
     #include <stdexcept>
+    #include <string>
 
     namespace HX::platform::internal {
         
@@ -98,8 +99,23 @@
             return ptr;
         }
     };
-    
-    } // namespace HX::platform::
+
+    struct InitWin32Api {
+        InitWin32Api() {
+            WSADATA data;
+            if (::WSAStartup(MAKEWORD(2, 2), &data)) {
+                throw std::runtime_error{"WSAStartup ERROR: " + std::to_string(::GetLastError())};
+            }
+        }
+
+        ~InitWin32Api() noexcept {
+            ::WSACleanup();
+        }
+    };
+
+    inline InitWin32Api __initWin32Api__{};
+
+    } // namespace HX::platform::internal
 #else
     #error "Does not support the current operating system."
 #endif

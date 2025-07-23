@@ -294,6 +294,14 @@ BOOL GetQueuedCompletionStatusEx(
         _tasks.clear();
     }
 
+    /**
+     * @brief 主动泄漏 fd, 以退出事件循环 (注意, 应该在保存好fd, 以便最后的时候进行释放)
+     * @param socketFd
+     */
+    void leak(::SOCKET socketFd) {
+        _runingHandle.erase(reinterpret_cast<::HANDLE>(socketFd));
+    }
+
     ~Iocp() noexcept {
         if (_iocpHandle) {
             ::CloseHandle(_iocpHandle);
@@ -355,6 +363,14 @@ struct EventLoop {
 
     decltype(auto) makeAioTask() {
         return _eventDrive.makeAioTask();
+    }
+
+    /**
+     * @brief 获取事件循环的底层引擎
+     * @return auto& 
+     */
+    auto& getEventDrive() {
+        return _eventDrive;
     }
 private:
     internal::EventDrive _eventDrive;

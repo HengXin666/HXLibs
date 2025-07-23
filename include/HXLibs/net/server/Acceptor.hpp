@@ -82,13 +82,13 @@ private:
             )
         );
 
-        auto serve_addr = _entry.getAddress();
+        auto serAddr = _entry.getAddress();
         int on = 1;
         setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
         setsockopt(serverFd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
 
         exception::LinuxErrorHandlingTools::convertError<int>(
-            ::bind(serverFd, serve_addr._addr, serve_addr._addrlen)
+            ::bind(serverFd, serAddr._addr, serAddr._addrlen)
         ).expect("bind");
 
         exception::LinuxErrorHandlingTools::convertError<int>(
@@ -106,9 +106,9 @@ private:
                                     WSA_FLAG_OVERLAPPED // 重叠 IO
                                 );
         
-        auto serve_addr = _entry.getAddress();
+        auto serAddr = _entry.getAddress();
         
-        if (::bind(serSocket, serve_addr._addr, serve_addr._addrlen) == SOCKET_ERROR) [[unlikely]] {
+        if (::bind(serSocket, serAddr._addr, serAddr._addrlen) == SOCKET_ERROR) [[unlikely]] {
             throw std::runtime_error{"bind error!"};
         }
 

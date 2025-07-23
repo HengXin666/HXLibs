@@ -481,7 +481,7 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
      * @param type 套接字类型 SOCK_STREAM(tcp)/SOCK_DGRAM(udp)/SOCK_RAW(原始)
      * @param protocol 使用的协议, 通常为 0 (默认协议), 或者指定具体协议(如 IPPROTO_TCP、IPPROTO_UDP 等)
      * @param flags 
-     * @return AioTask&& 
+     * @return Task<::SOCKET>
      */
     [[nodiscard]] Task<::SOCKET> prepSocket(
         int domain, 
@@ -490,6 +490,7 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
         unsigned int flags
     ) && {
         // ::io_uring_prep_socket(_sqe, domain, type, protocol, flags);
+        flags |= WSA_FLAG_OVERLAPPED;
         auto socket = ::WSASocket(domain, type, protocol, NULL, 0, flags);
         if (socket == INVALID_SOCKET) [[unlikely]] {
             throw std::runtime_error{"socket ERROR: " + std::to_string(::WSAGetLastError())};
@@ -569,35 +570,36 @@ BOOL AcceptEx(
      */
     [[nodiscard]] Task<::SOCKET> prepConnect(
         ::SOCKET fd, 
-        const struct sockaddr *addr,
+        const ::sockaddr* addr,
         [[maybe_unused]] int addrlen
     ) && {
         // ::io_uring_prep_connect(_sqe, fd, addr, addrlen);
-        auto cliSocket = 
-            ::WSASocket(AF_INET, SOCK_STREAM, 0,
-                        nullptr, 0, WSA_FLAG_OVERLAPPED);
+        associateHandle(fd);
         
-        if (cliSocket == INVALID_SOCKET) [[unlikely]] {
-            throw std::runtime_error{
-                "socket ERROR: " + std::to_string(::WSAGetLastError())};
+        // bind 是必须的, 即使是客户端
+        ::sockaddr_in localAddr {};
+        localAddr.sin_family = AF_INET;
+        localAddr.sin_addr.s_addr = INADDR_ANY;
+        localAddr.sin_port = 0;
+
+        if (::bind(fd, reinterpret_cast<const ::sockaddr*>(&localAddr), sizeof(localAddr)) == SOCKET_ERROR) [[unlikely]] {
+            throw std::runtime_error("bind failed: " + std::to_string(::WSAGetLastError()));
         }
-        associateHandle(cliSocket);
-        
-        char addrBuf[2 * (sizeof(::sockaddr) + 16)] {};
+
         ::DWORD bytes = 0;
 
         bool ok = platform::internal::ConnectExLoader::get()(
             fd,
-            reinterpret_cast<const sockaddr*>(&addrBuf),
-            sizeof(addrBuf),
-            nullptr,      // optional send buffer
-            0,            // length of optional send
+            addr,
+            addrlen,
+            nullptr,      // 可选发送缓冲区
+            0,            // 可选发送的长度
             &bytes,
             static_cast<::OVERLAPPED*>(_data)
         );
         if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
             throw std::runtime_error{
-                "AcceptEx ERROR: " + std::to_string(::GetLastError())};
+                "ConnectEx ERROR: " + std::to_string(::GetLastError())};
         }
         return [](AioTask&& task, ::SOCKET _fd) -> Task<::SOCKET> {
             co_await task;

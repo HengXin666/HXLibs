@@ -31,6 +31,7 @@
 #include <HXLibs/container/ThreadPool.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
+#include <HXLibs/platform/defined.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
 
@@ -169,7 +170,8 @@ public:
      * @param contentType 正文类型 
      * @return coroutine::Task<ResponseData> 响应数据
      */
-    template <HttpMethod Method, meta::StringType Str = std::string>
+    template <HttpMethod Method, meta::StringType Str = std::string,
+              platform::OsType NowOsType = platform::NowOS>
     coroutine::Task<ResponseData> coRequst(
         std::string url,
         HeaderHashMap headers = {},
@@ -186,6 +188,10 @@ public:
                 ans->setData(co_await sendReq<Method>(
                     url, std::move(body), contentType)
                 );
+                if constexpr (NowOsType == platform::OsType::Windows) {
+                    // 主动泄漏 fd, 以退出事件循环 仅 IOCP
+                    _eventLoop.getEventDrive().leak(_cliFd);
+                }
             } catch (...) {
                 ans->unhandledException();
             }
@@ -279,20 +285,28 @@ private:
                 0
             )
         ));
-        auto sockaddr = entry.getAddress();
-        co_await _eventLoop.makeAioTask().prepConnect(
-            _cliFd,
-            sockaddr._addr,
-            sockaddr._addrlen
-        );
-        if (_options.proxy.get().size()) {
-            // 初始化代理
-            IO io{_cliFd, _eventLoop};
-            Proxy proxy{io};
-            co_await proxy.connect(_options.proxy.get(), url);
-            io.reset();
+        try {
+            auto sockaddr = entry.getAddress();
+            co_await _eventLoop.makeAioTask().prepConnect(
+                _cliFd,
+                sockaddr._addr,
+                sockaddr._addrlen
+            );
+            if (_options.proxy.get().size()) {
+                // 初始化代理
+                IO io{_cliFd, _eventLoop};
+                Proxy proxy{io};
+                co_await proxy.connect(_options.proxy.get(), url);
+                io.reset();
+            }
+            // 初始化连接 (如 Https 握手)
+            co_return;
+        } catch (...) {
+            ;
         }
-        // 初始化连接 (如 Https 握手)
+        // 总之得关闭
+        co_await _eventLoop.makeAioTask().prepClose(_cliFd);
+        _cliFd = kInvalidSocket;
     }
 
     /**

@@ -76,6 +76,10 @@ class FutureResult {
             _exception = std::current_exception();
             ready();
         }
+
+        bool isException() const noexcept {
+            return _exception == nullptr;
+        }
     private:
         __DataType _data;
         std::exception_ptr _exception;
