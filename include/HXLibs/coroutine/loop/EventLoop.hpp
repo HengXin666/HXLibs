@@ -302,6 +302,14 @@ BOOL GetQueuedCompletionStatusEx(
         _runingHandle.erase(reinterpret_cast<::HANDLE>(socketFd));
     }
 
+    /**
+     * @brief 主动恢复 fd, 以便可以继续阻塞事件循环, 直到事件全部完成
+     * @param socketFd 
+     */
+    void heal(::SOCKET socketFd) {
+        _runingHandle.insert(reinterpret_cast<::HANDLE>(socketFd));
+    }
+
     ~Iocp() noexcept {
         if (_iocpHandle) {
             ::CloseHandle(_iocpHandle);

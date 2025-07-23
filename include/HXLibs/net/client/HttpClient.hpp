@@ -189,7 +189,7 @@ public:
                     url, std::move(body), contentType)
                 );
                 if constexpr (NowOsType == platform::OsType::Windows) {
-                    // 主动泄漏 fd, 以退出事件循环 仅 IOCP
+                    // 主动泄漏 fd, 以退出事件循环 (仅 IOCP)
                     _eventLoop.getEventDrive().leak(_cliFd);
                 }
             } catch (...) {
@@ -208,9 +208,43 @@ public:
      * @param url 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> connect(std::string url) {
+    coroutine::Task<> coConnect(std::string url) {
         co_await makeSocket(url);
         co_await sendReq<GET>(url);
+    }
+
+    /**
+     * @brief 断开连接
+     * @return container::FutureResult<> 
+     */
+    container::FutureResult<> close() {
+        return _pool.addTask([this] {
+            coClose().start();
+        });
+    }
+
+    /**
+     * @brief 断开连接
+     * @tparam NowOsType 
+     * @return coroutine::Task<> 
+     */
+    template <platform::OsType NowOsType = platform::NowOS>
+    coroutine::Task<> coClose() {
+        if (_cliFd == kInvalidSocket) {
+            co_return;
+        }
+        auto task = [this] () -> coroutine::Task<> {
+            co_await _eventLoop.makeAioTask().prepClose(_cliFd);
+            _cliFd = kInvalidSocket;
+        };
+        if constexpr (NowOsType == platform::OsType::Windows) {
+            // 主动回复 fd, 以维持事件循环 (仅 IOCP)
+            _eventLoop.getEventDrive().heal(_cliFd);
+        }
+        auto taskMain = task();
+        _eventLoop.start(taskMain);
+        _eventLoop.run();
+        co_return;
     }
 
     /**
@@ -267,6 +301,10 @@ public:
     }
 
     HttpClient& operator=(HttpClient&&) noexcept = delete;
+
+    ~HttpClient() noexcept {
+        close().wait();
+    }
 private:
     /**
      * @brief 建立 TCP 连接

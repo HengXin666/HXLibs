@@ -13,6 +13,7 @@ coroutine::Task<> coMain() {
     log::hxLog.info("状态码:", res.status);
     log::hxLog.info("拿到了 头:", res.headers);
     log::hxLog.info("拿到了 体:", res.body);
+    co_await cli.coClose();
 }
 
 int main() {
@@ -22,6 +23,7 @@ int main() {
     log::hxLog.info("状态码:", res.status);
     log::hxLog.info("拿到了 头:", res.headers);
     log::hxLog.info("拿到了 体:", res.body);
+    cli.close();
     log::hxLog.debug("end");
     return 0;
 }

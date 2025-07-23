@@ -107,12 +107,20 @@
         inline constexpr auto kInvalidLocalFd 
             = internal::__FUCK_WINDOWS_INVALID_HANDLE_VALUE{};
 
+        inline static constexpr int kReadFlag      = 1 << 1;
+        inline static constexpr int kWriteFlag     = 1 << 2;
+        inline static constexpr int kTruncFlag     = 1 << 3;
+        inline static constexpr int kCreateFlag    = 1 << 4;
+        inline static constexpr int kAppendFlag    = 1 << 5;
+        inline static constexpr int kDirectoryFlag = 1 << 6;
+        inline static constexpr int kReadWriteFlag = 1 << 7;
+        
         enum class OpenMode : int {
-            Read       = 1 << 1,
-            Write      = 1 << 2 | 1 << 3 | 1 << 4,
-            ReadWrite  = 1 << 7 | 1 << 4,
-            Append     = 1 << 2 | 1 << 5 | 1 << 4,
-            Directory  = 1 << 1 | 1 << 6,
+            Read       = kReadFlag,
+            Write      = kWriteFlag | kTruncFlag | kCreateFlag,
+            ReadWrite  = kReadWriteFlag | kCreateFlag,
+            Append     = kWriteFlag | kAppendFlag | kCreateFlag,
+            Directory  = kReadFlag | kDirectoryFlag,
         };
 
         inline OpenMode operator|(OpenMode lhs, OpenMode rhs) {
@@ -140,14 +148,6 @@
         class Win32FileParamsBuilder {
             OpenMode mode_;
             bool iocp_ = false;
-            inline static constexpr int kReadFlag    = 1 << 1;
-            inline static constexpr int kWriteFlag   = 1 << 2;
-            inline static constexpr int kTruncFlag   = 1 << 3;
-            inline static constexpr int kCreateFlag  = 1 << 4;
-            inline static constexpr int kAppendFlag  = 1 << 5;
-            inline static constexpr int kDirectoryFlag = 1 << 6;
-            inline static constexpr int kReadWriteFlag = 1 << 7;
-
         public:
             explicit Win32FileParamsBuilder(OpenMode mode) : mode_(mode) {}
 
