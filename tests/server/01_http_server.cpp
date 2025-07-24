@@ -4,21 +4,6 @@ using namespace HX;
 using namespace net;
 using namespace utils;
 
-#include <iostream>
-
-auto __init__ = []{
-    setlocale(LC_ALL, "zh_CN.UTF-8");
-    try {
-        auto cwd = std::filesystem::current_path();
-        std::cout << "当前工作路径是: " << cwd << '\n';
-        std::filesystem::current_path("../../../../");
-        std::cout << "切换到路径: " << std::filesystem::current_path() << '\n';
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Error: " << e.what() << '\n';
-    }
-    return 0;
-}();
-
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
