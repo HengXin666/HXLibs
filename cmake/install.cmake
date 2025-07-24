@@ -1,3 +1,6 @@
+# 导入第三方库
+include(cmake/includeLib.cmake)
+
 # 头文件-only库
 add_library(HXLibs INTERFACE)
 add_library(HXLibs::HXLibs ALIAS HXLibs)

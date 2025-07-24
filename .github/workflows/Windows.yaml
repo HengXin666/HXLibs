@@ -16,19 +16,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 安装工具链 (通过 vsdevcmd)
+      - name: 设置 MSVC 编译环境
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: 配置
-        run: |
-          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}" -G "Ninja" ^
-            -DCMAKE_BUILD_TYPE=${{matrix.mode}} ^
-            -DCMAKE_C_COMPILER=cl.exe ^
-            -DCMAKE_CXX_COMPILER=cl.exe
+        run: >
+          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}"
+          -G "Ninja"
+          -DCMAKE_BUILD_TYPE=${{matrix.mode}}
+          -DCMAKE_C_COMPILER=cl.exe
+          -DCMAKE_CXX_COMPILER=cl.exe
 
       - name: 构建
-        run: |
-          cmake --build "${{github.workspace}}/build"
+        run: cmake --build "${{github.workspace}}/build"
 
       - name: 测试
         run: |
