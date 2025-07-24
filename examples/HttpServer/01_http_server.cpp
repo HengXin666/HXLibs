@@ -3,12 +3,17 @@
 using namespace HX;
 using namespace net;
 
+enum class ServerStatus : uint32_t {
+    Error = 0,
+    Ok = 1
+};
+
 struct TimeLog {
     decltype(std::chrono::steady_clock::now()) t;
 
     auto before(Request&, Response&) {
         t = std::chrono::steady_clock::now();
-        return 1;
+        return ServerStatus::Ok;
     }
 
     auto after(Request& req, Response&) {
@@ -43,10 +48,10 @@ int main() {
     ) -> coroutine::Task<> {
         (void)req;
         co_await res.setStatusAndContent(
-            Status::CODE_200, "<h1>Hello</h1>" + utils::DateTimeFormat::formatWithMilli())
+            Status::CODE_200, "<h1>这是 HXLibs::net 服务器</h1>" + utils::DateTimeFormat::formatWithMilli())
                     .sendRes();
         co_return;
-    }, TimeLog{})
+    }, TimeLog{}) // <-- 面向切面编程
     .addEndpoint<GET>("/stop", [&] ENDPOINT {
         co_await res.setStatusAndContent(
             Status::CODE_200, "<h1>stop server!</h1>" + utils::DateTimeFormat::formatWithMilli())
@@ -69,8 +74,8 @@ int main() {
             警告! 需要自己在 ./static 中创建bigFile文件夹, 因为github中并没有上传, 因为太大了
         */
         auto path = req.getUniversalWildcardPath();
-        log::hxLog.debug("请求:", path, "| 断点续传:", req.getReqType() == "HEAD"sv
-            || req.getHeaders().contains("range"));
+        // log::hxLog.debug("请求:", path, "| 断点续传:", req.getReqType() == "HEAD"sv
+        //     || req.getHeaders().contains("range"));
         bool isError = false;
         try {
             co_await res.useRangeTransferFile(
@@ -82,7 +87,7 @@ int main() {
             log::hxLog.error(__FILE__, __LINE__, ":", ec.what());
             isError = true;
         }
-        if (isError) {
+        if (isError) [[unlikely]] {
             co_await res.setStatusAndContent(
                             Status::CODE_404,
                             "<h1>路径错误, 文件不存在<h1/>")

@@ -246,9 +246,9 @@ private:
         Response& res
     ) {
         if constexpr (requires {
-            { interceptors.before(req, res) } -> std::convertible_to<bool>;
+            { static_cast<bool>(interceptors.before(req, res)) } -> std::convertible_to<bool>;
         }) {
-            ok = interceptors.before(req, res);
+            ok = static_cast<bool>(interceptors.before(req, res));
         } else if constexpr (requires {
             interceptors.before(req, res);
         }) {
@@ -266,9 +266,9 @@ private:
         Response& res
     ) {
         if constexpr (requires {
-            { interceptors.after(req, res) } -> std::convertible_to<bool>;
+            { static_cast<bool>(interceptors.after(req, res)) } -> std::convertible_to<bool>;
         }) {
-            ok = interceptors.after(req, res);
+            ok = static_cast<bool>(interceptors.after(req, res));
         } else if constexpr (requires {
             interceptors.after(req, res);
         }) {

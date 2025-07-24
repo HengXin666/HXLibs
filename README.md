@@ -33,7 +33,7 @@ HXLibs 是一个现代 C++ 库. 目前集合了:
 下面是一个简单的服务端示例: ([examples/HttpServer/01_http_server.cpp](examples/HttpServer/01_http_server.cpp))
 
 ```cpp
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/Api.hpp> // 包含了 端点宏 ENDPOINT
 #include <HXLibs/log/Log.hpp>
 
 using namespace HX;
@@ -52,7 +52,7 @@ int main() {
         co_return;
     }, TimeLog{})
     .addEndpoint<GET>("/stop", [&] ENDPOINT {
-        // 关闭服务器
+        // 支持手动关闭服务器
         co_await res.setStatusAndContent(
             Status::CODE_200, "<h1>stop server!</h1>" + utils::DateTimeFormat::formatWithMilli())
                     .sendRes();
@@ -85,8 +85,63 @@ int main() {
         }
         co_return ;
     });
-    ser.syncRun(); // 启动服务器, 并且阻塞
+
+    using namespace utils;
+    ser.syncRun(16, 30_s); // 启动服务器, 并且阻塞
+                           // 其中第一个参数是线程个数, 每个线程独立维护一个 事件循环
+                           // 一个事件循环控制 该线程的所有协程
+                           // 第二个参数是超时时间, 超时会自动断开连接 (从离开端点函数时候开始计算)
+                           // 注意: 其时间类型定义在 include/HXLibs/utils/TimeNTTP.hpp 中, 并非标准库的时间
 }
+```
+
+其中, `ENDPOINT` 只是一种简写, 其被定义为:
+
+```cpp
+/**
+ * @brief 定义标准的端点, 请求使用`req`变量, 响应使用`res`变量
+ */
+#define ENDPOINT (                           \
+    [[maybe_unused]] HX::net::Request& req,  \
+    [[maybe_unused]] HX::net::Response& res  \
+) -> HX::coroutine::Task<>
+```
+
+特别的, 它还支持`面向切面`编程:
+
+```cpp
+enum class ServerStatus : uint32_t {
+    Error = 0,
+    Ok = 1
+};
+
+struct TimeLog { // 计时器切面: 端点访问时间间隔
+    decltype(std::chrono::steady_clock::now()) t;
+
+    // 进入端点之前
+    auto before(Request&, Response&) {
+        t = std::chrono::steady_clock::now();
+        return ServerStatus::Ok; // 返回值只要可以转换为 bool 类型, 就是合法的
+                                 // 如果返回 bool{false}, 那么就会终止连接 (类似于`拦截器`)
+    }
+
+    // 端点结束之后
+    auto after(Request& req, Response&) {
+        auto t1 = std::chrono::steady_clock::now();
+        auto dt = t1 - t;
+        int64_t us = std::chrono::duration_cast<std::chrono::milliseconds>(dt).count();
+        log::hxLog.info("已响应: ", req.getPureReqPath(), "花费: ", us, " us");
+        return true;
+    }
+};
+
+HttpServer ser{"127.0.0.1", "28205"};
+ser.addEndpoint<GET>("/", [] ENDPOINT {
+    co_await res.setStatusAndContent(
+        Status::CODE_200, "<h1>这是 HXLibs::net 服务器</h1>" + utils::DateTimeFormat::formatWithMilli())
+                .sendRes();
+    co_return;
+}, TimeLog{}) // <-- 面向切面编程, 可以编写任意个切面, 只需要在此传参即可
 ```
 
 #### 3.1.2 编写客户端
@@ -427,96 +482,57 @@ TEST_CASE("json 反序列化") {
 |liburing|io_uring的封装|https://github.com/axboe/liburing|
 |OpenSSL 3.3.1+|用于https的证书/握手|https://github.com/openssl/openssl|
 
-## 五、性能测试
-> `@todo` 应该更新性能测试
-
+## 五、性能测试 (服务端)
 > [!TIP]
 > - Arth Linux
 > - 13th Gen Intel(R) Core(TM) i9-13980HX
 > - RAM: 64GB
-> - cmake -> Release
+> - cmake -> Release (选项 `--config Release`)
+> - 测试代码: [benchmarks/01_server.cpp](examples/benchmarks/01_server.cpp)
+> - 编译器: Clang 19.1.7 x86_64-pc-linux-gnu
 
 - [断点续传的测试](./documents/UseRangeTransferFile.md)
 
 - http
+
 ```sh
-# build: add_definitions(-DCOMPILE_WEB_SOCKET_SERVER_MAIN)  # websocket服务端
+# 全程笔记本 CPU 最高温 85度左右, 最高核心频率都在 3.5GHz
 
-# http 没有文件读写的情况下:
-➜ wrk -t32 -c1100 http://127.0.0.1:28205/home/123/123
-Running 10s test @ http://127.0.0.1:28205/home/123/123
-  32 threads and 1100 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.48ms    2.52ms  36.60ms   86.18%
-    Req/Sec    77.98k    16.30k  241.91k    74.07%
-  23512408 requests in 10.10s, 4.51GB read
-  Socket errors: connect 99, read 0, write 0, timeout 0
-Requests/sec: 2327117.67
-Transfer/sec:    457.18MB
-
-# http 读写 static/WebSocketIndex.html
-➜ wrk -t32 -c1100 http://127.0.0.1:28205/            
+# 纯内存回复 Hello World!
+╰─ wrk -d10s -t32 -c1000 http://127.0.0.1:28205/
 Running 10s test @ http://127.0.0.1:28205/
-  32 threads and 1100 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.18ms    1.63ms  23.96ms   86.39%
-    Req/Sec    45.53k    13.36k  263.46k    89.82%
-  14176629 requests in 10.09s, 43.81GB read
-  Socket errors: connect 99, read 0, write 0, timeout 0
-Requests/sec: 1405535.24
-Transfer/sec:      4.34GB
-```
-
-- https
-```sh
-# build: add_definitions(-DHTTPS_FILE_SERVER_MAIN)  # https简单的文件服务器
-# 无文件读写, 仅仅https连接和通过会话密钥加解密通信
-➜ wrk -d10s -t32 -c1000 --timeout 5s https://127.0.0.1:28205
-Running 10s test @ https://127.0.0.1:28205
   32 threads and 1000 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.04ms    3.21ms  70.65ms   86.96%
-    Req/Sec    35.71k     6.56k   77.68k    70.85%
-  11447330 requests in 10.10s, 1.97GB read
-Requests/sec: 1133384.87
-Transfer/sec:    199.96MB
+    Latency     2.84ms   10.60ms 250.54ms   94.92%
+    Req/Sec    73.90k    59.46k  203.26k    63.13%
+  22970587 requests in 10.10s, 2.91GB read
+  Socket errors: connect 3, read 0, write 0, timeout 0
+Requests/sec: 2274737.83
+Transfer/sec:    295.03MB
 
-# (100s) 小文件读写 (static/test/github.html) 563.9kb 采用分块编码, 但是需要https加密
-➜ wrk -d100s -t32 -c1000 --timeout 5s https://127.0.0.1:28205/files/a
-Running 2m test @ https://127.0.0.1:28205/files/a
+# 涉及I/O读写小文件 (558KB)
+╰─ wrk -d10s -t32 -c1000 http://127.0.0.1:28205/html/1
+Running 10s test @ http://127.0.0.1:28205/html/1
   32 threads and 1000 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    62.20ms   35.25ms 529.39ms   72.92%
-    Req/Sec     1.01k   358.38     3.09k    65.19%
-  3203315 requests in 1.67m, 843.28GB read
-Requests/sec:  32001.06
-Transfer/sec:      8.42GB
+    Latency    43.97ms   50.57ms 502.64ms   88.57%
+    Req/Sec   599.57    282.34     1.47k    64.59%
+  189702 requests in 10.10s, 100.39GB read
+  Socket errors: connect 3, read 189702, write 0, timeout 0
+Requests/sec:  18788.05
+Transfer/sec:      9.94GB
 
-# (10s) 小文件读写 (static/test/github.html) 563.9kb 采用分块编码, 但是需要https加密
-# 并且修改了 include/HXSTL/utils/FileUtils.h 定义的:
-    /// @brief 读取文件buf数组的缓冲区大小
-    static constexpr std::size_t kBufMaxSize = 4096U * 2; # 进行了 * 2
-# 注: 这个是后来加上的测试, 也就是说其他的测试都是在`kBufMaxSize = 4096U`时候测试的, 因此这个只能和上面的形成对比
-➜ wrk -d10s -t32 -c1000 https://127.0.0.1:28205/files/a
-Running 10s test @ https://127.0.0.1:28205/files/a
-  32 threads and 1000 connections
+# 涉及I/O读写大文件 (574.6 MB) 断点续传, 但是 wrk 并不会测试; 故退化为普通异步文件读写
+╰─ wrk -d10s -t32 -c100 http://127.0.0.1:28205/mp4
+Running 10s test @ http://127.0.0.1:28205/mp4
+  32 threads and 100 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    39.14ms   23.01ms 155.74ms   67.09%
-    Req/Sec     1.60k   374.46     3.74k    69.51%
-  516854 requests in 10.10s, 136.26GB read
-Requests/sec:  51182.79
-Transfer/sec:     13.49GB
-
-# 对比 小文件读写 (static/test/github.html) 563.9kb `没有`采用分块编码, 但是需要https加密
-➜ wrk -d10s -t32 -c1000 https://127.0.0.1:28205/test
-Running 10s test @ https://127.0.0.1:28205/test
-  32 threads and 1000 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   105.38ms   41.80ms 427.97ms   69.93%
-    Req/Sec   294.52     43.68   425.00     74.12%
-  94528 requests in 10.10s, 49.77GB read
-Requests/sec:   9360.72
-Transfer/sec:      4.93GB
+    Latency   947.45ms  451.35ms   1.98s    65.85%
+    Req/Sec     2.27      2.96    20.00     90.68%
+  376 requests in 10.09s, 225.80GB read
+  Socket errors: connect 0, read 376, write 0, timeout 171 # 可能: 有些请求未在 wrk 时限内完成 → 属于"还在下载中"
+Requests/sec:     37.26   # 此为完成的请求个数, 不能通过此看效果, 因为显然有一些请求还在下载
+Transfer/sec:     22.37GB
 ```
 
 ## 六、特别感谢
