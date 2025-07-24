@@ -10,6 +10,7 @@ using namespace utils;
 using namespace std::chrono;
 
 int main() {
+    log::hxLog.info("经过代理, 进行请求~");
     // 使用代理
     HttpClient cli{HttpClientOptions{{"socks5://127.0.0.1:2334"}}};
     auto res = cli.get("http://httpbin.org/get").get();

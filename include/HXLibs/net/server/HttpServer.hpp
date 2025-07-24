@@ -164,11 +164,11 @@ private:
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     void _sync() {
-        AddressResolver addr;
-        auto entry = addr.resolve(_name, _port);
-        ++_runNum;
         try {
             coroutine::EventLoop _eventLoop;
+            AddressResolver addr;
+            auto entry = addr.resolve(_name, _port);
+            ++_runNum;
             Acceptor acceptor{_router, _eventLoop, entry};
             auto mainTask = acceptor.start<Timeout>(_isRun);
             _eventLoop.start(mainTask);
