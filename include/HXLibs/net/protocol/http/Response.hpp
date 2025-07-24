@@ -88,12 +88,6 @@ public:
         requires(requires { Timeout::Val; })
     coroutine::Task<bool> parserRes() {
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserRes()) {
-            // 八嘎!!!
-            // using _ = decltype(coroutine::AwaiterReturnValue<decltype(
-            //     std::declval<coroutine::AioTask>().linkTimeout(
-            //         std::declval<coroutine::AioTask>(),
-            //         std::declval<coroutine::TimerLoop::TimerAwaiter>()
-            // ))>());
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}

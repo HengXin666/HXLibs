@@ -66,6 +66,7 @@ TEST_CASE("initializer_list") {
 
 TEST_CASE("cnt") {
     struct Test {
+        // 注释掉的是暂时不支持反射统计的, 因为支持也没有什么用
         std::string _1;
         std::string_view _2;
         std::optional<int> _3;
@@ -93,25 +94,25 @@ TEST_CASE("cnt") {
         std::multimap<int, int> _20;
         std::unordered_multimap<int, int> _21;
 
-        std::stack<int> _22;
-        std::queue<int> _23;
-        std::priority_queue<int> _24;
+        // std::stack<int> _22;
+        // std::queue<int> _23;
+        // std::priority_queue<int> _24;
 
-        std::chrono::system_clock::time_point _25;
+        // std::chrono::system_clock::time_point _25;
         std::chrono::duration<int> _26;
 
         std::pair<int, int> _27;
         std::tuple<int, double, std::string> _28;
 
-        std::bitset<32> _29;
-        std::complex<double> _30;
+        // std::bitset<32> _29;
+        // std::complex<double> _30;
 
         int _31;
         double _32;
         bool _33;
     };
 
-    // CHECK(reflection::membersCountVal<Test> == 33);
+    CHECK(reflection::membersCountVal<Test> == 27);
 
     struct TestErr {    // 是聚合类
         std::thread _1; // 不是聚和类
@@ -246,21 +247,6 @@ TEST_CASE("编译期反射-for") {
     };
 
     log::hxLog.debug(a);
-
-    static Msvc sb{{}, {}};
-
-    constexpr auto res =
-        reflection::internal::getStaticObjPtrTuple<Msvc>();
-
-    // constexpr std::array<std::string_view, 2> arr;
-
-    constexpr auto res1 =
-        reflection::internal::getMemberName<std::get<0>(res)>();
-    constexpr auto res2 = getMemberName<std::get<0>(res)>();
-
-    log::hxLog.debug(res1, res2);
-
-    //static_assert(res2 == "_val01", "sb");
 
     reflection::forEach(a, [] <std::size_t I> (std::index_sequence<I>, 
         auto name, 

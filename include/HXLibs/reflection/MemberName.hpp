@@ -39,21 +39,21 @@ namespace internal {
 template <auto ptr>
 inline constexpr std::string_view getMemberName() {
 #if defined(_MSC_VER)
-    constexpr std::string_view func_name = __FUNCSIG__;
+    constexpr std::string_view funcName = __FUNCSIG__;
 #else
-    constexpr std::string_view func_name = __PRETTY_FUNCTION__;
+    constexpr std::string_view funcName = __PRETTY_FUNCTION__;
 #endif
 
 // 包裹一层`wrap`的原因: non-type template parameters of scalar type是在clang18才开始的,
 // 而Class types as non-type template parameters是在clang12就支持了
 #if defined(__clang__) && __clang_major__ >= 18
-    auto split = func_name.substr(0, func_name.size() - 1);
+    auto split = funcName.substr(0, funcName.size() - 1);
     return split.substr(split.find_last_of(":.") + 1);
 #elif defined(__GNUC__)
-    auto split = func_name.substr(0, func_name.rfind(");"));
+    auto split = funcName.substr(0, funcName.rfind(");"));
     return split.substr(split.find_last_of(":") + 1);
 #elif defined(_MSC_VER)
-    auto split = func_name.substr(0, func_name.rfind(">"));
+    auto split = funcName.substr(0, funcName.rfind(">"));
     return split.substr(split.rfind("->") + 2);
 #else
     static_assert(

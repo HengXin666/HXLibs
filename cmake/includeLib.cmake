@@ -1,4 +1,6 @@
 # 导入第三方库
-include(cmake/includeLib/FindUring.cmake)
+if(WIN32)
+    include(cmake/includeLib/FindUring.cmake)
+endif()
+
 # include(cmake/includeLib/FindOpenSSL.cmake)
-# include(cmake/includeLib/FindHashLib.cmake)

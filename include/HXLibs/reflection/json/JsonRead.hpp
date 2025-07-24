@@ -121,10 +121,10 @@ void skipWhiteSpace(It&& it, It&& end) {
     // ' ' ; // 32
     // '\r'; // 13
     constexpr uint64_t WhiteSpaceBitMask
-        = (1UL << static_cast<uint8_t>(' '))
-        | (1UL << static_cast<uint8_t>('\t'))
-        | (1UL << static_cast<uint8_t>('\n'))
-        | (1UL << static_cast<uint8_t>('\r'));
+        = (1ULL << static_cast<uint64_t>(' '))
+        | (1ULL << static_cast<uint64_t>('\t'))
+        | (1ULL << static_cast<uint64_t>('\n'))
+        | (1ULL << static_cast<uint64_t>('\r'));
 
     while (it != end) {
         if constexpr (LooseParsing) {
@@ -135,7 +135,7 @@ void skipWhiteSpace(It&& it, It&& end) {
             }
         } else {
             if (static_cast<uint8_t>(*it) < 33
-                && (1UL << static_cast<uint8_t>(*it) & WhiteSpaceBitMask)
+                && (1ULL << static_cast<uint64_t>(*it) & WhiteSpaceBitMask)
             ) {
                 ++it;
             } else {
@@ -308,11 +308,10 @@ struct FromJson {
                 break;
             ++it;
         }
-        if (it == end) [[unlikely]] {
-            throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
-        }
-        auto [ptr, ec] = std::from_chars(left, it, t);
-        if (ec != std::errc() || ptr != it) [[unlikely]] { // 必需保证整个str都是数字
+        // MSVC 没有迭代器隐私转换的重载, 应该使用 const char* 作为参数
+        auto [ptr, ec] = std::from_chars(&*left, &*it, t);
+        // ptr 指向与模式不匹配的第一个字符; 当所有都匹配的时候: ptr == it
+        if (ec != std::errc() || ptr != &*it) [[unlikely]] { // 必需保证整个str都是数字
             // 解析数字出错
             throw std::runtime_error{
                 "There was an error parsing the number: " + std::string{left, it}};
@@ -508,6 +507,7 @@ struct FromJson {
 
 template <typename T>
 void fromJson(T& t, std::string_view json) {
+    // 仅支持 char, 而不是 wchar
     internal::FromJson::fromJson(t, json.begin(), json.end());
 }
 

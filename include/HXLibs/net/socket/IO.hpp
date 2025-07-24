@@ -126,11 +126,11 @@ public:
 #elif defined(_WIN32)
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<coroutine::AwaiterReturnValue<
-        decltype(std::declval<coroutine::AioTask>().linkTimeout(
-            std::declval<coroutine::AioTask>(),
-            std::declval<coroutine::TimerLoop::TimerAwaiter>()
-        ))>> recvLinkTimeout(std::span<char> buf) {
+    coroutine::Task<
+        container::UninitializedNonVoidVariant<uint64_t, void> // 只能显式指定返回值
+    > recvLinkTimeout(std::span<char> buf) {                   // 因为 _AioTimeoutTask 是私有字段
+                                                               // 如果想方便, 就写好 _AioTimeoutTask.co() 的返回值
+                                                               // 为 public using, 然后直接让我们用~
         co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(
@@ -140,7 +140,6 @@ public:
 #else
     #error "Does not support the current operating system."
 #endif
-
 
     /**
      * @brief 写入数据, 内部保证完全写入

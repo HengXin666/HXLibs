@@ -112,6 +112,17 @@ consteval std::size_t findUniqueConstructibleIndex() noexcept {
     return res;
 }
 
+/**
+ * @brief T 可以从 {Args..., U} 中被构造
+ * @tparam T 
+ * @tparam U 
+ * @tparam Args 
+ */
+template <typename T, typename U, typename... Args>
+constexpr bool isConstructible = requires {
+    T {{Args{}}..., {U{}}};
+};
+
 } // namespace HX::meta
 
 #endif // !_HX_TYPE_TRAITS_H_

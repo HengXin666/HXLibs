@@ -27,7 +27,7 @@ TEST_CASE("CHashMap") {
 }
 
 TEST_CASE("json") {
-    struct A {
+    struct AJson {
         bool a;
         std::vector<std::vector<std::string>> b;
         std::unordered_map<std::string, std::string> c;
@@ -35,6 +35,7 @@ TEST_CASE("json") {
         std::shared_ptr<std::string> e;
         double f;
     } t{};
+
     reflection::fromJson(t, R"({
         "f" : -1.23E-10,
         "d" : "1433223",
