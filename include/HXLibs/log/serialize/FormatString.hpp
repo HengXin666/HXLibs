@@ -24,7 +24,6 @@
 #include <tuple>
 #include <variant>
 #include <thread>
-#include <filesystem>
 #include <format>
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
@@ -82,10 +81,9 @@ struct FormatString {
         }
     }
 
-    // 线程id 或者 路径
+    // 线程id
     template <typename T>
-        requires (std::is_same_v<T, std::thread::id>
-            || std::is_same_v<T, std::filesystem::path>)
+        requires (std::is_same_v<T, std::thread::id>)
     constexpr std::string make(T const& t) {
         return std::format("{}", t);
     }
