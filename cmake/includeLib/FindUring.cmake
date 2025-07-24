@@ -25,6 +25,6 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     else()
         # 使用项目内置的 liburing
         add_subdirectory(lib/liburing)                 # 先添加 liburing 库
-        target_link_libraries(HXLibs PUBLIC liburing) # 链接 liburing 静态库
+        target_link_libraries(HXLibs PUBLIC liburing)  # 链接 liburing 静态库
     endif()
 endif()

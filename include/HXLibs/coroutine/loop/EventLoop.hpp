@@ -213,7 +213,9 @@ struct Iocp {
             0))}
         , _runingHandle{}
         , _tasks{}
-    {}
+    {
+        platform::internal::InitWin32Api::ensure();
+    }
 
     Iocp& operator=(Iocp&&) = delete;
 

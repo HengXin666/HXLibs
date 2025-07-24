@@ -60,7 +60,7 @@
 
     namespace HX::platform::internal {
         
-    class ConnectExLoader {
+    class ConnectExLoader { // 获取到 ConnectEx 的函数指针
     public:
         using ConnectExType = BOOL (PASCAL*)(SOCKET, const sockaddr*, int, PVOID, DWORD, LPDWORD, LPOVERLAPPED);
 
@@ -100,10 +100,14 @@
         }
     };
 
-    struct InitWin32Api {
+    /**
+     * @brief 初始化 win32 api
+     * @note 此内容在 EventLoop 的构造函数中唯一初始化
+     */
+    class InitWin32Api {
         InitWin32Api() {
-            WSADATA data;
-            if (::WSAStartup(MAKEWORD(2, 2), &data)) {
+            ::WSADATA data;
+            if (::WSAStartup(MAKEWORD(2, 2), &data)) [[unlikely]] {
                 throw std::runtime_error{"WSAStartup ERROR: " + std::to_string(::GetLastError())};
             }
         }
@@ -111,9 +115,14 @@
         ~InitWin32Api() noexcept {
             ::WSACleanup();
         }
+    public:
+        /**
+         * @brief [[线程安全]] 初始化 InitWin32Api
+         */
+        inline static void ensure() {
+            thread_local static InitWin32Api _{};
+        }
     };
-
-    inline InitWin32Api __initWin32Api__{};
 
     } // namespace HX::platform::internal
 #else
