@@ -15,6 +15,7 @@ auto __init__ = []{
         log::hxLog.debug("当前工作路径是:", cwd);
         std::filesystem::current_path("../../../../static");
         log::hxLog.debug("切换到路径:", std::filesystem::current_path());
+        log::hxLog.debug(std::this_thread::get_id());
     } catch (const std::filesystem::filesystem_error& e) {
         log::hxLog.error("Error:", e.what());
     }

@@ -24,6 +24,10 @@
 #include <tuple>
 #include <variant>
 #include <thread>
+#include <filesystem>
+#if __cplusplus < 202302L
+#include <iosfwd>
+#endif
 #include <format>
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
@@ -81,11 +85,24 @@ struct FormatString {
         }
     }
 
+    // 路径
+    template <typename T>
+        requires (std::is_same_v<T, std::filesystem::path>)
+    constexpr std::string make(T const& t) {
+        return t.string();
+    }
+
     // 线程id
     template <typename T>
         requires (std::is_same_v<T, std::thread::id>)
-    constexpr std::string make(T const& t) {
-        return std::format("{}", t);
+    std::string make(T const& t) {
+#if __cplusplus >= 202302L
+            return std::format("{}", t);
+#else
+            std::ostringstream oss;
+            oss << t;
+            return oss.str();
+#endif // !__cplusplus >= 202302L
     }
 
     // bool
@@ -220,6 +237,7 @@ struct FormatString {
 
     // str相关的类型
     template <meta::StringType ST>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
     constexpr std::string make(const ST& t) {
         std::string res;
         res += '"';
