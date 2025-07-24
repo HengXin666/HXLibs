@@ -230,6 +230,12 @@ public:
         co_await file.close();
     }
 
+#if defined(__GNUC__)
+/// @todo 这里 GCC Release 下抽风了... 难道是 ub 吗? 这河里吗?
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
     /**
      * @brief 使用断点续传传输文件
      * @note 内部会智能判断客户端是否需要使用断点续传, 最坏也只是降级为普通传输 (都是分块读和发的)
@@ -295,39 +301,39 @@ public:
                     setResLine(Status::CODE_416);
                     _buildResponseLineAndHeaders();
                     co_await _io.fullySend(_sendBuf);
-                } else {
-                    uint64_t remaining = endPos - beginPos + 1;
-                    addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
-                    addHeader("Content-Type", fileType);
-                    addHeader("Content-Length", std::to_string(remaining));
-                    _buildResponseLineAndHeaders();
-                    co_await _io.fullySend(_sendBuf); // 先发一个头
-                    
-                    utils::AsyncFile file{_io};
-                    co_await file.open(filePath);
-                    try {
-                        file.setOffset(beginPos);
-                        std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
-                        // 支持偏移量
-                        while (remaining > 0) {
-                            // 读取文件
-                            std::size_t size = static_cast<std::size_t>(
-                                co_await file.read(
-                                    buf,
-                                    static_cast<uint32_t>(std::min(remaining, buf.size()))
-                                )
-                            );
-                            if (!size) [[unlikely]] {
-                                break;
-                            }
-                            co_await _io.fullySend(buf);
-                            remaining -= size;
-                        }
-                    } catch (...) {
-                        ;
-                    }
-                    co_await file.close();
+                    co_return ;
                 }
+                uint64_t remaining = endPos - beginPos + 1;
+                addHeader("Content-Range", "bytes " + begin + "-" + end + "/" + fileSizeStr);
+                addHeader("Content-Type", fileType);
+                addHeader("Content-Length", std::to_string(remaining));
+                _buildResponseLineAndHeaders();
+                co_await _io.fullySend(_sendBuf); // 先发一个头
+                
+                utils::AsyncFile file{_io};
+                co_await file.open(filePath);
+                try {
+                    file.setOffset(beginPos);
+                    std::vector<char> buf(std::min(fileSize, utils::FileUtils::kBufMaxSize));
+                    // 支持偏移量
+                    while (remaining > 0) {
+                        // 读取文件
+                        std::size_t size = static_cast<std::size_t>(
+                            co_await file.read(
+                                buf,
+                                static_cast<uint32_t>(std::min(remaining, buf.size()))
+                            )
+                        );
+                        if (!size) [[unlikely]] {
+                            break;
+                        }
+                        co_await _io.fullySend(buf);
+                        remaining -= size;
+                    }
+                } catch (...) {
+                    ;
+                }
+                co_await file.close();
             } else {
                 /*
                     HTTP/1.1 206 Partial Content\r\n
@@ -441,6 +447,10 @@ public:
             co_await file.close();
         }
     }
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
     // ===== ↑服务端使用の更加人性化API↑ =====
 

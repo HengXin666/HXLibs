@@ -1,0 +1,36 @@
+name: Build Test (From Arch Linux [[Clang]])
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  Arch-Clang:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    strategy:
+      matrix:
+        mode: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v3
+      - name: 安装环境
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm gcc clang cmake ninja pkgconf openssl
+      - name: 确认工具版本
+        run: |
+          g++ --version
+          clang++ --version
+          openssl version
+      - name: Configure
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.mode }}
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure -C ${{ matrix.mode }}

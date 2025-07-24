@@ -1,4 +1,4 @@
-name: Build Test (From Windows MSVC)
+name: Build Test (From Windows [[MSVC]])
 
 on:
   push:
