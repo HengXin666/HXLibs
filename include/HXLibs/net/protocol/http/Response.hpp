@@ -230,7 +230,7 @@ public:
         co_await file.close();
     }
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 /// @todo 这里 GCC Release 下抽风了... 难道是 ub 吗? 这河里吗?
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
@@ -448,7 +448,7 @@ public:
         }
     }
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 

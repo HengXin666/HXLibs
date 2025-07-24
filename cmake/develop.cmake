@@ -23,11 +23,10 @@ if(ENABLE_SANITIZER AND NOT MSVC)
     endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 20) # 设置C++标准为C++20
-set(CMAKE_C_STANDARD 11)   # 设置C语言标准为C11
+set(CMAKE_CXX_STANDARD 20)          # 设置C++标准为C++20
+set(CMAKE_C_STANDARD 11)            # 设置C语言标准为C11
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # 指定C++标准是必需的
-set(CMAKE_CXX_EXTENSIONS OFF) # 禁用编译器的扩展
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines") # 显式启动C++协程
+set(CMAKE_CXX_EXTENSIONS OFF)       # 禁用编译器的扩展
 
 # 警告
 option(ENABLE_WARNING "Enable warning for all project" ON)
@@ -36,8 +35,8 @@ if(ENABLE_WARNING) # 如果用户在配置时启用了警告选项
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20")
         message("启动 c++20")
         # 为 MSVC 编译器添加警告选项
-        list(APPEND MSVC_OPTIONS "/W3") # 启用中等级别警告 (MSVC 默认支持 /W1 ~ /W4, /W3 是常用的平衡选项)
-        if(MSVC_VERSION GREATER 1900) # 如果是 MSVC 2015 或更高版本
+        list(APPEND MSVC_OPTIONS "/W3")     # 启用中等级别警告 (MSVC 默认支持 /W1 ~ /W4, /W3 是常用的平衡选项)
+        if(MSVC_VERSION GREATER 1900)       # 如果是 MSVC 2015 或更高版本
             list(APPEND MSVC_OPTIONS "/WX") # 将所有警告视为错误
         endif()
         # 使用utf-8编译
