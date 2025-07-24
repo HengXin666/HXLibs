@@ -11,26 +11,34 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
+      options: --privileged
     strategy:
       matrix:
         mode: [Release, Debug]
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: 安装环境
         run: |
           pacman -Syu --noconfirm
-          pacman -S --needed --noconfirm gcc clang cmake ninja pkgconf openssl
+          pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl
+
       - name: 确认工具版本
         run: |
           g++ --version
           clang++ --version
           openssl version
+
       - name: Configure
         run: |
-          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.mode }}
+          cmake -B $(pwd)/build -S $(pwd) -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{matrix.mode}}
       - name: Build
-        run: cmake --build build
+        run: |
+          cmake --build $(pwd)/build
+
       - name: Test
         run: |
-          cd build
-          ctest --output-on-failure -C ${{ matrix.mode }}
+          cd ./build
+          ctest -T test
