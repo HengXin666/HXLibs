@@ -92,13 +92,24 @@ struct SetObjIdx {
     constexpr SetObjIdx() = default;
 };
 
+template <std::size_t... Idx>
+constexpr auto makeVariantSetObjIdxs(std::index_sequence<Idx...>) {
+    /** 
+     * GCC Hock, 在 gcc/x86_64-pc-linux-gnu/15.1.1/lto-wrapper
+     * gcc 版本 15.1.1 20250425 (GCC) 中, 不能使用:
+     * using CHashMapValType = decltype([] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+     *     return std::variant<SetObjIdx<Idx>...>{};
+     * }(std::make_index_sequence<N>{}));
+     * 否则编译器会崩溃...
+     */
+    return std::variant<SetObjIdx<Idx>...>{};
+}
+
 template <typename T>
 constexpr auto makeNameToIdxVariantHashMap() {
     constexpr auto N = membersCountVal<T>;
     constexpr auto nameArr = getMembersNames<T>();
-    using CHashMapValType = decltype([] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-        return std::variant<SetObjIdx<Idx>...>{};
-    }(std::make_index_sequence<N>{}));
+    using CHashMapValType = decltype(makeVariantSetObjIdxs(std::make_index_sequence<N>{}));
     return container::CHashMap<std::string_view, CHashMapValType, N>{
         [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
             return std::array<std::pair<std::string_view, CHashMapValType>, N>{{

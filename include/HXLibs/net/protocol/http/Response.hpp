@@ -643,6 +643,7 @@ private:
                     }
                     buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
                 }
+                [[fallthrough]];
             }
             case 0x01: { // 响应头
                 /**
@@ -672,6 +673,7 @@ private:
                     }
                     buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
                 }
+                [[fallthrough]];
             }
             case 0x03: { // 响应体
                 if (_responseHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体

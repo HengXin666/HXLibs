@@ -251,16 +251,16 @@ struct SHA1Context {
                 block[i] = 0;
         }
     
-        /* Append total_bits, split this uint64_t into two uint32_t */
-        block[BLOCK_INTS - 1] = total_bits & 0xffffffff;
-        block[BLOCK_INTS - 2] = (total_bits >> 32);
+        /* 附加total_bits, 将此uint64_t拆分为两个uint32_t */
+        block[BLOCK_INTS - 1] = static_cast<uint32_t>(total_bits & 0xFFFF'FFFFU);
+        block[BLOCK_INTS - 2] = static_cast<uint32_t>(total_bits >> 32U);
         sha1::transform(_digest, block);
-        for (std::size_t i = 0; i < sha1::DIGEST_BYTES / 4; i++) {
+        for (std::size_t i = 0; i < sha1::DIGEST_BYTES / 4; ++i) {
             std::uint8_t* d = reinterpret_cast<std::uint8_t*>(digest) + 4 * i;
-            d[3] = _digest[i] & 0xff;
-            d[2] = (_digest[i] >> 8) & 0xff;
-            d[1] = (_digest[i] >> 16) & 0xff;
-            d[0] = (_digest[i] >> 24) & 0xff;
+            d[3] = static_cast<uint8_t>(_digest[i] >>  0) & 0xFF;
+            d[2] = static_cast<uint8_t>(_digest[i] >>  8) & 0xFF;
+            d[1] = static_cast<uint8_t>(_digest[i] >> 16) & 0xFF;
+            d[0] = static_cast<uint8_t>(_digest[i] >> 24) & 0xFF;
         }
     }
 };
