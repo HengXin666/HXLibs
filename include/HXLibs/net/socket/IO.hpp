@@ -189,7 +189,7 @@ public:
             }
             auto sent = static_cast<std::size_t>(
                 HXLIBS_CHECK_EVENT_LOOP(
-                    res.template get<0, exception::ExceptionMode::Nothrow>()
+                    (res.template get<0, exception::ExceptionMode::Nothrow>())
             ));
 #if 0 // 虽然但是, 有问题再开启
             if (sent == 0) [[unlikely]] {

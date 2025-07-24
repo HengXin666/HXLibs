@@ -1,5 +1,5 @@
 if (IO_URING_DIRECT)
-    target_compile_definitions(HXLibs PUBLIC IO_URING_DIRECT)
+    target_compile_definitions(HXLibs INTERFACE IO_URING_DIRECT)
 endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -20,11 +20,11 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
         endif()
         
         # 链接系统 liburing
-        target_link_libraries(HXLibs PUBLIC "${LIBURING_LIBRARIES}")
-        target_include_directories(HXLibs PUBLIC "${LIBURING_INCLUDE_DIRS}")
+        target_link_libraries(HXLibs INTERFACE "${LIBURING_LIBRARIES}")
+        target_include_directories(HXLibs INTERFACE "${LIBURING_INCLUDE_DIRS}")
     else()
         # 使用项目内置的 liburing
         add_subdirectory(lib/liburing)                 # 先添加 liburing 库
-        target_link_libraries(HXLibs PUBLIC liburing)  # 链接 liburing 静态库
+        target_link_libraries(HXLibs INTERFACE liburing)  # 链接 liburing 静态库
     endif()
 endif()

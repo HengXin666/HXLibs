@@ -31,7 +31,6 @@
 #include <HXLibs/container/ThreadPool.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
-#include <HXLibs/platform/defined.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
 
@@ -170,8 +169,7 @@ public:
      * @param contentType 正文类型 
      * @return coroutine::Task<ResponseData> 响应数据
      */
-    template <HttpMethod Method, meta::StringType Str = std::string,
-              platform::OsType NowOsType = platform::NowOS>
+    template <HttpMethod Method, meta::StringType Str = std::string>
     coroutine::Task<ResponseData> coRequst(
         std::string url,
         HeaderHashMap headers = {},
@@ -188,10 +186,10 @@ public:
                 ans->setData(co_await sendReq<Method>(
                     url, std::move(body), contentType)
                 );
-                if constexpr (NowOsType == platform::OsType::Windows) {
+#if defined(_WIN32)
                     // 主动泄漏 fd, 以退出事件循环 (仅 IOCP)
                     _eventLoop.getEventDrive().leak(_cliFd);
-                }
+#endif // !defined(_WIN32)
             } catch (...) {
                 ans->unhandledException();
             }
@@ -228,7 +226,6 @@ public:
      * @tparam NowOsType 
      * @return coroutine::Task<> 
      */
-    template <platform::OsType NowOsType = platform::NowOS>
     coroutine::Task<> coClose() {
         if (_cliFd == kInvalidSocket) {
             co_return;
@@ -237,10 +234,10 @@ public:
             co_await _eventLoop.makeAioTask().prepClose(_cliFd);
             _cliFd = kInvalidSocket;
         };
-        if constexpr (NowOsType == platform::OsType::Windows) {
+#if defined(_WIN32)
             // 主动回复 fd, 以维持事件循环 (仅 IOCP)
             _eventLoop.getEventDrive().heal(_cliFd);
-        }
+#endif // !defined(_WIN32)
         auto taskMain = task();
         _eventLoop.start(taskMain);
         _eventLoop.run();

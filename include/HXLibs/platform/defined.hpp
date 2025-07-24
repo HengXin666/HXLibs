@@ -23,6 +23,7 @@
 /**
  * @brief 提供一些编译期常量, 以适配不同的平台 (完全就是为了低贱的win)
  * @note 尽可能的不引入宏!
+ * @todo 目前这个毫无作用
  */
 
 namespace HX::platform {

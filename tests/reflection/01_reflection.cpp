@@ -48,14 +48,16 @@ TEST_CASE("initializer_list") {
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <memory>
+#include <chrono>
+#include <thread>
+
+#if 0
 #include <stack>
 #include <queue>
 #include <bitset>
-#include <memory>
-#include <chrono>
 #include <complex>
-
-#include <thread>
+#endif
 
 #if 0
 #include <filesystem>
@@ -228,11 +230,6 @@ TEST_CASE("编译期反射名称") {
 
     for (std::size_t i = 0; i < reflection::membersCountVal<ANames>; ++i)
         CHECK(aName[i] == "_name0" + std::to_string(i + 1));
-}
-
-template <auto ptr>
-inline constexpr std::string_view getMemberName() {
-    return __FUNCSIG__;
 }
 
 TEST_CASE("编译期反射-for") {
