@@ -172,7 +172,7 @@ struct ReflectionVisitor<T, N> {                            \
 /**
  * @brief 展开工具宏, 然后 #undef 掉
  */
-#include <HXLibs/reflection/MemberMacro.hpp>
+#include <HXLibs/reflection/tools/MemberMacro.hpp>
 
 /**
  * @brief 获取聚合类T的`tuple<成员指针...>`
@@ -181,7 +181,11 @@ struct ReflectionVisitor<T, N> {                            \
  */
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
-    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit();
+    if constexpr (reflection::HasReflectionCount<T>) {
+        return T::visit();
+    } else {
+        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit();
+    }
 }
 
 /**

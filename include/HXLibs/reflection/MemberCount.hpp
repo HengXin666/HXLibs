@@ -21,6 +21,7 @@
 #define _HX_MEMBER_COUNT_H_
 
 #include <HXLibs/meta/TypeTraits.hpp>
+#include <HXLibs/reflection/ReflectionTypes.hpp>
 
 namespace HX::reflection {
 
@@ -72,6 +73,8 @@ template <typename T, typename... Args>
 inline consteval std::size_t membersCount() {
     if constexpr (std::is_aggregate_v<T>) {
         return membersCountImpl<T>();
+    } else if constexpr (reflection::HasReflectionCount<T>) {
+        return T::membersCount();
     } else {
         // 暂时不支持反射成员个数
         static_assert(!sizeof(T),

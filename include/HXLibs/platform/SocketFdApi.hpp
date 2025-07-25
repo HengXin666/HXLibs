@@ -35,7 +35,7 @@
         #define NOMINMAX
     #endif
     #include <WinSock2.h>
-    // #include <Windows.h>
+
     namespace HX::platform {
         using SocketFdType = ::SOCKET;
         inline constexpr SocketFdType kInvalidSocket = INVALID_SOCKET;

@@ -858,6 +858,7 @@ int WSASend(
                 it != runingHandleRef.end()
             ) [[unlikely]] {
                 runingHandleRef.erase(it);
+                // @todo 应该返回一个 -err
                 throw std::runtime_error{
                     "closesocket ERROR: " + std::to_string(::WSAGetLastError())};
             }
@@ -875,13 +876,13 @@ int WSASend(
      * @param pollMask 需要监测的poll事件 (如:`POLLIN`)
      * @return AioTask&& 
      */
-    [[nodiscard]] AioTask&& prepPollAdd(
-        int fd, 
-        unsigned int pollMask
-    ) && {
-        // ::io_uring_prep_poll_add(_sqe, fd, pollMask);
-        return std::move(*this);
-    }
+    // [[nodiscard]] AioTask&& prepPollAdd(
+    //     int fd, 
+    //     unsigned int pollMask
+    // ) && {
+    //     // ::io_uring_prep_poll_add(_sqe, fd, pollMask);
+    //     return std::move(*this);
+    // }
 
     /**
      * @brief 创建未链接的超时操作
