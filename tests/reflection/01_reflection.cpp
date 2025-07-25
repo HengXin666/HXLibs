@@ -269,6 +269,7 @@ struct HXTest {
 private:
     [[maybe_unused]] int a{};
     [[maybe_unused]] std::string b{};
+    [[maybe_unused]] double c{};
 public:
     HX_REFL(a, b)
 };

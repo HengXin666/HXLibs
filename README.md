@@ -374,7 +374,60 @@ reflection::forEach(obj, [&] <std::size_t I> (
 });
 ```
 
-#### 3.3.2 基于反射的Json序列化与反序列化
+#### 3.3.2 使用宏进行反射
+
+在 `HXLibs/reflection/ReflectionMacro.hpp` 中, 我们支持用户使用宏来生成反射代码, 它可以反射私有字段:
+
+> `@todo`
+> - 类外反射
+> - 字段支持通过宏来重命名
+
+```cpp
+#include <HXLibs/reflection/ReflectionMacro.hpp> // 头文件
+
+struct HXTest {
+private:
+    int a{};
+    std::string b{};
+    double c{};
+public:
+    HX_REFL(a, b) // 指定 反射 a, b, 而可以不反射 c
+};
+
+#include <HXLibs/reflection/json/JsonRead.hpp>
+#include <HXLibs/reflection/json/JsonWrite.hpp>
+
+TEST_CASE("宏反射内私有成员") {
+    using namespace HX;
+    [[maybe_unused]] constexpr auto N = reflection::membersCountVal<HXTest>;
+    constexpr auto name = reflection::getMembersNames<HXTest>();
+    static_assert(name[0] == "a", ""); // 依旧是编译期反射
+    
+    HXTest t{};
+    [[maybe_unused]] auto tr = reflection::internal::getObjTie(t);
+    [[maybe_unused]] auto res = HXTest::visit(t);
+    [[maybe_unused]] auto cnt = reflection::HasReflectionCount<HXTest const&>;
+
+    // 同样支持 forEach
+    reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        if constexpr (Idx == 0) {
+            v = 2233;
+        } else if constexpr (Idx == 1) {
+            v = "666";
+        }
+        log::hxLog.info(Idx, name, v);
+    });
+
+    // 只要注册了, 就可以随意使用 json / log 以反射的实现 (前提是该字段类型是支持的)
+    HXTest newT;
+    std::string s;
+    reflection::toJson(t, s);
+    reflection::fromJson(newT, s);
+    log::hxLog.info(newT);
+}
+```
+
+#### 3.3.3 基于反射的Json序列化与反序列化
 
 ```cpp
 #include <HXLibs/reflection/json/JsonRead.hpp>

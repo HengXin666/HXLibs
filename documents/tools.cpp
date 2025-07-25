@@ -20,9 +20,15 @@ constexpr std::string makeF0ToFn(std::string const& l, std::string const& r) {
 
 #include <HXLibs/reflection/ReflectionMacro.hpp>
 
-#if 0
+/*
+    本程序为 反射宏 的一键生成工具
+    日后可以考虑使用宏的递归展开实现不需要工具的版本
+    https://godbolt.org/z/4GK796xPr
+    不到 10 行的宏, 轻轻松松支持 2k 个参数
+*/
 
 int main() {
+#if 0
     constexpr auto N = 125U;
     [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
         log::hxLog.debug((const char *)(std::to_string((N - Idx)) + ",").data()...);
