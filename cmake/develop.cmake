@@ -36,6 +36,8 @@ if(ENABLE_WARNING) # 如果用户在配置时启用了警告选项
         message("启动 c++20")
         # 为 MSVC 编译器添加警告选项
         list(APPEND MSVC_OPTIONS "/W3")     # 启用中等级别警告 (MSVC 默认支持 /W1 ~ /W4, /W3 是常用的平衡选项)
+        # 支持 __VA_OPT__ 宏, 减少移植性问题
+        list(APPEND MSVC_OPTIONS "/Zc:preprocessor")
         if(MSVC_VERSION GREATER 1900)       # 如果是 MSVC 2015 或更高版本
             list(APPEND MSVC_OPTIONS "/WX") # 将所有警告视为错误
         endif()
