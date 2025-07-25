@@ -21,16 +21,16 @@ constexpr std::string makeF0ToFn(std::string const& l, std::string const& r) {
 #include <HXLibs/reflection/ReflectionMacro.hpp>
 
 int main() {
-#if 0
-    constexpr auto N = 256U;
+    constexpr auto N = 125U;
     [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-        log::hxLog.debug((const char *)(std::to_string((255 - Idx)) + ",").data()...);
+        log::hxLog.debug((const char *)(std::to_string((N - Idx)) + ",").data()...);
     }(std::make_index_sequence<N>{});
 
     [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
         log::hxLog.debug((const char *)("f" + std::to_string(Idx) + ",").data()...);
     }(std::make_index_sequence<N>{});
-/*
+#if 0
+    /*
 #define __HX_PP_FOR_IMPL_1(__FUNC__, f1) __FUNC__(f1)
 #define __HX_PP_FOR_IMPL_2(__FUNC__, f1, f2) __FUNC__(f1) __FUNC__(f2)
 */
