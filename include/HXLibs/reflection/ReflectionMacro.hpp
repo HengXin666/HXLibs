@@ -125,7 +125,7 @@ decltype(__NAME__) __NAME__;
 
 /// @brief 把 ... 展开为 t.f0, t.f1, t.f2, ... 的形式
 #define __HX_REFL_GET_MEMBERS__(__ONE__, ...) \
-t.__ONE__ __HX_REFL_GET_MEMBER__(__VA_ARGS__)
+t.__ONE__ __VA_OPT__(__HX_REFL_GET_MEMBER__(__VA_ARGS__))
 
 
 #if defined(__clang__)
