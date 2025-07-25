@@ -18,6 +18,8 @@ constexpr std::string makeF0ToFn(std::string const& l, std::string const& r) {
     }
 }
 
+#include <HXLibs/reflection/ReflectionMacro.hpp>
+
 int main() {
 #if 0
     constexpr auto N = 256U;

@@ -196,7 +196,11 @@ inline constexpr auto getStaticObjPtrTuple() {
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
-    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+    if constexpr (reflection::HasReflectionCount<T>) {
+        return T::visit(obj);
+    } else {
+        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+    }
 }
 
 /**
@@ -207,7 +211,11 @@ inline constexpr auto getObjTie(T& obj) {
  */
 template <typename T>
 inline constexpr auto getObjTie(T const& obj) {
-    return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+    if constexpr (reflection::HasReflectionCount<T>) {
+        return T::visit(obj);
+    } else {
+        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+    }
 }
 
 /**
@@ -232,10 +240,11 @@ inline constexpr void staticForTupleSetArr(Arr& arr, std::index_sequence<Is...>)
  */
 template <typename T>
 inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersNames() {
-    constexpr auto Cnt = membersCountVal<T>;
+    using U = meta::remove_cvref_t<T>;
+    constexpr auto Cnt = membersCountVal<U>;
     std::array<std::string_view, Cnt> arr;
 #if __cplusplus >= 202002L && (!defined(_MSC_VER) || _MSC_VER >= 1930)
-    constexpr auto tp = internal::getStaticObjPtrTuple<T>(); // 获取 tuple<成员指针...>
+    constexpr auto tp = internal::getStaticObjPtrTuple<U>(); // 获取 tuple<成员指针...>
     [&] <std::size_t... Is> (std::index_sequence<Is...>) {
         ((arr[Is] = internal::getMemberName<std::get<Is>(tp)>()), ...);
     } (std::make_index_sequence<Cnt>{});

@@ -20,7 +20,7 @@
 #ifndef _HX_REFLECTION_TYPES_H_
 #define _HX_REFLECTION_TYPES_H_
 
-#include <type_traits>
+#include <HXLibs/meta/TypeTraits.hpp>
 
 namespace HX::reflection {
 
@@ -43,7 +43,17 @@ struct HasReflectionVisit : std::false_type {};
  * @tparam T 
  */
 template <typename T>
-constexpr bool HasReflectionCount = internal::HasInsideReflection<T>::value;
+constexpr bool HasReflectionCount = internal::HasInsideReflection<meta::remove_cvref_t<T>>::value;
+
+/**
+ * @brief 是否为HXLibs可反射类型
+ * @tparam T 
+ */
+template <typename T>
+constexpr bool IsReflective = (std::is_aggregate_v<T> 
+             && !std::is_same_v<T, std::monostate>
+             && !meta::is_std_array_v<T>)
+             || HasReflectionCount<T>;
 
 } // namespace HX::reflection
 

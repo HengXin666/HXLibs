@@ -27,6 +27,7 @@
  */
 namespace HX::reflection { }
 
+/* 宏 FOR - 辅助宏 */
 #include <HXLibs/reflection/tools/ReflectionMacroImpl.hpp>
 
 /* 计算成员个数 辅助宏 */
@@ -48,48 +49,39 @@ __HX_COUNT_ARGS_IMPL__(__VA_OPT__(, __VA_ARGS__), 255, 254, 253, 252, 251, 250, 
 #define HX_PP_FOR(__FUNC__, ...) \
 __EXPAND__(__HX_PP_FOR_IMPL_, HX_COUNT_ARGS(__VA_ARGS__))(__FUNC__ __VA_OPT__(, __VA_ARGS__))
 
+/// @brief 声明 __NAME__
 #define __HX_REFL_STRUCT_MEMBER__(__NAME__) \
 decltype(__NAME__) __NAME__;
 
-#define __HX_REFL_GET_MEMBER(__NAME__) \
-t.__NAME__,
+/// @brief 前置逗号获取成员变量
+#define __HX_REFL_GET_MEMBER__(__NAME__) , t.__NAME__
 
-#define __GX_REFL_FK(__NOW_COUNT__, ...) \
-__EXPAND__(__HX_PP_FOR_IMPL_, __NOW_COUNT__)(__VA_ARGS__)
+/// @brief 把 ... 展开为 t.f0, t.f1, t.f2, ... 的形式
+#define __HX_REFL_GET_MEMBERS__(__ONE__, ...) \
+t.__ONE__ __HX_REFL_GET_MEMBER__(__VA_ARGS__)
 
 /**
- * @brief 反射成员
+ * @brief 反射类内部私有成员, 
+ * @param ... 需要反射的字段名称
  */
-#define HX_REFL(...) \
-inline static constexpr std::size_t membersCount() { \
-    return static_cast<std::size_t>(HX_COUNT_ARGS(__VA_ARGS__)); \
-} \
-inline constexpr static auto visit() { \
-    struct __internal__ { \
-        HX_PP_FOR(__HX_REFL_STRUCT_MEMBER__, __VA_ARGS__) \
-    }; \
-    return HX::reflection::internal::ReflectionVisitor<__internal__, membersCount()>::visit(); \
-} 
-// \
-// template <typename T> \
-// inline constexpr static auto visit(T&) { \
-//     return std::tie(__GX_REFL_FK(HX_COUNT_ARGS(__VA_ARGS__) , HX_PP_FOR(__HX_REFL_GET_MEMBER, __VA_ARGS__))); \
-// }
-
-struct HXTest {
-private:
-    [[maybe_unused]] int a;
-    [[maybe_unused]] char* b;
-public:
-    HX_REFL(a, b)
-};
-
-inline auto __test__ = [] {
-    using namespace HX;
-    constexpr auto N = reflection::membersCountVal<HXTest>;
-    constexpr auto name = reflection::getMembersNames<HXTest>();
-    static_assert(name[0] == "a", "");
-    return N;
-}();
+#define HX_REFL(...)                                                           \
+    inline static constexpr std::size_t membersCount() {                       \
+        return static_cast<std::size_t>(HX_COUNT_ARGS(__VA_ARGS__));           \
+    }                                                                          \
+    inline constexpr static auto visit() {                                     \
+        struct __internal__ {                                                  \
+            HX_PP_FOR(__HX_REFL_STRUCT_MEMBER__, __VA_ARGS__)                  \
+        };                                                                     \
+        return HX::reflection::internal::ReflectionVisitor<                    \
+            __internal__, membersCount()>::visit();                            \
+    }                                                                          \
+    template <typename T>                                                      \
+    inline constexpr static auto visit(T& t) {                                 \
+        return std::tie(__HX_REFL_GET_MEMBERS__(__VA_ARGS__));                 \
+    }                                                                          \
+    template <typename T>                                                      \
+    inline constexpr static auto visit(T const& t) {                           \
+        return std::tie(__HX_REFL_GET_MEMBERS__(__VA_ARGS__));                 \
+    }
 
 #endif // !_HX_REFLECTION_MACRO_H_

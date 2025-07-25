@@ -463,9 +463,7 @@ struct FromJson {
     
     // 主模板 聚合类
     template <typename T, typename It>
-        requires(std::is_aggregate_v<T> 
-             && !std::is_same_v<T, std::monostate>
-             && !meta::is_std_array_v<T>)
+        requires(reflection::IsReflective<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         // 无需考虑根是数组的情况, 因为我们是反射库!
         
@@ -499,6 +497,12 @@ struct FromJson {
                         // 不支持C风格数组, 至少替换成 std::array
                         static_assert(!sizeof(T), "Not supporting C-style arrays, "
                                                   "at least replace with std::array");
+                    } else if constexpr (std::is_pointer_v<meta::remove_cvref_t<decltype(
+                        std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp)
+                    )>>) {
+                        // 不支持C风格裸指针, 至少替换成 智能指针
+                        static_assert(!sizeof(T), "Does not support C-style bare pointers, "
+                                                  "at least replace with smart pointers");
                     }
                     fromJson(std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp), it, end);
                 }, nameHash.at(key));

@@ -262,3 +262,45 @@ TEST_CASE("编译期反射-for") {
 
     log::hxLog.debug(a);
 }
+
+#include <HXLibs/reflection/ReflectionMacro.hpp>
+
+struct HXTest {
+private:
+    [[maybe_unused]] int a{};
+    [[maybe_unused]] std::string b{};
+public:
+    HX_REFL(a, b)
+};
+
+#include <HXLibs/reflection/json/JsonRead.hpp>
+#include <HXLibs/reflection/json/JsonWrite.hpp>
+
+TEST_CASE("宏反射内私有成员") {
+    using namespace HX;
+    [[maybe_unused]] constexpr auto N = reflection::membersCountVal<HXTest>;
+    constexpr auto name = reflection::getMembersNames<HXTest>();
+    [[maybe_unused]] HXTest t{};
+    static_assert(name[0] == "a", "");
+    [[maybe_unused]] auto tr = reflection::internal::getObjTie(t);
+
+
+    [[maybe_unused]] auto res = HXTest::visit(t);
+
+    [[maybe_unused]] auto asda = reflection::HasReflectionCount<HXTest const&>;
+
+    reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        if constexpr (Idx == 0) {
+            v = 2233;
+        } else if constexpr (Idx == 1) {
+            v = "666";
+        }
+        log::hxLog.info(Idx, name, v);
+    });
+
+    HXTest newT;
+    std::string s;
+    reflection::toJson(t, s);
+    reflection::fromJson(newT, s);
+    log::hxLog.info(newT);
+}
