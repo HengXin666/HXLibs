@@ -380,7 +380,6 @@ reflection::forEach(obj, [&] <std::size_t I> (
 
 > `@todo`
 > - 类外反射
-> - 字段支持通过宏来重命名a
 
 ```cpp
 #include <HXLibs/reflection/ReflectionMacro.hpp> // 头文件
@@ -421,6 +420,50 @@ TEST_CASE("宏反射内私有成员") {
     // 只要注册了, 就可以随意使用 json / log 以反射的实现 (前提是该字段类型是支持的)
     HXTest newT;
     std::string s;
+    reflection::toJson(t, s);
+    reflection::fromJson(newT, s);
+    log::hxLog.info(newT);
+}
+```
+
+特别的, 支持起 **别名**:
+
+```cpp
+struct HXTest_2 {
+private:
+    [[maybe_unused]] int a{};
+    [[maybe_unused]] std::string b{};
+    [[maybe_unused]] double c{};
+public:
+    // 支持起别名的反射宏
+    HX_REFL_AS(
+        // 格式: 原变量名, 别名
+        a, int_a, 
+        c, double_c
+    )   // 注意: 格式一定要统一, 必须为偶数个参数, 顺序对应~
+};
+
+TEST_CASE("宏反射内私有成员 支持别名") {
+    using namespace HX;
+    [[maybe_unused]] constexpr auto N = reflection::membersCountVal<HXTest_2>;
+    constexpr auto name = reflection::getMembersNames<HXTest_2>();
+    [[maybe_unused]] HXTest_2 t{};
+    // 此处是别名!
+    static_assert(name[0] == "int_a", "");
+    [[maybe_unused]] auto tr = reflection::internal::getObjTie(t);
+
+    HXTest_2 newT;
+    std::string s;
+    log::hxLog.info(t);
+    reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        if constexpr (Idx == 0) {
+            v = 666;
+        } else if constexpr (Idx == 1) {
+            v = 0.721;
+        }
+        log::hxLog.info(Idx, name, v);
+    });
+    // 依旧支持序列化和反序列化、log等等, 均以 别名 使用
     reflection::toJson(t, s);
     reflection::fromJson(newT, s);
     log::hxLog.info(newT);

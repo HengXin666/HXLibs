@@ -305,3 +305,40 @@ TEST_CASE("宏反射内私有成员") {
     reflection::fromJson(newT, s);
     log::hxLog.info(newT);
 }
+
+struct HXTest_2 {
+private:
+    [[maybe_unused]] int a{};
+    [[maybe_unused]] std::string b{};
+    [[maybe_unused]] double c{};
+public:
+    HX_REFL_AS(
+        a, int_a, 
+        c, double_c
+    )
+};
+
+TEST_CASE("宏反射内私有成员 支持别名") {
+    using namespace HX;
+    [[maybe_unused]] constexpr auto N = reflection::membersCountVal<HXTest_2>;
+    constexpr auto name = reflection::getMembersNames<HXTest_2>();
+    [[maybe_unused]] HXTest_2 t{};
+    // 此处是别名!
+    static_assert(name[0] == "int_a", "");
+    [[maybe_unused]] auto tr = reflection::internal::getObjTie(t);
+
+    HXTest_2 newT;
+    std::string s;
+    log::hxLog.info(t);
+    reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        if constexpr (Idx == 0) {
+            v = 666;
+        } else if constexpr (Idx == 1) {
+            v = 0.721;
+        }
+        log::hxLog.info(Idx, name, v);
+    });
+    reflection::toJson(t, s);
+    reflection::fromJson(newT, s);
+    log::hxLog.info(newT);
+}
