@@ -380,7 +380,7 @@ reflection::forEach(obj, [&] <std::size_t I> (
 
 > `@todo`
 > - 类外反射
-> - 字段支持通过宏来重命名
+> - 字段支持通过宏来重命名a
 
 ```cpp
 #include <HXLibs/reflection/ReflectionMacro.hpp> // 头文件
