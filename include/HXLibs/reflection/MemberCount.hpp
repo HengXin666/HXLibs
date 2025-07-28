@@ -73,9 +73,11 @@ template <typename T, typename... Args>
 inline consteval std::size_t membersCount() {
     if constexpr (std::is_aggregate_v<T>) {
         return membersCountImpl<T>();
-    } else if constexpr (reflection::HasReflectionCount<T>) {
+    } else if constexpr (reflection::HasInsideReflection<T>) {
         return T::membersCount();
-    } else {
+    } else if constexpr (reflection::HasOutReflection<T>) {
+        return _membersCount(std::declval<T>());
+    }else {
         // 暂时不支持反射成员个数
         static_assert(!sizeof(T),
             "reflection member count is not currently supported");

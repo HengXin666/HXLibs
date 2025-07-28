@@ -288,7 +288,7 @@ TEST_CASE("宏反射内私有成员") {
 
     [[maybe_unused]] auto res = HXTest::visit(t);
 
-    [[maybe_unused]] auto asda = reflection::HasReflectionCount<HXTest const&>;
+    [[maybe_unused]] auto asda = reflection::HasInsideReflection<HXTest const&>;
 
     reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
         if constexpr (Idx == 0) {
@@ -319,6 +319,10 @@ public:
 };
 
 TEST_CASE("宏反射内私有成员 支持别名") {
+    static_assert(
+        reflection::HasInsideReflection<HXTest_2> 
+        != reflection::HasOutReflection<HXTest_2>
+        && reflection::IsReflective<HXTest_2>, "");
     using namespace HX;
     [[maybe_unused]] constexpr auto N = reflection::membersCountVal<HXTest_2>;
     constexpr auto name = reflection::getMembersNames<HXTest_2>();
@@ -340,5 +344,111 @@ TEST_CASE("宏反射内私有成员 支持别名") {
     });
     reflection::toJson(t, s);
     reflection::fromJson(newT, s);
+    log::hxLog.info(newT);
+}
+
+namespace UserNs { // 用户命名空间
+
+class MyClass {
+public:
+    int a;
+    std::string b;
+    std::vector<MyClass> c;
+};
+
+// 定义全局反射宏, 可以在用户的命名空间内定义
+HX_REFL_G(MyClass, a, b, c)
+
+}
+
+TEST_CASE("全局注册的反射") {
+    static_assert(
+        reflection::HasInsideReflection<UserNs::MyClass> == false
+        && reflection::HasOutReflection<UserNs::MyClass> == true
+        && reflection::IsReflective<UserNs::MyClass>, "");
+    UserNs::MyClass myCLass;
+    // 参数个数
+    static_assert(reflection::membersCountVal<decltype(myCLass)> == 3, "");
+    // 反射名称
+    constexpr auto name = reflection::getMembersNames<UserNs::MyClass>();
+    static_assert(name[0] == "a", "");
+    static_assert(name[1] == "b", "");
+    static_assert(name[2] == "c", "");
+    reflection::forEach(myCLass, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        log::hxLog.debug(Idx, name, "->", v);
+        if constexpr (Idx == 0) {
+            v = 1;
+        } else if constexpr (Idx == 1) {
+            v = "b";
+        } else if constexpr (Idx == 2) {
+            v = {{1, "2", {}}};
+        }
+    });
+    log::hxLog.debug(myCLass);
+    UserNs::MyClass newT;
+    std::string s;
+    reflection::toJson(myCLass, s);
+    reflection::fromJson(newT, s);
+    CHECK(myCLass.a == newT.a);
+    CHECK(myCLass.b == newT.b);
+    CHECK(myCLass.c.size() == newT.c.size());
+ 
+    log::hxLog.info(newT);
+}
+
+
+namespace UserNs { // 用户命名空间
+
+class MyClassAs {
+public:
+    int a;
+    std::string b;
+    std::vector<MyClassAs> c;
+};
+
+// 定义全局反射宏, 可以在用户的命名空间内定义
+HX_REFL_G_AS(MyClassAs, 
+             a, new_a, 
+             b, new_b, 
+             c, new_c
+            )
+
+}
+
+TEST_CASE("全局注册的反射(别名)") {
+    static_assert(
+        reflection::HasInsideReflection<UserNs::MyClassAs> 
+        != reflection::HasOutReflection<UserNs::MyClassAs>
+        && reflection::IsReflective<UserNs::MyClassAs>, "");
+    UserNs::MyClassAs myCLass;
+    constexpr auto Name = UserNs::hx_reflection_metadata::visit(myCLass);
+    static_assert(reflection::internal::getMemberName<std::get<0>(Name)>() == "new_a", "");
+    static_assert(reflection::internal::getMemberName<std::get<1>(Name)>() == "new_b", "");
+    static_assert(reflection::internal::getMemberName<std::get<2>(Name)>() == "new_c", "");
+    // 参数个数
+    static_assert(reflection::membersCountVal<decltype(myCLass)> == 3, "");
+    // 反射名称
+    constexpr auto name = reflection::getMembersNames<UserNs::MyClassAs>();
+    static_assert(name[0] == "new_a", "");
+    static_assert(name[1] == "new_b", "");
+    static_assert(name[2] == "new_c", "");
+    reflection::forEach(myCLass, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
+        log::hxLog.debug(Idx, name, "->", v);
+        if constexpr (Idx == 0) {
+            v = 1;
+        } else if constexpr (Idx == 1) {
+            v = "b";
+        } else if constexpr (Idx == 2) {
+            v = {{1, "2", {}}};
+        }
+    });
+    log::hxLog.debug(myCLass);
+    UserNs::MyClassAs newT;
+    std::string s;
+    reflection::toJson(myCLass, s);
+    reflection::fromJson(newT, s);
+    CHECK(myCLass.a == newT.a);
+    CHECK(myCLass.b == newT.b);
+    CHECK(myCLass.c.size() == newT.c.size());
     log::hxLog.info(newT);
 }

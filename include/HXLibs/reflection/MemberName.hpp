@@ -181,8 +181,10 @@ struct ReflectionVisitor<T, N> {                            \
  */
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
-    if constexpr (reflection::HasReflectionCount<T>) {
+    if constexpr (reflection::HasInsideReflection<T>) {
         return meta::remove_cvref_t<T>::visit();
+    } else if constexpr (reflection::HasOutReflection<T>) {
+        return visit(getStaticObj<T>());
     } else {
         return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit();
     }
@@ -196,9 +198,11 @@ inline constexpr auto getStaticObjPtrTuple() {
  */
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
-    if constexpr (reflection::HasReflectionCount<T>) {
+    if constexpr (reflection::HasInsideReflection<T>) {
         return meta::remove_cvref_t<T>::visit(obj);
-    } else {
+    } else if constexpr (reflection::HasOutReflection<T>) {
+        return visit(getStaticObj<T>(), obj);
+    }else {
         return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
     }
 }
@@ -211,8 +215,10 @@ inline constexpr auto getObjTie(T& obj) {
  */
 template <typename T>
 inline constexpr auto getObjTie(T const& obj) {
-    if constexpr (reflection::HasReflectionCount<T>) {
+    if constexpr (reflection::HasInsideReflection<T>) {
         return meta::remove_cvref_t<T>::visit(obj);
+    } else if constexpr (reflection::HasOutReflection<T>) {
+        return visit(getStaticObj<T>(), obj);
     } else {
         return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
     }

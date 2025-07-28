@@ -34,7 +34,11 @@ struct HasInsideReflection<T, std::void_t<decltype(T::membersCount())>>
     : std::true_type {}; 
 
 template <typename T, typename = void>
-struct HasReflectionVisit : std::false_type {};
+struct HasOutReflection : std::false_type {};
+
+template <typename T>
+struct HasOutReflection<T, std::void_t<decltype(membersCount(std::declval<T>()))>> 
+    : std::true_type {}; 
 
 } // namespace internal
 
@@ -43,7 +47,14 @@ struct HasReflectionVisit : std::false_type {};
  * @tparam T 
  */
 template <typename T>
-constexpr bool HasReflectionCount = internal::HasInsideReflection<meta::remove_cvref_t<T>>::value;
+constexpr bool HasInsideReflection = internal::HasInsideReflection<meta::remove_cvref_t<T>>::value;
+
+/**
+ * @brief 是否在类的内部使用反射宏注册
+ * @tparam T 
+ */
+template <typename T>
+constexpr bool HasOutReflection = internal::HasOutReflection<meta::remove_cvref_t<T>>::value;
 
 /**
  * @brief 是否为HXLibs可反射类型
@@ -53,7 +64,8 @@ template <typename T>
 constexpr bool IsReflective = (std::is_aggregate_v<T> 
              && !std::is_same_v<T, std::monostate>
              && !meta::is_std_array_v<T>)
-             || HasReflectionCount<T>;
+             || HasInsideReflection<T>
+             || HasOutReflection<T>;
 
 } // namespace HX::reflection
 
