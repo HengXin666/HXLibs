@@ -86,34 +86,39 @@ inline void encodeUtf8(OutputStream& os, unsigned codepoint) {
 
 } // namespace cv
 
-template <std::size_t _I>
+template <std::size_t _I, typename T>
 struct SetObjIdx {
+    using Type = T;
     inline static constexpr std::size_t Idx = _I;
     constexpr SetObjIdx() = default;
+    constexpr SetObjIdx(std::size_t _offset)
+        : offset(_offset)
+    {}
+    std::size_t offset;
 };
 
-template <std::size_t... Idx>
-constexpr auto makeVariantSetObjIdxs(std::index_sequence<Idx...>) {
-    /** 
-     * GCC Hock, 在 gcc/x86_64-pc-linux-gnu/15.1.1/lto-wrapper
-     * gcc 版本 15.1.1 20250425 (GCC) 中, 不能使用:
-     * using CHashMapValType = decltype([] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-     *     return std::variant<SetObjIdx<Idx>...>{};
-     * }(std::make_index_sequence<N>{}));
-     * 否则编译器会崩溃...
-     */
-    return std::variant<SetObjIdx<Idx>...>{};
+template <std::size_t... Idx, typename... Ts>
+constexpr auto makeVariantSetObjIdxs(std::index_sequence<Idx...>, std::tuple<Ts...>) {
+    return std::variant<SetObjIdx<Idx, meta::remove_cvref_t<Ts>>...>{};
 }
 
 template <typename T>
 constexpr auto makeNameToIdxVariantHashMap() {
     constexpr auto N = membersCountVal<T>;
     constexpr auto nameArr = getMembersNames<T>();
-    using CHashMapValType = decltype(makeVariantSetObjIdxs(std::make_index_sequence<N>{}));
+    constexpr auto& t = getStaticObj<T>();
+    constexpr auto tp = reflection::internal::getObjTie(t);
+    using CHashMapValType = decltype(makeVariantSetObjIdxs(std::make_index_sequence<N>{}, tp));
     return container::CHashMap<std::string_view, CHashMapValType, N>{
         [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            return std::array<std::pair<std::string_view, CHashMapValType>, N>{{
-                {nameArr[Idx], CHashMapValType{SetObjIdx<Idx>{}}}... 
+            return std::array<std::pair<std::string_view, CHashMapValType>, N>{{{
+                nameArr[Idx], CHashMapValType{
+                    SetObjIdx<Idx, meta::remove_cvref_t<decltype(std::get<Idx>(tp))>>{
+                        static_cast<std::size_t>(
+                            reinterpret_cast<std::byte*>(&std::get<Idx>(tp))
+                            - reinterpret_cast<std::byte const*>(&t)
+                     )}
+                }}...
             }};
         }(std::make_index_sequence<N>{})
     };
@@ -480,8 +485,7 @@ struct FromJson {
         
         constexpr std::size_t N = membersCountVal<T>;
         if constexpr (N > 0) {
-            static constexpr auto nameHash = makeNameToIdxVariantHashMap<T>();
-            auto tp = internal::getObjTie<T>(t);
+            static auto nameHash = makeNameToIdxVariantHashMap<T>();
             // 需要 name -> idx 映射
             while (it != end) {
                 auto key = findKey(it, end);
@@ -492,19 +496,25 @@ struct FromJson {
                 // 需要一个运行时可以查找到第 i 个元素的偏移量的方法
                 std::visit([&](auto&& idx) {
                     if constexpr (std::is_array_v<meta::remove_cvref_t<decltype(
-                        std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp)
+                        *std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(
+                            reflection::internal::getStaticObjPtrTuple<T>())
                     )>>) {
                         // 不支持C风格数组, 至少替换成 std::array
                         static_assert(!sizeof(T), "Not supporting C-style arrays, "
                                                   "at least replace with std::array");
                     } else if constexpr (std::is_pointer_v<meta::remove_cvref_t<decltype(
-                        std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp)
+                        *std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(
+                            reflection::internal::getStaticObjPtrTuple<T>())
                     )>>) {
                         // 不支持C风格裸指针, 至少替换成 智能指针
                         static_assert(!sizeof(T), "Does not support C-style bare pointers, "
                                                   "at least replace with smart pointers");
                     }
-                    fromJson(std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(tp), it, end);
+                    using PtrType = typename meta::remove_cvref_t<decltype(idx)>::Type *;
+                    auto ptr = reinterpret_cast<PtrType>(
+                        reinterpret_cast<char*>(&t) + idx.offset
+                    );
+                    fromJson(*ptr, it, end);
                 }, nameHash.at(key));
 
                 // 找 ',' 或者 '}'

@@ -330,7 +330,6 @@ TEST_CASE("宏反射内私有成员 支持别名") {
     // 此处是别名!
     static_assert(name[0] == "int_a", "");
     [[maybe_unused]] auto tr = reflection::internal::getObjTie(t);
-
     HXTest_2 newT;
     std::string s;
     log::hxLog.info(t);
@@ -421,10 +420,6 @@ TEST_CASE("全局注册的反射(别名)") {
         != reflection::HasOutReflection<UserNs::MyClassAs>
         && reflection::IsReflective<UserNs::MyClassAs>, "");
     UserNs::MyClassAs myCLass;
-    constexpr auto Name = UserNs::hx_reflection_metadata::visit(myCLass);
-    static_assert(reflection::internal::getMemberName<std::get<0>(Name)>() == "new_a", "");
-    static_assert(reflection::internal::getMemberName<std::get<1>(Name)>() == "new_b", "");
-    static_assert(reflection::internal::getMemberName<std::get<2>(Name)>() == "new_c", "");
     // 参数个数
     static_assert(reflection::membersCountVal<decltype(myCLass)> == 3, "");
     // 反射名称

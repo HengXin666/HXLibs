@@ -53,6 +53,8 @@ int main() {
     });
     serv.asyncRun(1, 1500_ms);
     
+    // 等待服务器启动
+    std::this_thread::sleep_for(1s);
     coMain().start();
 
     log::hxLog.warning("====== 测试同步 ======");

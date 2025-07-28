@@ -23,7 +23,7 @@ if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")
         message("=-=-=-=-=-=-=当前是 [Release] 模式=-=-=-=-=-=-=")
     else()
         message("=-=-=-=-=-=-=当前是 [DEBUG] 模式=-=-=-=-=-=-=")
-        set(__HX_UN_DEBUG__ "ON") # 是否关闭内存泄漏 (开启则可能无法通过某些异常来调试)
+        # set(__HX_UN_DEBUG__ "ON") # 是否关闭内存泄漏 (开启则可能无法通过某些异常来调试)
     endif()
 
     include(cmake/utils.cmake)
