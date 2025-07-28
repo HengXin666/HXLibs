@@ -46,14 +46,14 @@ inline constexpr std::string_view getMemberName() {
 
 // 包裹一层`wrap`的原因: non-type template parameters of scalar type是在clang18才开始的,
 // 而Class types as non-type template parameters是在clang12就支持了
-#if defined(__clang__) && __clang_major__ >= 18
-    auto split = funcName.substr(0, funcName.size() - 1);
-    return split.substr(split.find_last_of(":.") + 1);
+#if defined(__clang__)
+    auto split = funcName.substr(0, funcName.size() - 2);
+    return split.substr(split.find_last_of(".") + 1);
 #elif defined(__GNUC__)
-    auto split = funcName.substr(0, funcName.rfind(");"));
+    auto split = funcName.substr(0, funcName.rfind(")};"));
     return split.substr(split.find_last_of(":") + 1);
 #elif defined(_MSC_VER)
-    auto split = funcName.substr(0, funcName.rfind(">"));
+    auto split = funcName.substr(0, funcName.rfind("}>"));
     return split.substr(split.rfind("->") + 2);
 #else
     static_assert(
@@ -224,17 +224,23 @@ inline constexpr auto getObjTie(T const& obj) {
     }
 }
 
+template <typename T>
+struct Wrap {
+    using Type = T;
+    T val;
+};
+
+template <typename T>
+Wrap(T) -> Wrap<T>;
+
 /**
- * @brief 编译期静态for循环, 利用逗号表达式展开以将`tuple<成员指针...>`std::get<i>赋值到arr[i]
- * @tparam T `聚合类`类型
- * @tparam Arr std::array<>
- * @tparam Is std::array<>.size()
- * @param arr 需要赋值的`std::array`
+ * @note 需要包裹, 否则 msvc 会复用错误编译期缓存 || clang17 <= 则编译失败
+ * @note https://github.com/HengXin666/HXLibs/issues/7
+ * @note https://godbolt.org/z/zzaWsP5j7
  */
-template <typename T, typename Arr, std::size_t... Is>
-inline constexpr void staticForTupleSetArr(Arr& arr, std::index_sequence<Is...>) {
-    constexpr auto tp = internal::getStaticObjPtrTuple<T>();
-    ((arr[Is] = getMemberName<std::get<Is>(tp)>()), ...);
+template <typename T>
+constexpr auto toWrap(T const& t) {
+    return Wrap{t};
 }
 
 } // namespace internal
@@ -248,14 +254,10 @@ template <typename T>
 inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersNames() {
     constexpr auto Cnt = membersCountVal<T>;
     std::array<std::string_view, Cnt> arr;
-#if __cplusplus >= 202002L && (!defined(_MSC_VER) || _MSC_VER >= 1930)
     constexpr auto tp = internal::getStaticObjPtrTuple<T>(); // 获取 tuple<成员指针...>
     [&] <std::size_t... Is> (std::index_sequence<Is...>) {
-        ((arr[Is] = internal::getMemberName<std::get<Is>(tp)>()), ...);
+        ((arr[Is] = internal::getMemberName<internal::toWrap(std::get<Is>(tp))>()), ...);
     } (std::make_index_sequence<Cnt>{});
-#else
-    internal::staticForTupleSetArr<T>(arr, std::make_index_sequence<membersCountVal<T>>{});
-#endif
     return arr;
 }
 
