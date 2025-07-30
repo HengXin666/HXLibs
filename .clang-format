@@ -51,11 +51,11 @@ AlwaysBreakBeforeMultilineStrings: false
 # 总是在template声明后换行
 AlwaysBreakTemplateDeclarations: true
 
-# false表示函数实参要么都在同一行，要么都各自一行
-BinPackArguments: true
+# false 表示函数实参要么都在同一行，要么都各自一行
+BinPackArguments: false
 
-# false表示所有形参要么都在同一行，要么都各自一行
-BinPackParameters: true
+# false 表示所有形参要么都在同一行，要么都各自一行
+BinPackParameters: false
 
 # 大括号换行，只有当BreakBeforeBraces设置为Custom时才有效
 BraceWrapping:
@@ -113,7 +113,7 @@ ColumnLimit: 80
 CompactNamespaces: true
 
 # 构造函数的初始化列表要么都在同一行, 要么都各自一行
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
 
 # 构造函数的初始化列表的缩进宽度
 ConstructorInitializerIndentWidth: 4

@@ -44,7 +44,7 @@ namespace internal {
  * @param input 
  * @return std::string 
  */
-inline std::string toByteString(const std::wstring& input) {
+inline constexpr std::string toByteString(const std::wstring& input) {
     std::string res;
     res.reserve(input.size() * 4); // 预分配最大可能空间
     for (size_t i = 0; i < input.size(); ++i) {
@@ -67,11 +67,12 @@ inline std::string toByteString(const std::wstring& input) {
             } else {
                 codepoint = high_surrogate;
             }
-        } else { // 处理UTF-32（Linux/macOS环境）
+        } else { // 处理UTF-32 (Linux/macOS环境)
             codepoint = static_cast<char32_t>(input[i]);
             // 验证码点有效性
             if (codepoint > 0x10FFFF 
-                || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) [[unlikely]] {
+            || (codepoint >= 0xD800 && codepoint <= 0xDFFF)
+            ) [[unlikely]] {
                 throw std::runtime_error("Invalid UTF-32 code point");
             }
         }
