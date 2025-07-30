@@ -29,7 +29,20 @@ TEST_CASE("测试序列化 Map / 结构体 / tuple / variant") {
         std::tuple<std::variant<double, int, std::string>, std::optional<std::vector<std::map<std::string, int>>>> tp;
     };
 
-    Test test{1, {{{"op", 1}, {"ed", 2}}, {{"OP", 11}, {"ED", 2}}}, {{3.14}, {}}};
+    // 得显式写明聚合构造, 不然编译器就激进担忧而警告而报错
+    Test test{
+        1,
+        {
+            {{"op", 1}, {"ed", 2}},
+            {{"OP", 11}, {"ED", 2}}
+        },
+        {
+            std::variant<double, int, std::string>{3.14},
+            std::optional<std::vector<std::map<std::string, int>>>{
+                std::vector<std::map<std::string, int>>{{}, {}}
+            }
+        }
+    };
     std::cout << log::toString(test, '\n');
 
     std::string buf;
