@@ -22,7 +22,7 @@ foreach(TEST_FILE ${TEST_FILES})
     # 链接库
     target_link_libraries(${TEST_NAME} PRIVATE HXLibs)
 
-    # 设置可执行文件输出目录（按目录分类可选）
+    # 设置可执行文件输出目录(按目录分类可选)
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output/tests/${PARENT_DIR}
     )
@@ -36,7 +36,7 @@ foreach(TEST_FILE ${TEST_FILES})
     # 在 IDE 中显示原始结构
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_FILE})
 
-    # 启用 AddressSanitizer（仅 Debug 模式）
+    # 启用 AddressSanitizer(仅 Debug 模式)
     if(HX_DEBUG_BY_ADDRESS_SANITIZER)
         target_compile_options(${TEST_NAME} PRIVATE
             $<$<CONFIG:Debug>:-fsanitize=address>)

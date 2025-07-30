@@ -50,7 +50,9 @@ struct [[nodiscard]] Task {
         }
     }
 
-    Task(Task&& that) : _handle(that._handle) {
+    Task(Task&& that) noexcept 
+        : _handle(that._handle)
+    {
         that._handle = nullptr;
     }
 
@@ -70,16 +72,12 @@ struct [[nodiscard]] Task {
         return _handle;
     }
 
-    // constexpr std::coroutine_handle<promise_type> getPromise() const noexcept {
-    //     return _handle;
-    // }
-
     /**
      * @brief 立即执行协程
      * @warning 除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法
      * @return constexpr auto 
      */
-    constexpr auto start() const {
+    constexpr auto start() && {
         _handle.resume();
         if constexpr (requires {
             _handle.promise().result();

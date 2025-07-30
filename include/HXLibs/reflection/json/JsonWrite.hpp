@@ -26,7 +26,7 @@ namespace HX::reflection {
 
 template <typename Obj, typename Stream>
 inline void toJson(Obj const& obj, Stream& s) {
-    log::internal::ToString<Obj>::toString(obj, s);
+    log::toString(obj, s);
 }
 
 } // namespace HX::reflection

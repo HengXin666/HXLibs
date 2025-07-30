@@ -46,6 +46,7 @@ inline constexpr std::string_view getMemberName() {
 
 // 包裹一层`wrap`的原因: non-type template parameters of scalar type是在clang18才开始的,
 // 而Class types as non-type template parameters是在clang12就支持了
+// 以及 msvc 的bug: https://github.com/HengXin666/HXLibs/issues/7
 #if defined(__clang__)
     auto split = funcName.substr(0, funcName.size() - 2);
     return split.substr(split.find_last_of(".") + 1);

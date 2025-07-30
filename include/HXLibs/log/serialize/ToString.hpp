@@ -24,15 +24,15 @@
 #include <tuple>
 #include <variant>
 #include <format>
-#include <cmath>
+#include <thread>
+#include <filesystem>
+#if __cplusplus < 202302L
+#include <iosfwd>
+#endif
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
-
-/**
- * @brief 本头文件是早期作品, 实现略显不优雅...
- */
 
 namespace HX::log {
 
@@ -96,317 +96,251 @@ inline std::string toByteString(const std::wstring& input) {
     return res;
 }
 
-// 概念: 鸭子类型: 只需要满足有一个成员函数是toString的, 即可
-template <typename T>
-concept ToStringClassType = requires(T t) {
-    t.toString();
-};
-
-// 概念: 鸭子类型: 只需要满足有一个成员函数是toJson的, 即可
-template <typename T>
-concept ToJsonClassType = requires(T t) {
-    t.toJson();
-};
-
-// 主模版
-template <typename... Ts>
-struct ToString {
-    static std::string toString(Ts const&...) { // 禁止默认实现
-        static_assert(sizeof...(Ts) == 0, "toString is not implemented for this type");
-        return {};
-    }
-};
-
-// toString`聚合类` (当其他模版都不适配时候, 就只能适配本模版; 
-// 而如果可以适配其他模版, 则不会适配本模版, 因为有更适合的)
-template <typename T>
-struct ToString<T> {
-    static std::string toString(T const& obj) {
-        std::string res;
-        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
-        res.push_back('{');
-        if constexpr (Cnt > 0) {
-            reflection::forEach(obj,
-                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto const& val) {
-                res.push_back('"');
-                res.append(name.data(), name.size());
-                res.push_back('"');
-
-                res.push_back(':');
-                ToString<meta::remove_cvref_t<decltype(val)>>::toString(val, res);
-
-                if constexpr (I < Cnt - 1) {
-                    res.push_back(',');
-                }
-            });
-        }
-        res.push_back('}');
-        return res;
+struct FormatZipString {
+    inline static constexpr std::string_view DELIMIER          = ",";
+    inline static constexpr std::string_view PARENTHESES_LEFT  = "(";
+    inline static constexpr std::string_view PARENTHESES_RIGHT = ")";
+    inline static constexpr std::string_view BRACKET_LEFT      = "[";
+    inline static constexpr std::string_view BRACKET_RIGHT     = "]";
+    inline static constexpr std::string_view KEY_VAK_PAIR      = ":";
+    inline static constexpr std::string_view BRACE_LEFT        = "{";
+    inline static constexpr std::string_view BRACE_RIGHT       = "}";
+    inline static constexpr std::string_view QUOTATION_MARKS   = "\"";
+    
+    // 路径
+    template <typename T>
+        requires (std::is_same_v<T, std::filesystem::path>)
+    constexpr std::string make(T const& t) {
+        return t.string();
     }
 
-    template <typename Stream>
-    static void toString(T const& obj, Stream& s) {
-        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
-        s.push_back('{');
-        if constexpr (Cnt > 0) {
-            reflection::forEach(obj,
-                [&] <std::size_t I> (std::index_sequence<I>, auto name, auto& val) {
-                s.push_back('"');
-                s.append(name.data(), name.size());
-                s.push_back('"');
-
-                s.push_back(':');
-                ToString<meta::remove_cvref_t<decltype(val)>>::toString(val, s);
-
-                if constexpr (I < Cnt - 1) {
-                    s.push_back(',');
-                }
-            });
-        }
-        s.push_back('}');
+    template <typename T, typename Stream>
+        requires (std::is_same_v<T, std::filesystem::path>)
+    constexpr void make(T const& t, Stream& s) {
+        s.append(t.string());
     }
-};
 
-// ===偏特化 ===
-template <>
-struct ToString<std::nullptr_t> {
-    static std::string toString(const std::nullptr_t&) { // 普通指针不行
-        return "null";
+    // 线程id
+    template <typename T>
+        requires (std::is_same_v<T, std::thread::id>)
+    std::string make(T const& t) {
+#if __cplusplus >= 202302L
+        return std::format("{}", t);
+#else
+        std::ostringstream oss;
+        oss << t;
+        return std::move(oss).str();
+#endif // !__cplusplus >= 202302L
+    }
+
+    template <typename T, typename Stream>
+        requires (std::is_same_v<T, std::thread::id>)
+    void make(T const& t, Stream& s) {
+#if __cplusplus >= 202302L
+        return std::format("{}", t);
+#else
+        std::ostringstream oss;
+        oss << t;
+        s.append(std::move(oss).str());
+#endif // !__cplusplus >= 202302L
+    }
+
+    // bool
+    constexpr std::string make(bool t) {
+        using namespace std::string_literals;
+        return t ? "true"s : "false"s;
     }
 
     template <typename Stream>
-    static void toString(const std::nullptr_t&, Stream& s) {
-        s.append("null");
-    }
-};
-
-template <>
-struct ToString<std::nullopt_t> {
-    static std::string toString(const std::nullopt_t&) {
-        return "null";
-    }
-
-    template <typename Stream>
-    static void toString(const std::nullopt_t&, Stream& s) {
-        s.append("null");
-    }
-};
-
-template <>
-struct ToString<bool> {
-    static std::string toString(bool t) {
-        return t ? "true" : "false";
-    }
-
-    template <typename Stream>
-    static void toString(bool t, Stream& s) {
+    constexpr void make(bool t, Stream& s) {
         s.append(t ? "true" : "false");
     }
-};
 
-template <>
-struct ToString<std::monostate> {
-    static std::string toString(const std::monostate&) {
-        return "monostate";
+    // null
+    template <typename NullType>
+        requires (std::is_same_v<NullType, std::nullopt_t>
+               || std::is_same_v<NullType, std::nullptr_t>
+               || std::is_same_v<NullType, std::monostate>)
+    constexpr std::string make(NullType const&) {
+        using namespace std::string_literals;
+        return "null"s;
     }
 
-    template <typename Stream>
-    static void toString(const std::monostate&, Stream& s) {
-        s.append("monostate");
+    template <typename NullType, typename Stream>
+        requires (std::is_same_v<NullType, std::nullopt_t>
+               || std::is_same_v<NullType, std::nullptr_t>
+               || std::is_same_v<NullType, std::monostate>)
+    constexpr void make(NullType const&, Stream& s) {
+        s.append("null");
     }
-};
 
-// 数字类型
-template <class T>
-    requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
-struct ToString<T> {
-    static std::string toString(const T& t) {
-        if constexpr (std::is_floating_point_v<T>) {
-            // 如果浮点数是整数 (例如 26.0), 则不显示小数部分
-            if (std::floor(t) == t) {
-                return std::format("{:.0f}", t);
-            } else {
-                return std::format("{}", t);
-            }
+    // 数字类型 NF 表示浮点数的位数 (-1表示默认选项, 使用 std::format("{}", t) 格式化)
+    template <typename T, size_t NF = static_cast<size_t>(-1)>
+        requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
+    constexpr std::string make(T const& t) {
+        if constexpr (NF != static_cast<size_t>(-1)) {
+            return std::format("{:." + std::format("{}", NF) + "f}", t);
         } else {
             return std::format("{}", t);
         }
     }
 
-    template <typename Stream>
-    static void toString(const T& t, Stream& s) {
-        s.append(ToString<T>::toString(t));
+    template <typename T, size_t NF = static_cast<size_t>(-1), typename Stream>
+        requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
+    constexpr void make(T const& t, Stream& s) {
+        if constexpr (NF != static_cast<size_t>(-1)) {
+            s.append(std::format("{:." + std::format("{}", NF) + "f}", t));
+        } else {
+            s.append(std::format("{}", t));
+        }
     }
-};
-
-// C风格数组类型
-template <typename T, std::size_t N>
-struct ToString<T[N]> {
-    static std::string toString(const T (&arr)[N]) {
+    
+    // C风格数组
+    template <typename T, std::size_t N>
+    constexpr std::string make(const T (&arr)[N]) {
         std::string res;
         bool once = false;
-        res += '[';
+        res += BRACKET_LEFT;
         for (const auto& it : arr) {
             if (once)
-                res += ',';
+                res += DELIMIER;
             else
                 once = true;
-            res += ToString<meta::remove_cvref_t<decltype(it)>>::toString(it);
+            res += make(it);
         }
-        res += ']';
+        res += BRACKET_RIGHT;
         return res;
     }
 
-    template <typename Stream>
-    static void toString(const T (&arr)[N], Stream& s) {
-        s.push_back('[');
+    template <typename T, std::size_t N, typename Stream>
+    constexpr void make(const T (&arr)[N], Stream& s) {
         bool once = false;
+        s.append(BRACKET_LEFT);
         for (const auto& it : arr) {
             if (once)
-                s.push_back(',');
+                s.append(DELIMIER);
             else
                 once = true;
-            ToString<meta::remove_cvref_t<decltype(it)>>::toString(it, s);
+            make(it, s);
         }
-        s.push_back(']');
+        s.append(BRACKET_RIGHT);
     }
-};
-
-// std::optional
-template <typename... Ts>
-struct ToString<std::optional<Ts...>> {
-    static std::string toString(const std::optional<Ts...>& t) {
+    
+    // std常见的支持迭代器的单元素容器
+    template <meta::SingleElementContainer Container>
+    constexpr std::string make(Container const& arr) {
         std::string res;
-        if (t.has_value())
-            res += ToString<meta::remove_cvref_t<decltype(*t)>>::toString(*t);
-        else
-            res += ToString<std::nullopt_t>::toString(std::nullopt);
-        return res;
-    }
-
-    template <typename Stream>
-    static void toString(const std::optional<Ts...>& t, Stream& s) {
-        if (t.has_value())
-            ToString<meta::remove_cvref_t<decltype(*t)>>::toString(*t, s);
-        else
-            ToString<std::nullopt_t>::toString(std::nullopt, s);
-    }
-};
-
-// std::variant 现代共用体
-template <typename... Ts>
-struct ToString<std::variant<Ts...>> {
-    static std::string toString(const std::variant<Ts...>& t) {
-        return std::visit([] (const auto& v) -> std::string { // 访问者模式
-            return ToString<meta::remove_cvref_t<decltype(v)>>::toString(v);
-        }, t);
-    }
-
-    template <typename Stream>
-    static void toString(const std::variant<Ts...>& t, Stream& s) {
-        std::visit([&] (const auto& v) -> void { // 访问者模式
-            ToString<meta::remove_cvref_t<decltype(v)>>::toString(v, s);
-        }, t);
-    }
-};
-
-// std::pair
-template <meta::PairContainer Container>
-struct ToString<Container> {
-    static std::string toString(const Container& p) {
-        std::string res;
-        res += '(';
-        res += ToString<meta::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p));
-        res += ',';
-        res += ToString<meta::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p));
-        res += ')';
-        return res;
-    }
-
-    template <typename Stream>
-    static void toString(const Container& p, Stream& s) {
-        s.push_back('(');
-        ToString<meta::remove_cvref_t<decltype(std::get<0>(p))>>::toString(std::get<0>(p), s);
-        s.push_back(',');
-        ToString<meta::remove_cvref_t<decltype(std::get<1>(p))>>::toString(std::get<1>(p), s);
-        s.push_back(')');
-    }
-};
-
-// std::的常见的支持迭代器的单元素容器
-template <meta::SingleElementContainer Container>
-struct ToString<Container> {
-    static std::string toString(const Container& sc) {
-        std::string res;
-        res += '[';
         bool once = false;
-        for (const auto& it : sc) {
+        res += BRACKET_LEFT;
+        for (const auto& it : arr) {
             if (once)
-                res += ',';
+                res += DELIMIER;
             else
                 once = true;
-            res += ToString<meta::remove_cvref_t<decltype(it)>>::toString(it);
+            res += make(it);
         }
-        res += ']';
+        res += BRACKET_RIGHT;
         return res;
     }
 
-    template <typename Stream>
-    static void toString(const Container& sc, Stream& s) {
-        s.push_back('[');
+    template <meta::SingleElementContainer Container, typename Stream>
+    constexpr void make(Container const& arr, Stream& s) {
         bool once = false;
-        for (const auto& it : sc) {
+        s.append(BRACKET_LEFT);
+        for (const auto& it : arr) {
             if (once)
-                s.push_back(',');
+                s.append(DELIMIER);
             else
                 once = true;
-            ToString<meta::remove_cvref_t<decltype(it)>>::toString(it, s);
+            make(it, s);
         }
-        s.push_back(']');
+        s.append(BRACKET_RIGHT);
     }
-};
 
-// std::的常见的支持迭代器的键值对容器
-template <meta::KeyValueContainer Container>
-struct ToString<Container> {
-    static std::string toString(const Container& map) {
+    // 聚合类
+    template <typename T>
+        requires (reflection::IsReflective<T>)
+    constexpr std::string make(T const& obj) {
+        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
         std::string res;
-        res += '{';
+        res += BRACE_LEFT;
+        if constexpr (Cnt > 0) {
+            reflection::forEach(obj, [&] <std::size_t I> (
+                std::index_sequence<I>, auto name, auto const& val
+            ) {
+                res += make(name);
+                res += KEY_VAK_PAIR;
+                res.append(make(val));
+
+                if constexpr (I < Cnt - 1) {
+                    res += DELIMIER;
+                }
+            });
+        }
+        res += BRACE_RIGHT;
+        return res;
+    }
+
+    template <typename T, typename Stream>
+        requires (reflection::IsReflective<T>)
+    constexpr void make(T const& obj, Stream& s) {
+        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
+        s.append(BRACE_LEFT);
+        if constexpr (Cnt > 0) {
+            reflection::forEach(obj, [&] <std::size_t I> (
+                std::index_sequence<I>, auto name, auto const& val
+            ) {
+                make(name, s);
+                s.append(KEY_VAK_PAIR);
+                make(val, s);
+
+                if constexpr (I < Cnt - 1) {
+                    s.append(DELIMIER);
+                }
+            });
+        }
+        s.append(BRACE_RIGHT);
+    }
+
+    // std常见的支持迭代器的键值对容器
+    template <meta::KeyValueContainer Container>
+    constexpr std::string make(const Container& map) {
+        std::string res;
+        res += BRACE_LEFT;
         bool once = false;
         for (const auto& [k, v] : map) {
             if (once)
-                res += ',';
+                res += DELIMIER;
             else
                 once = true;
-            res += ToString<meta::remove_cvref_t<decltype(k)>>::toString(k);
-            res += ':';
-            res += ToString<meta::remove_cvref_t<decltype(v)>>::toString(v);
+            res += make(k);
+            res += KEY_VAK_PAIR;
+            res += make(v);
         }
-        res += '}';
+        res += BRACE_RIGHT;
         return res;
     }
 
-    template <typename Stream>
-    static void toString(const Container& map, Stream& s) {
-        s.push_back('{');
+    template <meta::KeyValueContainer Container, typename Stream>
+    constexpr void make(const Container& map, Stream& s) {
+        s.append(BRACE_LEFT);
         bool once = false;
         for (const auto& [k, v] : map) {
             if (once)
-                s.push_back(',');
+                s.append(DELIMIER);
             else
                 once = true;
-            ToString<meta::remove_cvref_t<decltype(k)>>::toString(k, s);
-            s.push_back(':');
-            ToString<meta::remove_cvref_t<decltype(v)>>::toString(v, s);
+            make(k, s);
+            s.append(KEY_VAK_PAIR);
+            make(v, s);
         }
-        s.push_back('}');
+        s.append(BRACE_RIGHT);
     }
-};
 
-// str相关的类型
-template <meta::StringType ST>
-struct ToString<ST> {
-    static std::string toString(const ST& t) {
+    // str相关的类型
+    template <meta::StringType ST>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
+    constexpr std::string make(const ST& t) {
         std::string res;
         res += '"';
         res += t;
@@ -414,18 +348,18 @@ struct ToString<ST> {
         return res;
     }
 
-    template <typename Stream>
-    static void toString(const ST& t, Stream& s) {
-        s.push_back('"');
+    template <meta::StringType ST, typename Stream>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
+    constexpr void make(const ST& t, Stream& s) {
+        s.append(QUOTATION_MARKS);
         s.append(t);
-        s.push_back('"');
+        s.append(QUOTATION_MARKS);
     }
-};
 
-// wstr相关的类型
-template <meta::WStringType ST>
-struct ToString<ST> {
-    static std::string toString(const ST& t) {
+    // wstr相关类型
+    template <meta::WStringType ST>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
+    constexpr std::string make(const ST& t) {
         std::string res;
         res += '"';
         res += toByteString(t);
@@ -433,145 +367,158 @@ struct ToString<ST> {
         return res;
     }
 
-    template <typename Stream>
-    static void toString(const ST& t, Stream& s) {
-        s.push_back('"');
+    template <meta::WStringType ST, typename Stream>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
+    constexpr void make(const ST& t, Stream& s) {
+        s.append(QUOTATION_MARKS);
         s.append(toByteString(t));
-        s.push_back('"');
+        s.append(QUOTATION_MARKS);
     }
-};
 
-// C风格字符串 char
-template <typename T, std::size_t N>
-    requires (std::same_as<T, char>)
-struct ToString<T[N]> {
-    static std::string toString(const T (&str)[N]) {
-        return std::string{str, N - 1}; // - 1 是为了去掉 '\0'
+    // const char* C字符串指针
+    constexpr std::string make(const char* t) {
+        return {t};
     }
 
     template <typename Stream>
-    static void toString(const T (&str)[N], Stream& s) {
-        s.append(std::string{str, N - 1}); // - 1 是为了去掉 '\0'
+    constexpr void make(const char* t, Stream& s) {
+        s.append(t);
     }
-};
 
-// C风格字符串 wchar_t
-template <typename T, std::size_t N>
-    requires (std::same_as<T, wchar_t>)
-struct ToString<T[N]> {
-    static std::string toString(const T (&str)[N]) {
-        return toByteString(std::wstring{str, N - 1}); // - 1 是为了去掉 '\0'
+    // const wchar_t* C字符串指针
+    constexpr std::string make(const wchar_t* t) {
+        return toByteString(t);
     }
 
     template <typename Stream>
-    static void toString(const T (&str)[N], Stream& s) {
-        s.append(toByteString(std::wstring{str, N - 1})); // - 1 是为了去掉 '\0'
-    }
-};
-
-// C风格字符串指针 char
-template <typename T>
-    requires (std::same_as<const T*, const char*>)
-struct ToString<const T*> {
-    static std::string toString(const T* const& str) {
-        return std::string{str};
+    constexpr void make(const wchar_t* t, Stream& s) {
+        s.append(toByteString(t));
     }
 
-    template <typename Stream>
-    static void toString(const T* const& str, Stream& s) {
-        s.append(std::string{str});
-    }
-};
-
-// C风格字符串指针 wchar_t
-template <typename T>
-    requires (std::same_as<const T*, const wchar_t*>)
-struct ToString<const T*> {
-    static std::string toString(const T* const& str) {
-        return toByteString(std::wstring{str});
+    // char[N] C字符数组
+    template <std::size_t N>
+    constexpr std::string make(char (&t)[N]) {
+        return {t, N - 1};
     }
 
-    template <typename Stream>
-    static void toString(const T* const& str, Stream& s) {
-        s.append(toByteString(std::wstring{str}));
-    }
-};
-
-// C风格指针
-template <typename T>
-struct ToString<T*> {
-    static std::string toString(T* const& p) {
-        return utils::NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p));
+    template <std::size_t N, typename Stream>
+    constexpr void make(char (&t)[N], Stream& s) {
+        s.append({t, N - 1});
     }
 
-    template <typename Stream>
-    static void toString(T* const& p, Stream& s) {
-        s.append(utils::NumericBaseConverter::hexadecimalConversion(reinterpret_cast<std::size_t>(p)));
-    }
-};
-
-// 鸭子类型: 存在`toString`成员函数
-template <ToStringClassType T>
-struct ToString<T> {
-    static std::string toString(const T& t) {
-        return t.toString();
-    }
-};
-
-// 鸭子类型: 存在`toJson`成员函数
-template <ToJsonClassType T>
-struct ToString<T> {
-    static std::string toString(const T& t) {
-        return t.toJson();
-    }
-};
-
-/**
- * @brief 编译器静态遍历所有tuple的成员, 并且toString
- * @tparam Ts tuple的成员类型包
- * @tparam Is tuple的成员数量
- * @param tup 需要打印的东西
- * @return std::string 
- */
-template <typename... Ts, std::size_t... Is>
-std::string tupleToString(
-    const std::tuple<Ts...>& tup,
-    std::index_sequence<Is...>
-) {
-    std::string res;
-    res += '(';
-    ((
-        res += ToString<meta::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup)), 
-        res += ','
-    ), ...);
-    res.back() = ')';
-    return res;
-}
-
-template <typename Stream, typename... Ts, std::size_t... Is>
-void tupleToString(
-    const std::tuple<Ts...>& tup,
-    Stream& s,
-    std::index_sequence<Is...>
-) {
-    s.push_back('(');
-    ((
-        ToString<meta::remove_cvref_t<decltype(std::get<Is>(tup))>>::toString(std::get<Is>(tup), s), 
-        s.push_back(',')
-    ), ...);
-    s.back() = ')';
-}
-
-// tuple
-template <typename... Ts>
-struct ToString<std::tuple<Ts...>> {
-    static std::string toString(const std::tuple<Ts...>& tup) {
-        return tupleToString(tup, std::make_index_sequence<sizeof...(Ts)>());
+    // wchar_t[N] C字符数组
+    template <std::size_t N>
+    constexpr std::string make(wchar_t (&t)[N]) {
+        return toByteString({t, N - 1});
     }
 
-    template <typename Stream>
-    static void toString(const std::tuple<Ts...>& tup, Stream& s) {
-        tupleToString(tup, s, std::make_index_sequence<sizeof...(Ts)>());
+    template <std::size_t N, typename Stream>
+    constexpr void make(wchar_t (&t)[N], Stream& s) {
+        s.append(toByteString({t, N - 1}));
+    }
+
+    // 普通指针
+    template <typename T>
+    constexpr std::string make(T* const& p) {
+        std::string res = "0x";
+        res += utils::NumericBaseConverter::hexadecimalConversion(
+            reinterpret_cast<std::size_t>(p));
+        return res;
+    }
+
+    template <typename T, typename Stream>
+    constexpr void make(T* const& p, Stream& s) {
+        s.append("0x");
+        s.append(utils::NumericBaseConverter::hexadecimalConversion(
+            reinterpret_cast<std::size_t>(p)));
+    }
+
+    // std::optional
+    template <typename T>
+    constexpr std::string make(std::optional<T> const& opt) {
+        return opt ? make(*opt) : make(std::nullopt);
+    }
+
+    template <typename T, typename Stream>
+    constexpr void make(std::optional<T> const& opt, Stream& s) {
+        opt ? make(*opt, s) : make(std::nullopt, s);
+    }
+
+    // std::pair
+    template <typename T1, typename T2>
+    constexpr std::string make(std::pair<T1, T2> const& p2) {
+        std::string res;
+        res += PARENTHESES_LEFT;
+        res += make(std::get<0>(p2));
+        res += DELIMIER;
+        res += make(std::get<1>(p2));
+        res += PARENTHESES_RIGHT;
+        return res;
+    }
+
+    template <typename T1, typename T2, typename Stream>
+    constexpr void make(std::pair<T1, T2> const& p2, Stream& s) {
+        s.append(PARENTHESES_LEFT);
+        make(std::get<0>(p2), s);
+        s.append(DELIMIER);
+        make(std::get<1>(p2), s);
+        s.append(PARENTHESES_RIGHT);
+    }
+
+    // std::tuple
+    template <typename... Ts>
+    constexpr std::string make(std::tuple<Ts...> const& tp) {
+        constexpr std::size_t N = sizeof...(Ts);
+        std::string res;
+        res += PARENTHESES_LEFT;
+        [&] <std::size_t... Is> (std::index_sequence<Is...>) {
+            ((res += make(std::get<Is>(tp)), 
+              static_cast<void>(Is + 1 < N ? res += DELIMIER : res)
+            ), ...);
+        }(std::make_index_sequence<N>{});
+        res += PARENTHESES_RIGHT;
+        return res;
+    }
+
+    template <typename... Ts, typename Stream>
+    constexpr void make(std::tuple<Ts...> const& tp, Stream& s) {
+        constexpr std::size_t N = sizeof...(Ts);
+        s.append(PARENTHESES_LEFT);
+        if constexpr (N >= 1) {
+            [&] <std::size_t... Is> (std::index_sequence<Is...>) {
+                ((make(std::get<Is>(tp), s), s.append(DELIMIER)), ...);
+            }(std::make_index_sequence<N - 1>{});
+            make(std::get<N - 1>(tp), s);
+        }
+        s.append(PARENTHESES_RIGHT);
+    }
+
+    // std::variant
+    template <typename... Ts>
+    constexpr std::string make(std::variant<Ts...> const& v) {
+        return std::visit([&](auto&& val) {
+            return make(val);
+        }, v);
+    }
+
+    template <typename... Ts, typename Stream>
+    constexpr void make(std::variant<Ts...> const& v, Stream& s) {
+        return std::visit([&](auto&& val) {
+            make(val, s);
+        }, v);
+    }
+
+    // std::智能指针
+    template <typename T>
+        requires (meta::is_smart_pointer_v<T>)
+    constexpr std::string make(T const& ptr) {
+        return ptr ? make(*ptr) : make(nullptr);
+    }
+
+    template <typename T, typename Stream>
+        requires (meta::is_smart_pointer_v<T>)
+    constexpr void make(T const& ptr, Stream& s) {
+        ptr ? make(*ptr, s) : make(nullptr, s);
     }
 };
 
@@ -581,23 +528,12 @@ struct ToString<std::tuple<Ts...>> {
  * @brief toString 全部参数
  * @return std::string 
  */
-template <typename T0, typename... Ts>
-inline std::string toStrings(T0 const& t0, Ts const&... ts) {
+template <typename... Ts>
+inline std::string toString(Ts const&... ts) {
     std::string res;
-    res += internal::ToString<T0>::toString(t0);
-    ((res += internal::ToString<Ts>::toString(ts)), ...);
+    internal::FormatZipString zipStr{};
+    ((res += zipStr.make(ts)), ...);
     return res;
-}
-
-/**
- * @brief 将`t`转换为字符串
- * @tparam T 
- * @param t 
- * @return std::string 转化结果
- */
-template <typename T>
-inline std::string toString(T const& t) {
-    return internal::ToString<T>::toString(t);
 }
 
 /**
@@ -609,7 +545,7 @@ inline std::string toString(T const& t) {
  */
 template <typename T, typename Stream>
 inline void toString(T&& t, Stream& s) {
-    internal::ToString<meta::remove_cvref_t<T>>::toString(std::forward<T>(t), s);
+    internal::FormatZipString{}.make(t, s);
 }
 
 } // namespace HX::log

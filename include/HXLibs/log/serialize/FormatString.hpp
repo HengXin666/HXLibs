@@ -37,19 +37,19 @@
 namespace HX::log {
 
 namespace internal {
-
-inline constexpr std::string_view DELIMIER          = ", ";
-inline constexpr std::string_view ENTER             = "\n";
-inline constexpr std::string_view PARENTHESES_LEFT  = "(";
-inline constexpr std::string_view PARENTHESES_RIGHT = ")";
-inline constexpr std::string_view BRACKET_LEFT      = "[";
-inline constexpr std::string_view BRACKET_RIGHT     = "]";
-inline constexpr std::string_view KEY_VAK_PAIR      = ": ";
-inline constexpr std::string_view BRACE_LEFT        = "{";
-inline constexpr std::string_view BRACE_DELIMIER    = ",\n";
-inline constexpr std::string_view BRACE_RIGHT       = "}";
-
+    
 struct FormatString {
+    inline static constexpr std::string_view DELIMIER          = ", ";
+    inline static constexpr std::string_view ENTER             = "\n";
+    inline static constexpr std::string_view PARENTHESES_LEFT  = "(";
+    inline static constexpr std::string_view PARENTHESES_RIGHT = ")";
+    inline static constexpr std::string_view BRACKET_LEFT      = "[";
+    inline static constexpr std::string_view BRACKET_RIGHT     = "]";
+    inline static constexpr std::string_view KEY_VAK_PAIR      = ": ";
+    inline static constexpr std::string_view BRACE_LEFT        = "{";
+    inline static constexpr std::string_view BRACE_DELIMIER    = ",\n";
+    inline static constexpr std::string_view BRACE_RIGHT       = "}";
+    
     /**
      * @brief 辅助类
      */
@@ -252,7 +252,7 @@ struct FormatString {
     // char[N] C字符数组
     template <std::size_t N>
     constexpr std::string make(char (&t)[N]) {
-        return {t, N};
+        return {t, N - 1};
     }
 
     // 普通指针
