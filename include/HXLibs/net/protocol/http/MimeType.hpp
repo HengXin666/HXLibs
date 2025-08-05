@@ -41,7 +41,7 @@ struct Less {
 };
 
 // https://www.runoob.com/http/http-content-type.html
-inline static const std::map<std::string_view, std::string_view, internal::Less> mimeMap = {
+inline const std::map<std::string_view, std::string_view, internal::Less> mimeMap = {
     {".323", "text/h323"},
     {".3gp", "video/3gpp"},
     {".aab", "application/x-authoware-bin"},
