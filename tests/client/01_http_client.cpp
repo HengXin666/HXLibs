@@ -17,7 +17,7 @@ coroutine::Task<> coMain() {
 }
 
 int main() {
-    coMain().start();
+    coMain().runSync();
     HttpClient cli{};
     auto res = cli.get("http://httpbin.org/get").get();
     log::hxLog.info("状态码:", res.status);

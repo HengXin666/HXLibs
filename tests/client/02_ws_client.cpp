@@ -55,7 +55,7 @@ int main() {
     
     // 等待服务器启动
     std::this_thread::sleep_for(1s);
-    coMain().start();
+    coMain().runSync();
 
     log::hxLog.warning("====== 测试同步 ======");
 

@@ -265,7 +265,7 @@ int main() {
 - `P`: 协程控制者 (默认的`Promise<T>`是懒启动, 以及 `co_return` 可以恢复到之前的协程调用者)
 - `Awaiter`: 则是指定 `co_await` 的功能
 
-其中的 `start` 方法很危险, **除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法**.
+其中的 `runSync` 方法很危险, **除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法**.
 
 ```cpp
 template <
@@ -279,7 +279,7 @@ struct [[nodiscard]] Task {
      * @warning 除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法
      * @return constexpr auto 
      */
-    constexpr auto start() const {
+    constexpr auto runSync() const {
         _handle.resume();
         if constexpr (requires {
             _handle.promise().result(); // Promise<T> 存在的
@@ -336,6 +336,26 @@ if (res.index() == 1)
 见 [EventLoop.hpp](include/HXLibs/coroutine/loop/EventLoop.hpp) (Linux基于`io_uring`实现, Win基于`IOCP`实现)
 
 以及协程定时器 (基于红黑树实现快速删除 (析构时候直接通过迭代器删除, 无需查找)) [TimerLoop.hpp](include/HXLibs/coroutine/loop/TimerLoop.hpp)
+
+常用API:
+
+```cpp
+struct EventLoop {
+    // 启动一个协程, 如果内部被挂起, 稍后应该调用 run(), 以从挂起中恢复
+    template <CoroutineObject T>
+    void start(T& mainTask);
+
+    // 同步等待一个协程完成 (在此之前, 应该保证事件循环为空, 否则会抛出异常)
+    template <CoroutineObject T, typename Res = AwaiterReturnValue<T>>
+    Res sync(T&& mainTask);
+
+    // 启动事件循环
+    void run();
+};
+```
+
+> [!TIP]
+> 如果你的类有 EventLoop, 那么你可以轻易的在析构的时候通过调用`_eventLoop.sync(this->close(...))`来实现所谓 **RAII协程**
 
 ### 3.3 HX::reflection (反射模块)
 #### 3.3.1 反射模板

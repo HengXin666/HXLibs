@@ -77,7 +77,7 @@ struct [[nodiscard]] Task {
      * @warning 除非你可以保证它可以执行到 co_return 并且在此之前不会返回, 否则不要调用该方法
      * @return constexpr auto 
      */
-    constexpr auto start() && {
+    constexpr auto runSync() && {
         _handle.resume();
         if constexpr (requires {
             _handle.promise().result();
@@ -89,6 +89,10 @@ struct [[nodiscard]] Task {
                 throw std::runtime_error{"The collaborative process has not been completed yet"};
             }
         }
+    }
+
+    constexpr auto& getPromise() const noexcept {
+        return _handle;
     }
 private:
     std::coroutine_handle<promise_type> _handle;

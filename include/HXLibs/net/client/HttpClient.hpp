@@ -156,7 +156,7 @@ public:
             return coRequst<Method>(
                 std::move(_url), std::move(_headers),
                 std::move(_body), contentType
-            ).start();
+            ).runSync();
         });
     }
 
@@ -217,7 +217,7 @@ public:
      */
     container::FutureResult<> close() {
         return _pool.addTask([this] {
-            coClose().start();
+            coClose().runSync();
         });
     }
 
@@ -256,7 +256,7 @@ public:
     container::FutureResult<> wsLoop(std::string url, Func&& func) {
         return _pool.addTask([this, _url = std::move(url),
                               _func = std::forward<Func>(func)] {
-            return coWsLoop(std::move(_url), _func).start();
+            return coWsLoop(std::move(_url), _func).runSync();
         });
     }
 

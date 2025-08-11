@@ -105,99 +105,11 @@ public:
             std::ostreambuf_iterator<char>(file)
         );
     }
-
-    /**
-     * @brief [异步的]读取文件内容
-     * @param path 文件路径
-     * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Read | OpenMode::Append)
-     * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
-     * @return std::string 文件内容
-     */
-    static HX::coroutine::Task<std::string> asyncGetFileContent(
-        std::string_view path,
-        OpenMode flags = OpenMode::Read,
-        ModeType mode = 0644
-    ) {
-        (void)path;
-        (void)flags;
-        (void)mode;
-#ifdef __HX_TODO__
-        int fd = HX::STL::tools::UringErrorHandlingTools::throwingError(
-            co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
-                AT_FDCWD, path.c_str(), static_cast<int>(flags), mode
-            )
-        );
-        std::string res;
-        std::vector<char> buf;
-        buf.reserve(kBufMaxSize);
-        std::size_t len = 0;
-        uint64_t offset = 0;
-        while ((len = static_cast<std::size_t>(
-            co_await HX::STL::coroutine::loop::IoUringTask().prepRead(fd, buf, offset)
-        )) == buf.size()) {
-            res += std::string_view {buf.data(), buf.size()};
-            offset += buf.size();
-        }
-        co_await HX::STL::coroutine::loop::IoUringTask().prepClose(fd);
-        co_return (res.append(std::string_view {buf.data(), len}));
-#else
-        co_return {};
-#endif // !__HX_TODO__
-    }
-
-    /**
-     * @brief [异步的]向文件写入内容
-     * @param path 文件路径
-     * @param content 需要写入的数据
-     * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Write | OpenMode::Append)
-     * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
-     * @return std::string 文件内容
-     */
-    static HX::coroutine::Task<int> asyncPutFileContent(
-        const std::string& path,
-        std::string_view content,
-        OpenMode flags,
-        ModeType mode = 0644
-    ) {
-        (void)path;
-        (void)content;
-        (void)flags;
-        (void)mode;
-#ifdef __HX_TODO__
-        int fd = HX::STL::tools::UringErrorHandlingTools::throwingError(
-            co_await HX::STL::coroutine::loop::IoUringTask().prepOpenat(
-                AT_FDCWD, path.c_str(), static_cast<int>(flags), mode
-            )
-        );
-        // 无需设置 offset, 因为内核会根据 open 的 flags 来
-        int res = co_await HX::STL::coroutine::loop::IoUringTask().prepWrite(
-            fd, content, static_cast<std::uint64_t>(-1)
-        );
-        co_await HX::STL::coroutine::loop::IoUringTask().prepClose(fd);
-        co_return res;
-#else
-        co_return {};
-#endif // !__HX_TODO__
-    }
-
-#ifdef __HX_TODO__
-    /**
-     * @brief 设置套接字为非阻塞
-     * @param fd 
-     * @return int `fcntl` 的返回值
-     */
-    static int setNonBlock(int fd) {
-        int flags = ::fcntl(fd, F_GETFL, 0);
-        if (flags < 0) [[unlikely]] {
-            return errno;
-        }
-        return ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    }
-#endif // !__HX_TODO__
 };
 
 /**
  * @brief 异步文件类
+ * @note 支持同步操作, 但是同步操作不应该出现在 co_await 协程语义上下文中
  */
 class AsyncFile {
 public:
@@ -257,9 +169,25 @@ public:
         co_return;
     }
 
+    /**
+     * @brief 同步打开文件
+     * @param path 文件路径
+     * @param flags 打开方式: OpenMode (枚举 如: OpenMode::Write | OpenMode::Append)
+     * @param mode 文件权限模式, 仅在文件创建时有效 (一般写0644)
+     * @param dirfd 目录文件描述符, 它表示相对路径的基目录; `AT_FDCWD`, 则表示相对于当前工作目录
+     * @return void
+     */
+    void syncOpen(
+        std::string_view path,
+        OpenMode flags = OpenMode::ReadWrite,
+        int dirfd = AT_FDCWD,
+        ModeType mode = 0644
+    ) {
+        _eventLoop.sync(open(path, flags, dirfd, mode));
+    }
 
     /**
-     * @brief 读取文件内容到 buf
+     * @brief 异步读取文件内容到 buf
      * @param buf [out] 读取到的数据
      * @return int 读取的字节数
      */
@@ -274,7 +202,7 @@ public:
     }
 
     /**
-     * @brief 读取文件内容到 buf
+     * @brief 异步读取文件内容到 buf
      * @param buf [out] 读取到的数据
      * @param size 读取的长度
      * @return int 读取的字节数
@@ -290,7 +218,26 @@ public:
     }
 
     /**
-     * @brief 将 buf 写入到文件中
+     * @brief 同步读取文件内容到 buf
+     * @param buf [out] 读取到的数据
+     * @return int 读取的字节数
+     */
+    int syncRead(std::span<char> buf) {
+        return _eventLoop.sync(read(buf));
+    }
+
+    /**
+     * @brief 同步读取文件内容到 buf
+     * @param buf [out] 读取到的数据
+     * @param size 读取的长度
+     * @return int 读取的字节数
+     */
+    int syncRead(std::span<char> buf, unsigned int size) {
+        return _eventLoop.sync(read(buf, size));
+    }
+
+    /**
+     * @brief 异步将 buf 写入到文件中
      * @param buf [in] 需要写入的数据
      * @return int 写入的字节数
      */
@@ -303,7 +250,16 @@ public:
     }
 
     /**
-     * @brief 关闭文件
+     * @brief 同步将 buf 写入到文件中
+     * @param buf [in] 需要写入的数据
+     * @return int 写入的字节数
+     */
+    int syncWrite(std::span<char> buf) {
+        return _eventLoop.sync(write(buf));
+    }
+
+    /**
+     * @brief 异步关闭文件
      * @return coroutine::Task<> 
      */
     coroutine::Task<> close() {
@@ -311,6 +267,13 @@ public:
             co_await _eventLoop.makeAioTask().prepClose(_fd)
         );
         _fd = kInvalidLocalFd;
+    }
+
+    /**
+     * @brief 同步关闭文件
+     */
+    void syncClose() {
+        _eventLoop.sync(close());
     }
 
     /**

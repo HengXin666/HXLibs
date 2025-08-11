@@ -34,6 +34,7 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/task/AioTask.hpp>
 #include <HXLibs/coroutine/loop/TimerLoop.hpp>
+#include <HXLibs/coroutine/concepts/Awaiter.hpp>
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
@@ -349,11 +350,51 @@ struct EventLoop {
         , _timerLoop{}
     {}
 
+    /**
+     * @brief 启动协程, 协程内部如果挂起, 应该调用 run() 进入事件循环, 以恢复挂起.
+     * @tparam T 
+     * @param mainTask 
+     */
     template <CoroutineObject T>
     void start(T& mainTask) {
         static_cast<std::coroutine_handle<>>(mainTask).resume();
     }
+
+    /**
+     * @brief 同步调用协程
+     * @warning 应该保证事件循环为空, 否则会抛出异常.
+     * @tparam T 
+     * @tparam Res 
+     * @param mainTask 
+     * @return Res 协程返回值
+     */
+    template <CoroutineObject T, typename Res = AwaiterReturnValue<T>>
+    Res sync(T&& mainTask) {
+        if (_eventDrive.isRun()) [[unlikely]] {
+            // 如果触发下面, 极有可能先前进行了协程挂起而没有恢复, 或者当前为协程语义环境
+            // 需要先调用 run(), 方可调用 sync(), 以防止可能的死锁
+            throw std::runtime_error{"Unexpected call"};
+        }
+        static_cast<std::coroutine_handle<>>(mainTask).resume();
+        run();
+        if constexpr (!std::is_void_v<Res>) {
+            auto& _handle = mainTask.getPromise();
+            if constexpr (requires {
+                _handle.promise().result();
+            }) {
+                if (_handle.done()) [[likely]] {
+                    return _handle.promise().result();
+                } else {
+                    // 不是期望的! 协程还没有执行完毕
+                    throw std::runtime_error{"The collaborative process has not been completed yet"};
+                }
+            }
+        }
+    }
     
+    /**
+     * @brief 启动事件循环
+     */
     void run() {
         for (;;) {
             auto timeout = _timerLoop.run();
@@ -367,10 +408,18 @@ struct EventLoop {
         }
     }
 
+    /**
+     * @brief 创建协程定时器
+     * @return auto 
+     */
     auto makeTimer() {
         return TimerLoop::makeTimer(_timerLoop);
     }
 
+    /**
+     * @brief 创建异步IO协程任务
+     * @return decltype(auto) 
+     */
     decltype(auto) makeAioTask() {
         return _eventDrive.makeAioTask();
     }
