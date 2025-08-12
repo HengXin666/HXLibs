@@ -49,6 +49,7 @@ struct FormatString {
     inline static constexpr std::string_view BRACE_LEFT        = "{";
     inline static constexpr std::string_view BRACE_DELIMIER    = ",\n";
     inline static constexpr std::string_view BRACE_RIGHT       = "}";
+    inline static constexpr std::string_view QUOTATION_MARKS   = "\"";
     
     /**
      * @brief 辅助类
@@ -92,6 +93,12 @@ struct FormatString {
         return t.string();
     }
 
+    template <typename T, typename Stream>
+        requires (std::is_same_v<T, std::filesystem::path>)
+    constexpr void make(T const& t, Stream& s) {
+        s.append(t.string());
+    }
+
     // 线程id
     template <typename T>
         requires (std::is_same_v<T, std::thread::id>)
@@ -101,7 +108,19 @@ struct FormatString {
 #else
             std::ostringstream oss;
             oss << t;
-            return oss.str();
+            return std::move(oss).str();
+#endif // !__cplusplus >= 202302L
+    }
+
+    template <typename T, typename Stream>
+        requires (std::is_same_v<T, std::thread::id>)
+    void make(T const& t, Stream& s) {
+#if __cplusplus >= 202302L
+            return std::format("{}", t);
+#else
+            std::ostringstream oss;
+            oss << t;
+            s.append(std::move(oss).str());
 #endif // !__cplusplus >= 202302L
     }
 
@@ -109,6 +128,12 @@ struct FormatString {
     constexpr std::string make(bool t) {
         using namespace std::string_literals;
         return t ? "true"s : "false"s;
+    }
+
+    template <typename Stream>
+    constexpr void make(bool t, Stream& s) {
+        using namespace std::string_literals;
+        s.append(t ? "true"s : "false"s);;
     }
 
     // null
@@ -121,6 +146,15 @@ struct FormatString {
         return "null"s;
     }
 
+    template <typename NullType, typename Stream>
+        requires (std::is_same_v<NullType, std::nullopt_t>
+               || std::is_same_v<NullType, std::nullptr_t>
+               || std::is_same_v<NullType, std::monostate>)
+    constexpr void make(NullType const&, Stream& s) {
+        using namespace std::string_literals;
+        s.append("null"s);
+    }
+
     // 数字类型 NF 表示浮点数的位数 (-1表示默认选项, 使用 std::format("{}", t) 格式化)
     template <typename T, size_t NF = static_cast<size_t>(-1)>
         requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
@@ -131,9 +165,21 @@ struct FormatString {
             return std::format("{}", t);
         }
     }
+
+    template <typename T, size_t NF = static_cast<size_t>(-1), typename Stream>
+        requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
+    constexpr void make(T const& t, Stream& s) {
+        if constexpr (NF != static_cast<size_t>(-1)) {
+            s.append(std::format("{:." + std::format("{}", NF) + "f}", t));
+        } else {
+            s.append(std::format("{}", t));
+        }
+    }
     
     // C风格数组
     template <typename T, std::size_t N>
+        requires (!std::is_same_v<T, wchar_t>
+               && !std::is_same_v<T, char>)
     constexpr std::string make(const T (&arr)[N]) {
         std::string res;
         bool once = false;
@@ -147,6 +193,22 @@ struct FormatString {
         }
         res += BRACKET_RIGHT;
         return res;
+    }
+
+    template <typename T, std::size_t N, typename Stream>
+        requires (!std::is_same_v<T, wchar_t>
+               && !std::is_same_v<T, char>)
+    constexpr void make(const T (&arr)[N], Stream& s) {
+        bool once = false;
+        s.append(BRACKET_LEFT);
+        for (const auto& it : arr) {
+            if (once)
+                s.append(DELIMIER);
+            else
+                once = true;
+            make(it, s);
+        }
+        s.append(BRACKET_RIGHT);
     }
     
     // std常见的支持迭代器的单元素容器
@@ -164,6 +226,20 @@ struct FormatString {
         }
         res += BRACKET_RIGHT;
         return res;
+    }
+
+    template <meta::SingleElementContainer Container, typename Stream>
+    constexpr void make(Container const& arr, Stream& s) {
+        bool once = false;
+        s.append(BRACKET_LEFT);
+        for (const auto& it : arr) {
+            if (once)
+                s.append(DELIMIER);
+            else
+                once = true;
+            make(it, s);
+        }
+        s.append(BRACKET_RIGHT);
     }
 
     // 聚合类
@@ -185,9 +261,9 @@ struct FormatString {
                         notNull = true;
                     }
                     addIndent(res);
-                    res += make(name);
+                    make(name, res);
                     res += KEY_VAK_PAIR;
-                    res.append(make(val));
+                    make(val, res);
     
                     if constexpr (I < Cnt - 1) {
                         res += BRACE_DELIMIER;
@@ -200,6 +276,39 @@ struct FormatString {
         }
         res += BRACE_RIGHT;
         return res;
+    }
+
+    template <typename T, typename Stream>
+        requires (reflection::IsReflective<T>)
+    constexpr void make(T const& obj, Stream& s) {
+        constexpr std::size_t Cnt = reflection::membersCountVal<T>;
+        s.append(BRACE_LEFT);
+        bool notNull = false;
+        {
+            if constexpr (Cnt > 0) {
+                DepthRAII _{_depth};
+                reflection::forEach(obj, [&] <std::size_t I> (
+                    std::index_sequence<I>, auto name, auto const& val
+                ) {
+                    if (!notNull) {
+                        s.append(ENTER);
+                        notNull = true;
+                    }
+                    addIndent(s);
+                    make(name, s);
+                    s.append(KEY_VAK_PAIR);
+                    make(val, s);
+    
+                    if constexpr (I < Cnt - 1) {
+                        s.append(BRACE_DELIMIER);
+                    }
+                });
+            }
+        }
+        if (notNull) {
+            addIndent<true>(s);
+        }
+        s.append(BRACE_RIGHT);
     }
 
     // std常见的支持迭代器的键值对容器
@@ -221,9 +330,9 @@ struct FormatString {
                 else
                     once = true;
                 addIndent(res);
-                res += make(k);
+                make(k, res);
                 res += KEY_VAK_PAIR;
-                res += make(v);
+                make(v, res);
             }
         }
         if (notNull) {
@@ -231,6 +340,34 @@ struct FormatString {
         }
         res += BRACE_RIGHT;
         return res;
+    }
+
+    template <meta::KeyValueContainer Container, typename Stream>
+    constexpr void make(const Container& map, Stream& s) {
+        s.append(BRACE_LEFT);
+        bool notNull = false;
+        {
+            DepthRAII _{_depth};
+            bool once = false;
+            for (const auto& [k, v] : map) {
+                if (!notNull) {
+                    s.append(ENTER);
+                    notNull = true;
+                }
+                if (once)
+                    s.append(BRACE_DELIMIER);
+                else
+                    once = true;
+                addIndent(s);
+                make(k, s);
+                s.append(KEY_VAK_PAIR);
+                make(v, s);
+            }
+        }
+        if (notNull) {
+            addIndent<true>(s);
+        }
+        s.append(BRACE_RIGHT);
     }
 
     // str相关的类型
@@ -244,30 +381,62 @@ struct FormatString {
         return res;
     }
 
+    template <meta::StringType ST, typename Stream>
+        requires(!std::is_same_v<ST, std::filesystem::path>)
+    constexpr void make(const ST& t, Stream& s) {
+        s.append(QUOTATION_MARKS);
+        s.append(t);
+        s.append(QUOTATION_MARKS);
+    }
+
     // const char* C字符串指针
     constexpr std::string make(const char* t) {
         return {t};
     }
 
+    template <typename Stream>
+    constexpr void make(const char* t, Stream& s) {
+        s.append({t});
+    }
+
     // char[N] C字符数组
     template <std::size_t N>
-    constexpr std::string make(char (&t)[N]) {
+    constexpr std::string make(char const (&t)[N]) {
         return {t, N - 1};
+    }
+
+    template <std::size_t N, typename Stream>
+    constexpr void make(char const (&t)[N], Stream& s) {
+        s.append({t, N - 1});
     }
 
     // 普通指针
     template <typename T>
     constexpr std::string make(T* const& p) {
-        std::string res = "0x";
+        using namespace std::string_literals;
+        std::string res = "0x"s;
         res += utils::NumericBaseConverter::hexadecimalConversion(
             reinterpret_cast<std::size_t>(p));
         return res;
+    }
+
+    template <typename T, typename Stream>
+    constexpr void make(T* const& p, Stream& s) {
+        using namespace std::string_literals;
+        s.append("0x"s);
+        s.append(utils::NumericBaseConverter::hexadecimalConversion(
+            reinterpret_cast<std::size_t>(p)));
     }
 
     // std::optional
     template <typename T>
     constexpr std::string make(std::optional<T> const& opt) {
         return opt ? make(*opt) : make(std::nullopt);
+    }
+
+    template <typename T, typename Stream>
+    constexpr void make(std::optional<T> const& opt, Stream& s) {
+        opt ? make(*opt, s) : make(std::nullopt, s);
     }
 
     // std::pair
@@ -280,6 +449,15 @@ struct FormatString {
         res += make(std::get<1>(p2));
         res += PARENTHESES_RIGHT;
         return res;
+    }
+
+    template <typename T1, typename T2, typename Stream>
+    constexpr void make(std::pair<T1, T2> const& p2, Stream& s) {
+        s.append(PARENTHESES_LEFT);
+        make(std::get<0>(p2), s);
+        s.append(DELIMIER);
+        make(std::get<1>(p2), s);
+        s.append(PARENTHESES_RIGHT);
     }
 
     // std::tuple
@@ -297,11 +475,30 @@ struct FormatString {
         return res;
     }
 
+    template <typename... Ts, typename Stream>
+    constexpr void make(std::tuple<Ts...> const& tp, Stream& s) {
+        constexpr std::size_t N = sizeof...(Ts);
+        s.append(PARENTHESES_LEFT);
+        [&] <std::size_t... Is> (std::index_sequence<Is...>) {
+            ((make(std::get<Is>(tp), s), 
+              static_cast<void>(Is + 1 < N ? s.append(DELIMIER) : s)
+            ), ...);
+        }(std::make_index_sequence<N>{});
+        s.append(PARENTHESES_RIGHT);
+    }
+
     // std::variant
     template <typename... Ts>
     constexpr std::string make(std::variant<Ts...> const& v) {
         return std::visit([&](auto&& val) {
             return make(val);
+        }, v);
+    }
+
+    template <typename... Ts, typename Stream>
+    constexpr void make(std::variant<Ts...> const& v, Stream& s) {
+        std::visit([&](auto&& val) {
+            make(val, s);
         }, v);
     }
 
@@ -312,6 +509,12 @@ struct FormatString {
         return ptr ? make(*ptr) : make(nullptr);
     }
 
+    template <typename T, typename Stream>
+        requires (meta::is_smart_pointer_v<T>)
+    constexpr void make(T const& ptr, Stream& s) {
+        ptr ? make(*ptr, s) : make(nullptr, s);
+    }
+
     std::size_t _depth = 0; // 嵌套深度
     std::string_view _indentStr{"    ", 4}; // 缩进字符串
 };
@@ -320,11 +523,16 @@ struct FormatString {
 
 template <typename... Ts>
     requires(sizeof...(Ts) > 0)
-std::string formatString(Ts const&... ts) {
+inline std::string formatString(Ts const&... ts) {
     std::string res;
     internal::FormatString fs{};
     ((res += fs.make(ts)), ...);
     return res;
+}
+
+template <typename T, typename Stream>
+inline void formatString(T const& t, Stream& s) {
+    internal::FormatString{}.make(t, s);
 }
 
 } // namespace HX::log

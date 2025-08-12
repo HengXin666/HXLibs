@@ -227,6 +227,26 @@ public:
     }
 
     /**
+     * @brief 同步的读取全部内容到 buf
+     * @return std::string 
+     */
+    std::string syncReadAll() {
+        std::string res;
+        std::vector<char> buf;
+        buf.resize(FileUtils::kBufMaxSize);
+        auto coTask = [&]() -> coroutine::Task<> {
+            for (int len = 0; (len = co_await read(buf)); ) {
+                res += std::string_view{buf.data(), static_cast<std::size_t>(len)};
+            }
+            co_return;
+        };
+        auto task = coTask();
+        _eventLoop.start(task);
+        _eventLoop.run();
+        return res;
+    }
+
+    /**
      * @brief 同步读取文件内容到 buf
      * @param buf [out] 读取到的数据
      * @param size 读取的长度

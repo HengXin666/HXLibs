@@ -14,9 +14,17 @@ HXLibs 是一个现代 C++ 库. 目前集合了:
 
 ## 二、构建要求
 
-- Linux 5.1+ 
-- GCC / Clang 编译器
+- Linux 5.1+ || Windows
+- GCC / Clang || MSVC 编译器
 - C++20
+
+CMake以子项目的方式导入使用:
+
+```cmake
+# 导入 libs 文件夹下的 HXLibs
+add_subdirectory(libs/HXLibs)
+target_link_libraries(YouProject PRIVATE HXLibs)
+```
 
 ## 三、快速开始
 > [!TIP]
@@ -629,6 +637,9 @@ TEST_CASE("json 序列化") {
     log::hxLog.info("元素:", cat);
     log::hxLog.info("序列化字符串:", catStr);
     CHECK(catStr == R"({"name":"咪咪","num":2233,"sub":[{"name":"明卡","num":233,"sub":[{"name":"大猫","num":666,"sub":[]}]},{"name":"喵喵","num":114514,"sub":[{"name":"","num":0,"sub":[]}]}]})");
+    catStr.clear();
+    reflection::toJson<true>(cat, catStr); // 模板参数 指定 IsFormat = true, 则会格式化 json (默认为 false)
+    log::hxLog.info("格式化的:", catStr);
 }
 
 TEST_CASE("json 反序列化") {

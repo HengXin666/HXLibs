@@ -97,6 +97,19 @@ inline constexpr std::string toByteString(const std::wstring& input) {
     return res;
 }
 
+template <typename CharT, std::size_t N>
+    requires (std::is_same_v<CharT, char>
+           || std::is_same_v<CharT, wchar_t>)
+struct CharArrWarp {
+    /**
+     * @note 因为 数组可以匹配到 数组引用 和 隐式转换到 指针. 使得模板情况下重载决议出现二义性
+     * 应该使用包装类, 让数组匹配到更加具体的它, 并且显然无法匹配到指针, 这种情况下有更具体的
+     * 就可以去掉二义性
+     */
+    using Type = CharT;
+    CharT const (&arr)[N];
+};
+
 struct FormatZipString {
     inline static constexpr std::string_view DELIMIER          = ",";
     inline static constexpr std::string_view PARENTHESES_LEFT  = "(";
@@ -198,6 +211,8 @@ struct FormatZipString {
     
     // C风格数组
     template <typename T, std::size_t N>
+        requires (!std::is_same_v<T, wchar_t>
+               && !std::is_same_v<T, char>)
     constexpr std::string make(const T (&arr)[N]) {
         std::string res;
         bool once = false;
@@ -214,6 +229,8 @@ struct FormatZipString {
     }
 
     template <typename T, std::size_t N, typename Stream>
+        requires (!std::is_same_v<T, wchar_t>
+               && !std::is_same_v<T, char>)
     constexpr void make(const T (&arr)[N], Stream& s) {
         bool once = false;
         s.append(BRACKET_LEFT);
@@ -381,9 +398,15 @@ struct FormatZipString {
         return {t};
     }
 
-    template <typename Stream>
-    constexpr void make(const char* t, Stream& s) {
-        s.append(t);
+    template <typename CharT, typename Stream>
+        requires (std::is_same_v<CharT, char>
+               || std::is_same_v<CharT, wchar_t>)
+    constexpr void make(CharT const* t, Stream& s) {
+        if constexpr (std::is_same_v<CharT, char>) {
+            s.append(t);
+        } else {
+            s.append(toByteString(t));
+        }
     }
 
     // const wchar_t* C字符串指针
@@ -391,37 +414,32 @@ struct FormatZipString {
         return toByteString(t);
     }
 
-    template <typename Stream>
-    constexpr void make(const wchar_t* t, Stream& s) {
-        s.append(toByteString(t));
-    }
-
     // char[N] C字符数组
     template <std::size_t N>
-    constexpr std::string make(char (&t)[N]) {
+    constexpr std::string make(char const (&t)[N]) {
         return {t, N - 1};
     }
 
-    template <std::size_t N, typename Stream>
-    constexpr void make(char (&t)[N], Stream& s) {
-        s.append({t, N - 1});
+    template <typename CharT, std::size_t N, typename Stream>
+    constexpr void make(CharArrWarp<CharT, N> t, Stream& s) {
+        if constexpr (std::is_same_v<typename meta::remove_cvref_t<decltype(t)>::Type, char>) {
+            s.append({t.arr, N - 1});
+        } else {
+            s.append(toByteString({t.arr, N - 1}));
+        }
     }
 
     // wchar_t[N] C字符数组
     template <std::size_t N>
-    constexpr std::string make(wchar_t (&t)[N]) {
+    constexpr std::string make(wchar_t const (&t)[N]) {
         return toByteString({t, N - 1});
-    }
-
-    template <std::size_t N, typename Stream>
-    constexpr void make(wchar_t (&t)[N], Stream& s) {
-        s.append(toByteString({t, N - 1}));
     }
 
     // 普通指针
     template <typename T>
     constexpr std::string make(T* const& p) {
-        std::string res = "0x";
+        using namespace std::string_literals;
+        std::string res = "0x"s;
         res += utils::NumericBaseConverter::hexadecimalConversion(
             reinterpret_cast<std::size_t>(p));
         return res;
@@ -429,7 +447,8 @@ struct FormatZipString {
 
     template <typename T, typename Stream>
     constexpr void make(T* const& p, Stream& s) {
-        s.append("0x");
+        using namespace std::string_literals;
+        s.append("0x"s);
         s.append(utils::NumericBaseConverter::hexadecimalConversion(
             reinterpret_cast<std::size_t>(p)));
     }
@@ -504,7 +523,7 @@ struct FormatZipString {
 
     template <typename... Ts, typename Stream>
     constexpr void make(std::variant<Ts...> const& v, Stream& s) {
-        return std::visit([&](auto&& val) {
+        std::visit([&](auto&& val) {
             make(val, s);
         }, v);
     }
@@ -545,7 +564,7 @@ inline std::string toString(Ts const&... ts) {
  * @param s 字符串
  */
 template <typename T, typename Stream>
-inline void toString(T&& t, Stream& s) {
+inline void toString(T const& t, Stream& s) {
     internal::FormatZipString{}.make(t, s);
 }
 

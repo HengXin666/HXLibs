@@ -1,28 +1,53 @@
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/log/Log.hpp>
+#include <HXLibs/utils//TickTock.hpp>
 
 using namespace HX;
 
-auto __init__ = []{
-    setlocale(LC_ALL, "zh_CN.UTF-8");
-    try {
-        auto cwd = std::filesystem::current_path();
-        log::hxLog.debug("当前工作路径是:", cwd);
-        std::filesystem::current_path("../../../../static");
-        log::hxLog.debug("切换到路径:", std::filesystem::current_path());
-    } catch (const std::filesystem::filesystem_error& e) {
-        log::hxLog.error("Error:", e.what());
-    }
-    return 0;
-}();
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
 
-int main() {
+TEST_CASE("测试朴素同步读写文件接口测试") {
     coroutine::EventLoop loop{};
-    utils::AsyncFile file{loop};
-    loop.sync(file.open("./index.html"));
-    std::string data('1', 16);
-    loop.sync(file.read(data));
-    log::hxLog.info(data);
-    file.syncClose();
-    return 0;
+    // 写
+    {
+        utils::AsyncFile file{loop};
+        loop.sync(file.open("./01_file.test"));
+        std::string data(114514, 'H');
+        loop.sync(file.write(data));
+        file.syncClose();
+    }
+    // 读取
+    {
+        utils::AsyncFile file{loop};
+        loop.sync(file.open("./01_file.test"));
+        std::string data(2233, '_');
+        loop.sync(file.read(data));
+        for (char c : data) {
+            if (c != 'H') {
+                CHECK(false);
+            }
+        }
+        file.syncClose();
+    }
+    CHECK(true);
+}
+
+TEST_CASE("性能对比测试") {
+    coroutine::EventLoop loop{};
+    std::string res01, res02;
+    {
+        utils::TickTock<> _{"协程的同步"};
+        utils::AsyncFile file{loop};
+        loop.sync(file.open("./01_file.test"));
+        res01 = file.syncReadAll();
+        file.syncClose();
+    }
+    {
+        utils::TickTock<> _{"同步"};
+        res02 = utils::FileUtils::getFileContent("./01_file.test");
+    }
+    bool isEq = res01 == res02;
+    log::hxLog.debug(isEq);
+    CHECK(isEq);
 }

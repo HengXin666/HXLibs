@@ -20,13 +20,26 @@
 #ifndef _HX_JSON_WRITE_H_
 #define _HX_JSON_WRITE_H_
 
+#include <HXLibs/log/serialize/FormatString.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
 
 namespace HX::reflection {
 
-template <typename Obj, typename Stream>
+/**
+ * @brief 将obj反射为json字符串
+ * @tparam IsFormat 是否格式化, 默认为 false (紧凑) 即不格式化
+ * @tparam Obj 
+ * @tparam Stream 要求支持 `.append()` 方法
+ * @param obj 
+ * @param s 
+ */
+template <bool IsFormat = false, typename Obj, typename Stream>
 inline void toJson(Obj const& obj, Stream& s) {
-    log::toString(obj, s);
+    if constexpr (IsFormat) {
+        log::formatString(obj, s);
+    } else {
+        log::toString(obj, s);
+    }
 }
 
 } // namespace HX::reflection
