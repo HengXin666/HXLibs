@@ -57,6 +57,9 @@
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
+    #define WIN32_LEAN_AND_MEAN // 排除不必要的头
+    #include <winsock2.h>       // 必须在 Windows.h 之前
+    #include <ws2tcpip.h>       // 如果你需要 inet_pton, sockaddr_in6 等
     #include <Windows.h>
     #include <winternl.h>
 
