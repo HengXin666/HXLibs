@@ -7,66 +7,7 @@
 
 using namespace HX;
 
-template <auto ptr>
-inline constexpr std::string_view getMemberName() {
-    constexpr std::string_view funcName = __FUNCSIG__;
-    return funcName;
-}
-
-TEST_CASE("对照组: 无宏反射") {
-    struct Case01 {
-        int a;
-        std::string b;
-        std::vector<Case01> c;
-    };
-
-    struct Case02 {
-        int num;
-        std::string str;
-        std::vector<Case02> arr;
-    };
-
-    constexpr auto N = reflection::membersCountVal<Case01>;
-    constexpr auto name = reflection::getMembersNames<Case01>();
-
-    CHECK(N == 3);
-    CHECK(name[0] == "a");
-    CHECK(name[1] == "b");
-    CHECK(name[2] == "c");
-
-    constexpr auto N2 = reflection::membersCountVal<Case02>;
-    constexpr auto name2 = reflection::getMembersNames<Case02>();
-
-    CHECK(N2 == 3);
-    CHECK(name2[0] == "num");
-    CHECK(name2[1] == "str");
-    CHECK(name2[2] == "arr");
-
-    {
-        constexpr auto tp1 = reflection::internal::getStaticObjPtrTuple<Case01>();
-        constexpr auto tp2 = reflection::internal::getStaticObjPtrTuple<Case02>();
-        std::cout << getMemberName<get<0>(tp1)>() << '\n';
-        std::cout << getMemberName<get<0>(tp2)>() << '\n';
-    }
-#if 0
-    {
-        log::hxLog.debug(reflection::internal::getStaticObjPtrTuple<Case01>());
-        log::hxLog.debug(reflection::internal::getStaticObjPtrTuple<Case02>());
-    }
-    {
-        constexpr auto tp1 = reflection::internal::getStaticObjPtrTuple<Case01>();
-        constexpr auto tp2 = reflection::internal::getStaticObjPtrTuple<Case02>();
-
-        CHECK(get<0>(tp1) == get<0>(tp2));
-
-        log::hxLog.debug(getMemberName<get<0>(tp1)>());
-        log::hxLog.debug(getMemberName<get<0>(tp2)>());
-    }
-#endif
-}
-
-
-#if 0
+#if 1
 struct TestCase01 {
 private:
     int a;
