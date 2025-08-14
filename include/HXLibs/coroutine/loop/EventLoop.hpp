@@ -212,7 +212,7 @@ struct Iocp {
             nullptr,
             0,
             0))}
-        , _runingHandle{}
+        , _taskCnt{}
         , _tasks{}
     {
         platform::internal::InitWin32Api::ensure();
@@ -221,7 +221,7 @@ struct Iocp {
     Iocp& operator=(Iocp&&) = delete;
 
     AioTask makeAioTask() {
-        return {_iocpHandle, _runingHandle};
+        return {_iocpHandle, _taskCnt};
     }
 
     /**
@@ -231,7 +231,7 @@ struct Iocp {
      * @return false 无任务
      */
     bool isRun() const {
-        return _runingHandle.size();
+        return _taskCnt._numSqesPending;
     }
 
     void run(std::optional<std::chrono::system_clock::duration> timeout) {
@@ -294,23 +294,8 @@ BOOL GetQueuedCompletionStatusEx(
             t.resume();
         }
 
+        _taskCnt._numSqesPending -= static_cast<std::size_t>(n);
         _tasks.clear();
-    }
-
-    /**
-     * @brief 主动泄漏 fd, 以退出事件循环 (注意, 应该在保存好fd, 以便最后的时候进行释放)
-     * @param socketFd
-     */
-    void leak(::SOCKET socketFd) {
-        _runingHandle.erase(reinterpret_cast<::HANDLE>(socketFd));
-    }
-
-    /**
-     * @brief 主动恢复 fd, 以便可以继续阻塞事件循环, 直到事件全部完成
-     * @param socketFd 
-     */
-    void heal(::SOCKET socketFd) {
-        _runingHandle.insert(reinterpret_cast<::HANDLE>(socketFd));
     }
 
     ~Iocp() noexcept {
@@ -321,7 +306,7 @@ BOOL GetQueuedCompletionStatusEx(
 
 private:
     ::HANDLE _iocpHandle;
-    std::unordered_set<::HANDLE> _runingHandle;
+    TaskCnt _taskCnt;
     std::vector<std::coroutine_handle<>> _tasks;
 };
 

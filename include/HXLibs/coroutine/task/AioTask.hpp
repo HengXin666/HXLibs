@@ -302,16 +302,20 @@ namespace internal {
 
 struct Iocp;
 
+struct TaskCnt {
+    std::size_t _numSqesPending;                // 未完成的任务数
+    std::unordered_set<::HANDLE> _runingHandle; // 防止重复加入监测
+};
+
 } // namespace internal
 
 struct AioTask {
-    AioTask(::HANDLE iocpHandle, std::unordered_set<::HANDLE>& runingHandle)
+    AioTask(::HANDLE iocpHandle, internal::TaskCnt& taskCnt)
         : _iocpHandle{iocpHandle}
-        , _runingHandle{runingHandle}
+        , _taskCnt{taskCnt}
         , _data{new _AioIocpData{*this}}
     {}
-#if 1 // 注意: 不能存在`移动`, 否则 IoUring::makeAioTask 返回就是 构造的新对象; 屏蔽了移动, 反而是编译器优化!
-      // 得写移动, 不然无法在 MSVC 上通过编译 对于 HX::whenAny
+#if 0 // 注意: 不能存在`移动`, 否则 IoUring::makeAioTask 返回就是 构造的新对象; 屏蔽了移动, 反而是编译器优化!
     AioTask& operator=(AioTask const&) = delete;
     AioTask(AioTask const&) noexcept = delete;
 
@@ -371,12 +375,16 @@ private:
         ::HANDLE _iocpHandle;
     };
     container::UninitializedNonVoidVariant<::HANDLE, ::SOCKET> _fd;
-    std::reference_wrapper<std::unordered_set<::HANDLE>> _runingHandle;
+    internal::TaskCnt& _taskCnt;
     std::coroutine_handle<> _previous;
     _AioIocpData* _data; // 其实际所有权会被转移到 Loop::run() 中
 
+    template <bool IsAioTask>
     void _associateHandle(::HANDLE h) & {
-        auto&& runingHandleRef = _runingHandle.get();
+        auto&& runingHandleRef = _taskCnt._runingHandle;
+        if constexpr (IsAioTask) {
+            ++_taskCnt._numSqesPending;
+        }
         if (runingHandleRef.count(h))
             return;
         if (!::CreateIoCompletionPort(
@@ -388,14 +396,16 @@ private:
         runingHandleRef.insert(h);
     }
 
+    template <bool IsAioTask = true>
     void associateHandle(::HANDLE h) & {
         _fd.emplace<::HANDLE>(h);
-        _associateHandle(h);
+        _associateHandle<IsAioTask>(h);
     }
 
+    template <bool IsAioTask = true>
     void associateHandle(::SOCKET h) & {
         _fd.emplace<::SOCKET>(h);
-        _associateHandle(reinterpret_cast<::HANDLE>(h));
+        _associateHandle<IsAioTask>(reinterpret_cast<::HANDLE>(h));
     }
 
     struct _AioTimeoutTask {
@@ -495,7 +505,7 @@ WSARecv: 从已连接的套接字接收数据, 支持 OVERLAPPED 结构实现异
         if (socket == INVALID_SOCKET) [[unlikely]] {
             throw std::runtime_error{"socket ERROR: " + std::to_string(::WSAGetLastError())};
         }
-        associateHandle(socket);
+        associateHandle<false>(socket);
         co_return socket;
     }
 
@@ -822,7 +832,7 @@ int WSASend(
      */
     [[nodiscard]] Task<int> prepClose(::HANDLE fd) && {
         // ::io_uring_prep_close(_sqe, fd);
-        auto&& runingHandleRef = _runingHandle.get();
+        auto&& runingHandleRef = _taskCnt._runingHandle;
         bool ok = ::CloseHandle(fd);
         if (!ok) [[unlikely]] {
             // 如果这里抛异常了, 那是不是无法关闭?!
@@ -848,7 +858,7 @@ int WSASend(
      */
     [[nodiscard]] Task<int> prepClose(::SOCKET socket) && {
         // ::io_uring_prep_close(_sqe, fd);
-        auto&& runingHandleRef = _runingHandle.get();
+        auto&& runingHandleRef = _taskCnt._runingHandle;
         int ok = ::closesocket(socket);
         if (ok == SOCKET_ERROR) [[unlikely]] {
             // 如果这里抛异常了, 那是不是无法关闭?!

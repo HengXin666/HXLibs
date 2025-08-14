@@ -59,8 +59,8 @@ public:
         _isRun.store(false, std::memory_order_release);
         std::size_t errCnt = 0;
         while (_runNum) {
-            HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-            try {            
+            try {         
+                HttpClient cli{HttpClientOptions{.timeout = 1_s}};
                 if (cli.get(
                     "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
                     ).get().status / 100 == 2

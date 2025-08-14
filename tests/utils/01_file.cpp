@@ -47,7 +47,8 @@ TEST_CASE("性能对比测试") {
         utils::TickTock<> _{"同步"};
         res02 = utils::FileUtils::getFileContent("./01_file.test");
     }
+    CHECK(res01.size() == res02.size());
     bool isEq = res01 == res02;
-    log::hxLog.debug(isEq);
     CHECK(isEq);
+    log::hxLog.debug(isEq);
 }
