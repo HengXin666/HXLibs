@@ -57,15 +57,15 @@ public:
 };
 
 TEST_CASE("测试宏反射私有变量") {
-    constexpr auto N = reflection::membersCountVal<TestCase01>;
-    constexpr auto name = reflection::getMembersNames<TestCase01>();
+    constexpr auto N = reflection::membersCountVal<TestCase02>;
+    constexpr auto name = reflection::getMembersNames<TestCase02>();
 
     CHECK(N == 3);
     CHECK(name[0] == "num");
     CHECK(name[1] == "str");
     CHECK(name[2] == "arr");
 
-    TestCase01 t;
+    TestCase02 t;
     reflection::forEach(t, [] <std::size_t Idx> (std::index_sequence<Idx>, auto name, auto& v) {
         if constexpr (Idx == 0) {
             CHECK(name == "num");
