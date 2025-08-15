@@ -346,7 +346,7 @@ struct EventLoop {
     }
 
     /**
-     * @brief 同步调用协程
+     * @brief 同步调用协程, 如果协程内部抛出异常, 则该异常会在 sync 重新抛出
      * @warning 应该保证事件循环为空, 否则会抛出异常.
      * @tparam T 
      * @tparam Res 
@@ -360,8 +360,20 @@ struct EventLoop {
             // 需要先调用 run(), 方可调用 sync(), 以防止可能的死锁
             throw std::runtime_error{"Unexpected call"};
         }
-        static_cast<std::coroutine_handle<>>(mainTask).resume();
+        std::exception_ptr exception{};
+        auto task = [&]() -> Task<> {
+            try {
+                co_await mainTask;
+            } catch (...) {
+                exception = std::current_exception();
+            }
+        };
+        auto coTask = task();
+        static_cast<std::coroutine_handle<>>(coTask).resume();
         run();
+        if (exception) [[unlikely]] {
+            std::rethrow_exception(exception);
+        }
         if constexpr (!std::is_void_v<Res>) {
             auto& _handle = mainTask.getPromise();
             if constexpr (requires {

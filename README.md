@@ -53,7 +53,7 @@ int main() {
             + utils::DateTimeFormat::formatWithMilli()
         ).sendRes();
         co_return;
-    }, TimeLog{})
+    })
     .addEndpoint<GET>("/stop", [&] ENDPOINT {
         // 支持手动关闭服务器
         co_await res.setStatusAndContent(
@@ -354,6 +354,7 @@ struct EventLoop {
     void start(T& mainTask);
 
     // 同步等待一个协程完成 (在此之前, 应该保证事件循环为空, 否则会抛出异常)
+    // 如果 协程 mainTask 抛出异常, 则 sync 会捕获并且重新抛出
     template <CoroutineObject T, typename Res = AwaiterReturnValue<T>>
     Res sync(T&& mainTask);
 

@@ -52,3 +52,15 @@ TEST_CASE("性能对比测试") {
     CHECK(isEq);
     log::hxLog.debug(isEq);
 }
+
+TEST_CASE("只读打开文件: 不会自动创建") {
+    coroutine::EventLoop loop{};
+    utils::AsyncFile file{loop};
+    try {
+        file.syncOpen("./xxxxx.xxx", utils::OpenMode::Read);
+        CHECK(false);
+        file.syncClose();
+    } catch (...) {
+        CHECK(true);
+    }
+}

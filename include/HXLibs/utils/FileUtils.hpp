@@ -142,7 +142,7 @@ public:
 #elif defined(_WIN32)
         auto params =
             platform::Win32FileParamsBuilder(flags).enableIocp(true)
-                                                         .build();
+                                                   .build();
 
         HANDLE fileHandle = ::CreateFileA(
             path.data(),                            // 文件名
@@ -163,10 +163,10 @@ public:
         }
 
         _fd = reinterpret_cast<LocalFdType>(fileHandle);
+        co_return;
 #else
         #error "Unsupported platform"
 #endif
-        co_return;
     }
 
     /**
