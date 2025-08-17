@@ -39,3 +39,18 @@ TEST_CASE("json 序列化") {
     reflection::toJson<true>(cat, catStr);
     log::hxLog.info("格式化的:", catStr);
 }
+
+TEST_CASE("枚举") {
+    enum class Enum : uint32_t {
+        A, B, C, D, E, F, G
+    };
+
+    struct EnumTest {
+        Enum arr[4];
+    };
+
+    EnumTest e{Enum::A, Enum::C, Enum::E, Enum::G};
+    std::string jsonStr;
+    reflection::toJson<false>(e, jsonStr);
+    log::hxLog.info(e, jsonStr);
+}

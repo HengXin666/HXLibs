@@ -32,6 +32,7 @@
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
+#include <HXLibs/reflection/EnumName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
 
 namespace HX::log {
@@ -174,6 +175,19 @@ struct FormatString {
         } else {
             s.append(std::format("{}", t));
         }
+    }
+
+    // 枚举类型
+    template <typename E>
+        requires (std::is_enum_v<E>)
+    constexpr std::string make(E const& t) {
+        return make(reflection::toEnumName(t));
+    }
+
+    template <typename E, typename Stream>
+        requires (std::is_enum_v<E>)
+    constexpr void make(E const& t, Stream& s) {
+        make(reflection::toEnumName(t), s);
     }
     
     // C风格数组

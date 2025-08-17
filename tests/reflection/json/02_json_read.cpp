@@ -119,3 +119,20 @@ TEST_CASE("json_read_array") {
     }
     )");
 }
+
+TEST_CASE("枚举") {
+    enum class Enum : uint32_t {
+        A, B, C, D, E, F, G
+    };
+
+    struct EnumTest {
+        std::array<Enum, 4> arr;
+    };
+
+    EnumTest e;
+    reflection::fromJson(e, R"(
+        {"arr": ["A", "C", "E", "G"]}
+    )");
+
+    log::hxLog.info(e);
+}

@@ -31,6 +31,7 @@
 #include <HXLibs/container/CHashMap.hpp>
 #include <HXLibs/container/UninitializedNonVoidVariant.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
+#include <HXLibs/reflection/EnumName.hpp>
 
 namespace HX::reflection {
 
@@ -218,11 +219,37 @@ void verify(It&& it, It&& end) {
     }
 }
 
+/**
+ * @brief 验证下一个字符为 {Cs...} 中的一个
+ * @tparam Cs 
+ * @tparam It 
+ * @param it 
+ * @param end 
+ */
+template <char... Cs, typename It>
+void verifyIn(It&& it, It&& end) {
+    if (it == end) [[unlikely]] {
+        throw std::runtime_error{"Unexpected end of input while parsing escape sequence"};
+    }
+    if ((... || (*it == Cs))) [[likely]] {
+        return;
+    }
+    [[unlikely]] throw std::runtime_error{"Characters are not as expected"};
+}
+
+/**
+ * @brief 查找下一个在 {Cs...} 中的字符
+ * @tparam Cs 
+ * @tparam It 
+ * @param it 
+ * @param end 
+ */
 template <char... Cs, typename It>
 void findNextIn(It&& it, It&& end) {
-    while (it != end) {
-        if ((... || (*it == Cs)))
+    while (it != end) [[likely]] {
+        if ((... || (*it == Cs))) {
             return;
+        }
         ++it;
     }
     [[unlikely]] throw std::runtime_error{"Characters are not as expected"};
@@ -335,6 +362,33 @@ struct FromJson {
     }
 
     template <typename T, typename It>
+        requires(std::is_enum_v<T>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        // 解析字符串
+        verify<'"'>(it, end);
+        constexpr static auto IsEnumNameChar = [] {
+            std::array<bool, 128> res{};
+            for (std::size_t c = '0'; c <= '9'; ++c)
+                res[c] = true;
+            for (std::size_t c = 'a'; c <= 'z'; ++c)
+                res[c] = true;
+            for (std::size_t c = 'A'; c <= 'Z'; ++c)
+                res[c] = true;
+            res['_'] = true;
+            return res;
+        }();
+        auto begin = it;
+        while (it != end) {
+            if (*it > 0 && !IsEnumNameChar[static_cast<std::size_t>(*it)])
+                break;
+            ++it;
+        }
+        t = reflection::toEnum<T>(std::string_view{begin, it});
+        verify<'"'>(it, end);
+    }
+    
+    template <typename T, typename It>
         requires(meta::is_optional_v<T> || meta::is_smart_pointer_v<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
@@ -401,10 +455,11 @@ struct FromJson {
                 // 把内容移交
                 fromJson(t.emplace_back(), it, end);
                 skipWhiteSpace(it, end);
-                findNextIn<',', ']'>(it, end);
-                if (*it++ == ']') {
+                if (*it == ']') {
+                    ++it;
                     break;
                 }
+                verify<','>(it, end);
             }
         } else {
             // 对象没有默认无参构造, 显然不是聚合类
@@ -434,10 +489,11 @@ struct FromJson {
             // 把内容移交
             fromJson(t[idx++], it, end);
             skipWhiteSpace(it, end);
-            findNextIn<',', ']'>(it, end);
-            if (*it++ == ']') {
+            if (*it == ']') {
+                ++it;
                 break;
             }
+            verify<','>(it, end);
         }
     }
 
@@ -459,10 +515,11 @@ struct FromJson {
             fromJson(val, it, end);
 
             skipWhiteSpace(it, end);
-            findNextIn<',', '}'>(it, end);
-            if (*it++ == '}') {
+            if (*it == '}') {
+                ++it;
                 break;
             }
+            verify<','>(it, end);
         }
     }
     
@@ -520,6 +577,7 @@ struct FromJson {
                 // 找 ',' 或者 '}'
                 skipWhiteSpace(it, end);
                 if (*it == '}') {
+                    ++it;
                     break;
                 }
                 verify<','>(it, end);
