@@ -37,7 +37,7 @@ namespace internal {
  * @return constexpr std::string_view 
  */
 template <auto ptr>
-inline constexpr std::string_view getMemberName() {
+inline constexpr std::string_view getMemberName() noexcept {
 #if defined(_MSC_VER)
     constexpr std::string_view funcName = __FUNCSIG__;
 #else
