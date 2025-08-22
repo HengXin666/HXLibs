@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_LOCAL_FD_API_H_
-#define _HX_LOCAL_FD_API_H_
 
 /**
  * @brief 跨平台 本地 fd 类型定义
@@ -203,4 +201,3 @@
     #error "Unsupported operating system"
 #endif
 
-#endif // !_HX_LOCAL_FD_API_H_

@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_NON_VOID_HELPER_H_
-#define _HX_NON_VOID_HELPER_H_
 
 namespace HX::container {
 
@@ -51,4 +49,3 @@ using NonVoidType = NonVoidHelper<T>::Type;
 
 } // namespace HX::container
 
-#endif // !_HX_NON_VOID_HELPER_H_

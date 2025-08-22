@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_ADDRESS_RESOLVER_H_
-#define _HX_ADDRESS_RESOLVER_H_
 
 #include <string>
 #include <system_error>
@@ -346,5 +344,3 @@ public:
 #endif // !defined(__linux__)
 
 } // namespace HX::net
-
-#endif // _HX_ADDRESS_RESOLVER_H_

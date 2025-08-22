@@ -48,6 +48,61 @@ namespace internal {
 - 编译期常量: (`k`开头 +) 驼峰 或者 首字母大写的驼峰
 
 - 宏定义: 全大写+下划线
+  - 宏魔法的公共宏为 `HX_{NAME}` 命名
+  - 宏魔法的私有宏为 `_hx_MACRO_{NAME}__` 命名
+  - 非宏魔法, 仅作为使用的宏函数的宏, 以 `_hx_{NAME}__` 命名
+
+如果 期望使用 `__` 或者 `_大写字母开头`, 应该修改为 `_hx_` 开头. 作为内部私有使用. (特别是全局命名空间)
+
+应该使用 clang 编译一次, 查看是否使用了 保留字 声明.
+
+```cmake
+# 检查是否使用了保留字命名
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+    add_compile_options(
+        -Wpedantic
+        -Wreserved-id-macro      # 宏保留前缀
+        -Wreserved-identifier    # Clang 检测保留标识符
+    )
+endif()
+```
 
 > [!TIP]
 > 缩进为`4空格`, 并且TAB按键请使用`4空格`而不是`\t`!
+
+> 使用 `#pragma once` 作为防止头文件重定义的命令, 不需要定义头文件宏
+>
+> 可以使用以下代码, 一键删除 头文件的 #if #define #endif 那些防止重定义的条件编译.
+
+```py
+import pathlib
+import re
+
+GUARD_PATTERN = re.compile(r"_HX_[A-Z0-9_]+_H_")
+
+for header in pathlib.Path("./include").rglob("*.hpp"):
+    lines = header.read_text().splitlines()
+    new_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        # 严格匹配 #ifndef 和 #define
+        if (stripped.startswith("#ifndef") or stripped.startswith("#define")):
+            parts = stripped.split()
+            if len(parts) == 2 and GUARD_PATTERN.fullmatch(parts[1]):
+                continue  # 跳过这行宏
+        # 严格匹配 #endif 注释行
+        if stripped.startswith("#endif // !"):
+            macro = stripped[len("#endif // !"):].strip()
+            if GUARD_PATTERN.fullmatch(macro):
+                continue  # 跳过这行宏
+        # 其他行保留
+        new_lines.append(line)
+
+    # 在文件头添加 #pragma once（如果不存在）
+    if not new_lines or new_lines[0].strip() != "#pragma once":
+        new_lines.insert(0, "#pragma once")
+
+    header.write_text("\n".join(new_lines) + "\n")
+    print(f"Processed {header}")
+```

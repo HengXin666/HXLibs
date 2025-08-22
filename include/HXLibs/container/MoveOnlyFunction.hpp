@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MOVE_ONLY_FUNCTION_H_
-#define _HX_MOVE_ONLY_FUNCTION_H_
 
 #include <utility>
 
@@ -64,4 +62,3 @@ private:
 
 } // namespace HX::container
 
-#endif // !_HX_MOVE_ONLY_FUNCTION_H_

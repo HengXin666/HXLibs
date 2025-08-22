@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_NET_API_H_
-#define _HX_NET_API_H_
 
 #include <HXLibs/net/server/HttpServer.hpp>
 
@@ -30,4 +28,3 @@
     [[maybe_unused]] HX::net::Response& res  \
 ) -> HX::coroutine::Task<>
 
-#endif // !_HX_NET_API_H_

@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_AIO_TASK_H_
-#define _HX_AIO_TASK_H_
 
 #include <span>
 
@@ -926,4 +924,3 @@ int WSASend(
     #error "Does not support the current operating system."
 #endif
 
-#endif // !_HX_AIO_TASK_H_

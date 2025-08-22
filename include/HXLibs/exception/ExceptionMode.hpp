@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EXCEPTION_MODE_H_
-#define _HX_EXCEPTION_MODE_H_
 
 namespace HX::exception {
 
@@ -29,4 +27,3 @@ enum class ExceptionMode {
 
 } // namespace HX
 
-#endif // !_HX_EXCEPTION_MODE_H_

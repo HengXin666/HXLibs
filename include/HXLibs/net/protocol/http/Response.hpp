@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_RESPONSE_H_
-#define _HX_RESPONSE_H_
 
 #include <string>
 #include <string_view>
@@ -755,5 +753,3 @@ private:
 };
 
 } // namespace HX::net
-
-#endif // _HX_RESPONSE_H_

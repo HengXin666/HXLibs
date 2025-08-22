@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_BASE64_H_
-#define _HX_BASE64_H_
 
 #include <cstdint>
 #include <string>
@@ -78,4 +76,3 @@ inline std::string base64Encode(std::span<uint8_t> str) {
 
 } // namespace HX::net
 
-#endif // !_HX_BASE64_H_

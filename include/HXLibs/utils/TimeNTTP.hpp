@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_TIME_NTTP_H_
-#define _HX_TIME_NTTP_H_
 
 #include <chrono>
 
@@ -152,4 +150,3 @@ operator""_ns() {
 
 } // namespace HX::utils
 
-#endif // !_HX_TIME_NTTP_H_

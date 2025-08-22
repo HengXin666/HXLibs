@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_STATUS_H_
-#define _HX_STATUS_H_
 
 #include <string_view>
 
@@ -168,4 +166,3 @@ inline constexpr std::string_view getStatusCodeDataStrView(Status statusCode) {
 
 } // namespace HX::net
 
-#endif // !_HX_STATUS_H_

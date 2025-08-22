@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_LOG_H_
-#define _HX_LOG_H_
 
 #include <cstdio>
 
@@ -68,4 +66,3 @@ inline internal::Log hxLog;
 
 } // namespace HX::log
 
-#endif // !_HX_LOG_H_

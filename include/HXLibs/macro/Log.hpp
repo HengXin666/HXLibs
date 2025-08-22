@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-07-27 17:09:49
+ * @Date: 2025-07-27 17:04:55
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MACRO_JOIN_H_
-#define _HX_MACRO_JOIN_H_
 
-/* 拼接token宏 */
-#define __HX_MACRO_JOIN_IMPL__(x, y) x##y
-#define HX_JOIN(x, y) __HX_MACRO_JOIN_IMPL__(x, y)
+#define _hx_MACRO_TO_STR__(x) #x
 
-#endif // !_HX_MACRO_JOIN_H_
+/**
+ * @brief 编译日志宏
+ */
+#define HX_LOG_MACRO(x) _Pragma(_hx_MACRO_TO_STR__(message("当前宏: " _hx_MACRO_TO_STR__(x))))
+

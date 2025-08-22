@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_REQUEST_PARSING_H_
-#define _HX_REQUEST_PARSING_H_
 
 #include <string>
 #include <string_view>
@@ -249,5 +247,3 @@ struct TypeInterpretation<bool> {
 };
 
 } // namespace HX::net
-
-#endif // _HX_REQUEST_PARSING_H_

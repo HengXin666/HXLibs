@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_NUMERIC_BASE_CONVERTER_H_
-#define _HX_NUMERIC_BASE_CONVERTER_H_
 
 #include <string>
 #include <string_view>
@@ -48,4 +46,3 @@ struct NumericBaseConverter {
 
 } // namespace HX::utils
 
-#endif // !_HX_NUMERIC_BASE_CONVERTER_H_

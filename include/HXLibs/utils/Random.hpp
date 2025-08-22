@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_RANDOM_H_
-#define _HX_RANDOM_H_
 
 #include <cstdint>
 
@@ -43,4 +41,3 @@ struct XorShift32 {
 
 } // namespace HX::utils
 
-#endif // !_HX_RANDOM_H_

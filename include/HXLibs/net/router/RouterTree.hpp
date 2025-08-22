@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_ROUTER_TREE_H_
-#define _HX_ROUTER_TREE_H_
 
 #include <string>
 #include <vector>
@@ -173,4 +171,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_ROUTER_TREE_H_

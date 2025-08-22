@@ -8,7 +8,7 @@ using namespace utils;
 #include <iostream>
 #include <list>
 
-auto __init__ = []{
+auto hx_init = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
         auto cwd = std::filesystem::current_path();

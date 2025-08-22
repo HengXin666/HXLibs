@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HTTP_SERVER_H_
-#define _HX_HTTP_SERVER_H_
 
 #include <HXLibs/net/router/Router.hpp>
 #include <HXLibs/net/socket/AddressResolver.hpp>
@@ -190,4 +188,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_HTTP_SERVER_H_

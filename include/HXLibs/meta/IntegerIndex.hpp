@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_INTEGER_INDEX_H_
-#define _HX_INTEGER_INDEX_H_
 
 namespace HX::meta {
 
@@ -54,4 +52,3 @@ using makeIntegerIndexRange = decltype(internal::makeIntegerIndexByRange<T, Begi
 
 } // namespace HX::meta
 
-#endif // !_HX_INTEGER_INDEX_H_

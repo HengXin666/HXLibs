@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_SOCKET_FD_H_
-#define _HX_SOCKET_FD_H_
 
 #include <HXLibs/platform/SocketFdApi.hpp>
 
@@ -29,4 +27,3 @@ using platform::kInvalidSocket;
 
 } // namespace HX::net
 
-#endif // !_HX_SOCKET_FD_H_

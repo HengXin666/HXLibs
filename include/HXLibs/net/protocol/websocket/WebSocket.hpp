@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_WEB_SOCKET_H_
-#define _HX_WEB_SOCKET_H_
 
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/net/protocol/http/Request.hpp>
@@ -776,4 +774,3 @@ static_assert(sizeof(WebSocketClient) != sizeof(WebSocketServer),
 
 } // namespace HX::net
 
-#endif // !_HX_WEB_SOCKET_H_

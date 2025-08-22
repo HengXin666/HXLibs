@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HTTP_CLIENT_OPTIONS_H_
-#define _HX_HTTP_CLIENT_OPTIONS_H_
 
 #include <string>
 
@@ -55,4 +53,3 @@ struct HttpClientOptions {
 
 } // namespace HX::net
 
-#endif // !_HX_HTTP_CLIENT_OPTIONS_H_

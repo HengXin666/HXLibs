@@ -17,33 +17,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EVENT_LOOP_API_H_
-#define _HX_EVENT_LOOP_API_H_
 
 /**
  * @brief 跨平台的事件循环API, 如 io_uring / iocp
  */
 
-#if defined(__linux__)
-    #if defined(__GNUC__) || defined(__clang__)
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wpedantic"
-    #elif defined(_MSC_VER)
-        // 没事誰会msvc编译linux的它?
-        #pragma warning(push)
-        #pragma warning(disable : 4100 4101)
-    #endif
-    
-    #include <liburing.h> // io_uring
+#include <HXLibs/macro/NoWarring.hpp>
 
-    #if defined(__GNUC__) || defined(__clang__)
-        #pragma GCC diagnostic pop
-    #elif defined(_MSC_VER)
-        #pragma warning(pop)
-        #pragma warning(pop)
-    #endif
+#if defined(__linux__)
+    
+    HX_NO_WARNINGS_BEGIN
+    #include <liburing.h> // io_uring
+    HX_NO_WARNINGS_END
+
 #elif defined(_WIN32)
     /// @todo 下面还需要精简!
+    HX_NO_WARNINGS_BEGIN
     #define WIN32_LEAN_AND_MEAN
     #define NOMINMAX
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
@@ -51,6 +40,7 @@
     #include <MSWSock.h>
     #include <ws2tcpip.h>
     #include <Windows.h>
+    HX_NO_WARNINGS_END
 
     #pragma comment(lib, "Ws2_32.lib")
     #pragma comment(lib, "Mswsock.lib")
@@ -129,4 +119,3 @@
     #error "Does not support the current operating system."
 #endif
 
-#endif // !_HX_EVENT_LOOP_API_H_

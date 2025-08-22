@@ -1,4 +1,0 @@
-// 提示文件帮助 Visual Studio IDE 解释 Visual C++ 标识符,
-// 如函数和宏的名称。
-// 有关详细信息，请参见 https://go.microsoft.com/fwlink/?linkid=865984
-#define HX_REFL(__VA_ARGS__) inline static constexpr std::size_t membersCount() { return static_cast<std::size_t>(HX_FOR(__HX_ADD_1__, __VA_ARGS__)); } HX_DIAGNOSTIC_PUSH HX_DIAGNOSTIC_IGNORE_CHANGES_MEANING inline constexpr static auto visit() { struct __internal__ { HX_FOR(__HX_REFL_STRUCT_MEMBER__, __VA_ARGS__) }; return ::HX::reflection::internal::ReflectionVisitor< __internal__, membersCount()>::visit(); } HX_DIAGNOSTIC_POP template <typename T> inline constexpr static auto visit(T& t) { return std::tie(__HX_REFL_GET_MEMBERS__(__VA_ARGS__)); } template <typename T> inline constexpr static auto visit(T const& t) { return std::tie(__HX_REFL_GET_MEMBERS__(__VA_ARGS__)); }

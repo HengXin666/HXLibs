@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_EVENT_LOOP_H_
-#define _HX_EVENT_LOOP_H_
 
 #include <thread>
 #include <chrono>
@@ -435,4 +433,3 @@ private:
 
 } // namespace HX::coroutine
 
-#endif // !_HX_EVENT_LOOP_H_

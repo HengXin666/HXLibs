@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_C_PMH_TABLE_H_
-#define _HX_C_PMH_TABLE_H_
 
 #include <cstdint>
 
@@ -65,10 +63,10 @@ struct CPmhTable {
     std::size_t _rootSeed;
 
     // 一级哈希表
-    std::array<internal::SeedOrIndex, M> _G;
+    std::array<internal::SeedOrIndex, M> _g;
 
     // 二级哈希表
-    std::array<std::size_t, M> _H;
+    std::array<std::size_t, M> _h;
 
     Hasher _hash;
 
@@ -79,8 +77,8 @@ struct CPmhTable {
         Hasher hash
     )
         : _rootSeed{rootSeed}
-        , _G{G}
-        , _H{H}
+        , _g{G}
+        , _h{H}
         , _hash{hash}
     {}
 
@@ -91,9 +89,9 @@ struct CPmhTable {
 
     template <typename Key, typename HashType>
     constexpr std::size_t lookup(Key const& key, HashType const& hash) const {
-        auto const& seedOrIdx = _G[hash(key, _rootSeed) % M];
+        auto const& seedOrIdx = _g[hash(key, _rootSeed) % M];
         if (seedOrIdx.isSeed()) {
-            return _H[hash(key, static_cast<std::size_t>(seedOrIdx.getSeed())) % M];
+            return _h[hash(key, static_cast<std::size_t>(seedOrIdx.getSeed())) % M];
         } else {
             return static_cast<std::size_t>(seedOrIdx.getIndex());
         }
@@ -155,4 +153,3 @@ constexpr CPmhTable<M, Hasher> makeCPmhTable(std::array<Item, N> items, Hasher c
 
 } // namespace HX::container
 
-#endif // !_HX_C_PMH_TABLE_H_

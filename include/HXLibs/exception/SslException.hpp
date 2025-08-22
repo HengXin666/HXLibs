@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_SSL_EXCEPTION_H_
-#define _HX_SSL_EXCEPTION_H_
 
 #include <exception>
 #include <string>
@@ -40,4 +38,3 @@ private:
 
 } // namespace HX::STL::exception
 
-#endif // !_HX_SSL_EXCEPTION_H_

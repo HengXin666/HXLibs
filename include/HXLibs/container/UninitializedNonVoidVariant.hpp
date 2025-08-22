@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_UNINITIALIZED_NON_VOID_VARIANT_H_
-#define _HX_UNINITIALIZED_NON_VOID_VARIANT_H_
 
 #include <utility>
 #include <stdexcept>
@@ -127,24 +125,24 @@ struct UninitializedNonVoidVariantIndex;
 template <typename T, typename... Ts>
 struct UninitializedNonVoidVariantIndex<T, UninitializedNonVoidVariant<Ts...>> {
     template <typename U, typename... Us>
-    struct _FindIndex;
+    struct _hx_FindIndex;
     
     template <typename U, typename... Us>
-    struct _FindIndex {
+    struct _hx_FindIndex {
         inline static constexpr std::size_t val 
             = std::is_same_v<T, NonVoidType<U>> 
                 ? 0 
-                : _FindIndex<Us...>::val + 1;
+                : _hx_FindIndex<Us...>::val + 1;
     };
 
     template <typename U>
-    struct _FindIndex<U> {
+    struct _hx_FindIndex<U> {
         inline static constexpr std::size_t val 
             = !std::is_same_v<T, NonVoidType<U>>;
     };
 
     inline static constexpr std::size_t val
-        = _FindIndex<Ts...>::val;
+        = _hx_FindIndex<Ts...>::val;
 };
 
 template <std::size_t Idx, typename... Ts>
@@ -153,18 +151,18 @@ struct UninitializedNonVoidVariantIndexToType;
 template <std::size_t Idx, typename T, typename... Ts>
     requires (Idx <= sizeof...(Ts))
 struct UninitializedNonVoidVariantIndexToType<Idx, UninitializedNonVoidVariant<T, Ts...>> {
-    template <std::size_t _I, typename U, typename... Us>
+    template <std::size_t I, typename U, typename... Us>
     struct IndexToType {
         using Type 
             = std::conditional_t<
-                Idx == _I,
+                Idx == I,
                 NonVoidType<U>,
-                typename IndexToType<_I + 1, Us...>::Type
+                typename IndexToType<I + 1, Us...>::Type
             >;
     };
 
-    template <std::size_t _I, typename U>
-    struct IndexToType<_I, U> {
+    template <std::size_t I, typename U>
+    struct IndexToType<I, U> {
         using Type = NonVoidType<U>;
     };
 
@@ -621,4 +619,3 @@ constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...>& uv) {
 
 } // namespace HX::container
 
-#endif // !_HX_UNINITIALIZED_NON_VOID_VARIANT_H_

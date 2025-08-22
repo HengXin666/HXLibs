@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HTTPS_H_
-#define _HX_HTTPS_H_
 
 namespace HX { namespace web { namespace protocol { namespace https {
 
@@ -26,4 +24,3 @@ class Https {};
 
 }}}} // namespace HX::web::protocol::http
 
-#endif // !_HX_HTTPS_H_

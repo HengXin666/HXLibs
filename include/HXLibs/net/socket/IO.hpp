@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_IO_H_
-#define _HX_IO_H_
 
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
@@ -267,4 +265,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_IO_H_

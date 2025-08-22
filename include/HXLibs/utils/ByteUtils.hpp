@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_BYTEORDER_H_
-#define _HX_BYTEORDER_H_
 
 #include <type_traits>
 #include <bit>
@@ -98,4 +96,3 @@ inline static constexpr bool kIsLittleEndian = true;
 
 } // namespace HX::utils
 
-#endif // !_HX_BYTEORDER_H_

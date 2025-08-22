@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_PREVIOUS_AWAITER_H_
-#define _HX_PREVIOUS_AWAITER_H_
 
 #include <coroutine>
 
@@ -46,4 +44,3 @@ struct PreviousAwaiter {
 
 } // namespace HX::coroutine
 
-#endif // !_HX_PREVIOUS_AWAITER_H_

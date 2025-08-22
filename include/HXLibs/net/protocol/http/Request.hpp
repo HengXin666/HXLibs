@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_REQUEST_H_
-#define _HX_REQUEST_H_
 
 #include <vector>
 #include <optional>
@@ -545,5 +543,3 @@ private:
 };
 
 } // namespace HX::net
-
-#endif // _HX_REQUEST_H_

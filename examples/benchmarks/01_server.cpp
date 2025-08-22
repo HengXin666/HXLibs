@@ -8,7 +8,7 @@ using namespace net;
  * @brief 本文件用于压力测试
  */
 
-auto __init__ = []{
+auto hx_init = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
         auto cwd = std::filesystem::current_path();

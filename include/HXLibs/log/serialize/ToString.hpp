@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_TO_STRING_H_
-#define _HX_TO_STRING_H_
 
 #include <optional>
 #include <tuple>
@@ -584,4 +582,3 @@ inline void toString(T const& t, Stream& s) {
 
 } // namespace HX::log
 
-#endif // !_HX_TO_STRING_H_

@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_C_HASH_MAP_H_
-#define _HX_C_HASH_MAP_H_
 
 #include <array>
 #include <functional>
@@ -87,8 +85,8 @@ public:
     {}
 
     // 查找与访问
-    template <typename _Key>
-    constexpr mapped_type const& at(_Key const& key) const {
+    template <typename K>
+    constexpr mapped_type const& at(K const& key) const {
         auto const& kv = lookup(key);
         if (_keyEqual(meta::getKey(kv), key)) {
             return kv.second;
@@ -96,8 +94,8 @@ public:
         throw std::out_of_range("unknown key");
     }
 
-    template <typename _Key>
-    constexpr mapped_type& at(_Key const& key) {
+    template <typename K>
+    constexpr mapped_type& at(K const& key) {
         auto& kv = lookup(key);
         if (_keyEqual(meta::getKey(kv), key)) {
             return kv.second;
@@ -105,8 +103,8 @@ public:
         throw std::out_of_range("unknown key");
     }
 
-    template <typename _Key>
-    constexpr const_iterator find(_Key const& key) const noexcept {
+    template <typename K>
+    constexpr const_iterator find(K const& key) const noexcept {
         auto index = _pmhTable.lookup(key, _hash);
         if (_keyEqual(meta::getKey(_data[index]), key)) {
             return _data.begin() + index;
@@ -114,8 +112,8 @@ public:
         return end();
     }
 
-    template <typename _Key>
-    constexpr mapped_type& find(_Key const& key) noexcept {
+    template <typename K>
+    constexpr mapped_type& find(K const& key) noexcept {
         auto index = _pmhTable.lookup(key, _hash);
         if (_keyEqual(meta::getKey(_data[index]), key)) {
             return _data.begin() + index;
@@ -135,17 +133,16 @@ public:
     static constexpr size_type size() noexcept { return N; }
     static constexpr size_type max_size() noexcept { return N; }
 private:
-    template <typename _Key>
-    constexpr value_type const& lookup(_Key const& key) const noexcept {
+    template <typename K>
+    constexpr value_type const& lookup(K const& key) const noexcept {
         return _data[_pmhTable.lookup(key, _hash)];
     }
 
-    template <typename _Key>
-    constexpr value_type& lookup(_Key const& key) noexcept {
+    template <typename K>
+    constexpr value_type& lookup(K const& key) noexcept {
         return _data[_pmhTable.lookup(key, _hash)];
     }
 };
 
 } // namespace HX::container
 
-#endif // !_HX_C_HASH_MAP_H_

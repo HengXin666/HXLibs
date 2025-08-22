@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HTTP_CLIENT_H_
-#define _HX_HTTP_CLIENT_H_
 
 #include <HXLibs/net/client/HttpClientOptions.hpp>
 #include <HXLibs/net/protocol/http/Request.hpp>
@@ -418,4 +416,3 @@ HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>()),
 
 } // namespace HX::net
 
-#endif // !_HX_HTTP_CLIENT_H_

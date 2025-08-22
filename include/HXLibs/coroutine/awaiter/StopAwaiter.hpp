@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_STOP_AWAITER_H_
-#define _HX_STOP_AWAITER_H_
 
 #include <coroutine>
 
@@ -33,4 +31,3 @@ struct StopAwaiter {
 
 } // namespace HX::coroutine
 
-#endif // !_HX_STOP_AWAITER_H_

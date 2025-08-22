@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_REFLECTION_TYPES_H_
-#define _HX_REFLECTION_TYPES_H_
 
 #include <HXLibs/meta/TypeTraits.hpp>
 
@@ -69,4 +67,3 @@ constexpr bool IsReflective = (std::is_aggregate_v<T>
 
 } // namespace HX::reflection
 
-#endif // !_HX_REFLECTION_TYPES_H_

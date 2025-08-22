@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_HASH_H_
-#define _HX_HASH_H_
 
 #include <type_traits>
 #include <string_view>
@@ -83,4 +81,3 @@ public:
 
 } // namespace HX::meta
 
-#endif // !_HX_HASH_H_

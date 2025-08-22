@@ -61,4 +61,23 @@ if(ENABLE_WARNING) # 如果用户在配置时启用了警告选项
         )
     endif()
 endif()
+
+# 检查是否使用了保留字命名
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+    add_compile_options(
+        -Wpedantic
+        -Wreserved-id-macro      # 宏保留前缀
+        -Wreserved-identifier    # Clang 检测保留标识符
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # add_compile_options(
+    #     -Wpedantic
+    # )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # add_compile_options(
+    #     /W4           # 高级警告
+    #     /permissive-  # 严格标准
+    # )
+endif()
+
 message(STATUS "--------------------------------------------")

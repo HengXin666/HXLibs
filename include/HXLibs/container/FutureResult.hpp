@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_FUTURE_RESULT_H_
-#define _HX_FUTURE_RESULT_H_
 
 #include <mutex>
 #include <condition_variable>
@@ -29,10 +27,10 @@ namespace HX::container {
 
 template <typename T = void>
 class FutureResult {
-    struct _Result {
-        using __DataType = container::Uninitialized<T>;
+    struct _hx_Result {
+        using _hx_DataType = container::Uninitialized<T>;
 
-        _Result()
+        _hx_Result()
             : _data{}
             , _exception{}
             , _mtx{}
@@ -40,12 +38,12 @@ class FutureResult {
             , _isResed(false)
         {}
 
-        ~_Result() noexcept = default;
+        ~_hx_Result() noexcept = default;
 
-        _Result(const _Result&) = delete;
-        _Result& operator=(const _Result&) = delete;
-        _Result(_Result&&) noexcept = delete;
-        _Result& operator=(_Result&&) noexcept = delete;
+        _hx_Result(const _hx_Result&) = delete;
+        _hx_Result& operator=(const _hx_Result&) = delete;
+        _hx_Result(_hx_Result&&) noexcept = delete;
+        _hx_Result& operator=(_hx_Result&&) noexcept = delete;
 
         void wait() {
             std::unique_lock lck{_mtx};
@@ -81,14 +79,14 @@ class FutureResult {
             return _exception == nullptr;
         }
     private:
-        __DataType _data;
+        _hx_DataType _data;
         std::exception_ptr _exception;
         std::mutex _mtx;
         std::condition_variable _cv;
         bool _isResed;
     };
 public:
-    using FutureResultType = _Result;
+    using FutureResultType = _hx_Result;
 
     FutureResult()
         : _res{std::make_shared<FutureResultType>()}
@@ -118,4 +116,3 @@ private:
 
 } // namespace HX::container
 
-#endif // !_HX_FUTURE_RESULT_H_

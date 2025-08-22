@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_ROUTER_H_
-#define _HX_ROUTER_H_
 
 #include <functional>
 
@@ -283,4 +281,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_ROUTER_H_

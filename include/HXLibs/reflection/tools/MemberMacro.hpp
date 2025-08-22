@@ -17,12 +17,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MEMBER_MACRO_H_
-#define _HX_MEMBER_MACRO_H_
 
 /**
  * @brief 你可以使用py 来生成对应的代码:
-macro = "_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_"
+macro = "HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION"
 with open("generated_code4.cpp", "w", encoding="utf-8") as codefile:
     codefile.write(
         "\n".join(
@@ -34,445 +32,445 @@ with open("generated_code4.cpp", "w", encoding="utf-8") as codefile:
     )
 */
 
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(1, f0);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(2, f0, f1);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(3, f0, f1, f2);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(4, f0, f1, f2, f3);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(5, f0, f1, f2, f3, f4);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(6, f0, f1, f2, f3, f4, f5);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(7, f0, f1, f2, f3, f4, f5, f6);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(8, f0, f1, f2, f3, f4, f5, f6, f7);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(9, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(1, f0);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(2, f0, f1);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(3, f0, f1, f2);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(4, f0, f1, f2, f3);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(5, f0, f1, f2, f3, f4);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(6, f0, f1, f2, f3, f4, f5);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(7, f0, f1, f2, f3, f4, f5, f6);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(8, f0, f1, f2, f3, f4, f5, f6, f7);
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(9, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(10, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(10, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(11, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(11, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(12, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(12, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(13, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(13, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(14, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(14, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(15, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(15, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(16, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(16, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(17, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(17, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(18, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(18, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(19, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(19, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(20, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(20, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(21, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(21, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(22, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(22, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(23, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(23, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(24, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(24, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(25, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(25, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(26, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(26, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(27, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(27, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(28, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(28, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(29, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(29, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(30, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(30, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(31, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(31, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(32, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(32, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(33, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(33, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(34, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(34, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(35, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(35, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(36, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(36, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(37, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(37, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(38, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(38, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(39, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(39, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(40, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(40, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(41, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(41, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(42, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(42, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(43, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(43, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41, f42);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     44, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     45, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     46, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(47, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(47, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41, f42,
                                             f43, f44, f45, f46);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(48, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(48, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41, f42,
                                             f43, f44, f45, f46, f47);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(49, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(49, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41, f42,
                                             f43, f44, f45, f46, f47, f48);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(50, f0, f1, f2, f3, f4, f5, f6, f7,
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(50, f0, f1, f2, f3, f4, f5, f6, f7,
                                             f8, f9, f10, f11, f12, f13, f14,
                                             f15, f16, f17, f18, f19, f20, f21,
                                             f22, f23, f24, f25, f26, f27, f28,
                                             f29, f30, f31, f32, f33, f34, f35,
                                             f36, f37, f38, f39, f40, f41, f42,
                                             f43, f44, f45, f46, f47, f48, f49);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     51, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     52, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     53, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     54, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     55, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     56, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     57, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     58, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     59, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     60, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     61, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     62, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     63, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     64, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     65, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     66, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     67, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     68, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     69, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     70, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     71, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     72, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     73, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     74, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     75, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     76, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     77, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     78, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     79, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     80, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     81, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     82, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     83, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     84, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     85, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     86, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     87, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     88, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     89, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     90, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     91, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
     f46, f47, f48, f49, f50, f51, f52, f53, f54, f55, f56, f57, f58, f59, f60,
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     92, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -480,7 +478,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     93, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -488,7 +486,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     94, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -496,7 +494,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     95, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -504,7 +502,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     96, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -512,7 +510,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     97, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -520,7 +518,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     98, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -528,7 +526,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     99, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -536,7 +534,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     100, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -544,7 +542,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     101, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -552,7 +550,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     102, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -560,7 +558,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     103, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -568,7 +566,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     104, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -576,7 +574,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     105, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -584,7 +582,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f61, f62, f63, f64, f65, f66, f67, f68, f69, f70, f71, f72, f73, f74, f75,
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     106, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -593,7 +591,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     107, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -602,7 +600,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     108, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -611,7 +609,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     109, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -620,7 +618,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     110, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -629,7 +627,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     111, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -638,7 +636,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     112, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -647,7 +645,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     113, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -656,7 +654,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     114, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -665,7 +663,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     115, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -674,7 +672,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     116, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -683,7 +681,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     117, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -692,7 +690,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f76, f77, f78, f79, f80, f81, f82, f83, f84, f85, f86, f87, f88, f89, f90,
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     118, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -702,7 +700,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     119, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -712,7 +710,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     120, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -722,7 +720,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     121, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -732,7 +730,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     122, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -742,7 +740,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     123, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -752,7 +750,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     124, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -762,7 +760,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     125, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -772,7 +770,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     126, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -782,7 +780,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     127, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -792,7 +790,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     128, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -802,7 +800,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     129, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -812,7 +810,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f91, f92, f93, f94, f95, f96, f97, f98, f99, f100, f101, f102, f103, f104,
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     130, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -823,7 +821,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     131, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -834,7 +832,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     132, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -845,7 +843,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     133, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -856,7 +854,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     134, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -867,7 +865,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     135, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -878,7 +876,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     136, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -889,7 +887,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     137, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -900,7 +898,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     138, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -911,7 +909,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     139, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -922,7 +920,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     140, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -933,7 +931,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     141, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -944,7 +942,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f105, f106, f107, f108, f109, f110, f111, f112, f113, f114, f115, f116,
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     142, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -956,7 +954,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     143, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -968,7 +966,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     144, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -980,7 +978,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     145, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -992,7 +990,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     146, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1004,7 +1002,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     147, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1016,7 +1014,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     148, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1028,7 +1026,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     149, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1040,7 +1038,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     150, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1052,7 +1050,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     151, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1064,7 +1062,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     152, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1076,7 +1074,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     153, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1088,7 +1086,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f117, f118, f119, f120, f121, f122, f123, f124, f125, f126, f127, f128,
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     154, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1101,7 +1099,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     155, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1114,7 +1112,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     156, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1127,7 +1125,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     157, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1140,7 +1138,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     158, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1153,7 +1151,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     159, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1166,7 +1164,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     160, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1179,7 +1177,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     161, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1192,7 +1190,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     162, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1205,7 +1203,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     163, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1218,7 +1216,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     164, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1231,7 +1229,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     165, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1244,7 +1242,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f129, f130, f131, f132, f133, f134, f135, f136, f137, f138, f139, f140,
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     166, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1258,7 +1256,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     167, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1272,7 +1270,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     168, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1286,7 +1284,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     169, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1300,7 +1298,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     170, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1314,7 +1312,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     171, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1328,7 +1326,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     172, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1342,7 +1340,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     173, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1356,7 +1354,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     174, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1370,7 +1368,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     175, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1384,7 +1382,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     176, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1398,7 +1396,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     177, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1412,7 +1410,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f141, f142, f143, f144, f145, f146, f147, f148, f149, f150, f151, f152,
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     178, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1427,7 +1425,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     179, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1442,7 +1440,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     180, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1457,7 +1455,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     181, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1472,7 +1470,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     182, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1487,7 +1485,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     183, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1502,7 +1500,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     184, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1517,7 +1515,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     185, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1532,7 +1530,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     186, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1547,7 +1545,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     187, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1562,7 +1560,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     188, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1577,7 +1575,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     189, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1592,7 +1590,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f153, f154, f155, f156, f157, f158, f159, f160, f161, f162, f163, f164,
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     190, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1608,7 +1606,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     191, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1624,7 +1622,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     192, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1640,7 +1638,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     193, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1656,7 +1654,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     194, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1672,7 +1670,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     195, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1688,7 +1686,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     196, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1704,7 +1702,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     197, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1720,7 +1718,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     198, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1736,7 +1734,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     199, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1752,7 +1750,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     200, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1768,7 +1766,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     201, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1784,7 +1782,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f165, f166, f167, f168, f169, f170, f171, f172, f173, f174, f175, f176,
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     202, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1801,7 +1799,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     203, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1818,7 +1816,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     204, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1835,7 +1833,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     205, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1852,7 +1850,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     206, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1869,7 +1867,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     207, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1886,7 +1884,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     208, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1903,7 +1901,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     209, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1920,7 +1918,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     210, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1937,7 +1935,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     211, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1954,7 +1952,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     212, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1971,7 +1969,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     213, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -1988,7 +1986,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f177, f178, f179, f180, f181, f182, f183, f184, f185, f186, f187, f188,
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     214, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2006,7 +2004,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     215, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2024,7 +2022,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     216, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2042,7 +2040,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     217, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2060,7 +2058,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     218, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2078,7 +2076,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     219, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2096,7 +2094,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     220, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2114,7 +2112,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     221, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2132,7 +2130,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     222, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2150,7 +2148,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     223, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2168,7 +2166,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     224, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2186,7 +2184,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     225, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2204,7 +2202,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f189, f190, f191, f192, f193, f194, f195, f196, f197, f198, f199, f200,
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     226, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2223,7 +2221,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     227, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2242,7 +2240,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     228, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2261,7 +2259,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     229, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2280,7 +2278,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     230, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2299,7 +2297,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     231, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2318,7 +2316,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     232, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2337,7 +2335,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     233, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2356,7 +2354,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     234, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2375,7 +2373,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     235, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2394,7 +2392,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     236, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2413,7 +2411,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     237, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2432,7 +2430,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f201, f202, f203, f204, f205, f206, f207, f208, f209, f210, f211, f212,
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     238, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2452,7 +2450,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     239, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2472,7 +2470,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     240, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2492,7 +2490,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     241, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2512,7 +2510,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     242, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2532,7 +2530,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     243, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2552,7 +2550,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     244, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2572,7 +2570,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     245, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2592,7 +2590,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     246, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2612,7 +2610,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     247, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2632,7 +2630,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     248, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2652,7 +2650,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     249, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2672,7 +2670,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f213, f214, f215, f216, f217, f218, f219, f220, f221, f222, f223, f224,
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     250, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2693,7 +2691,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     251, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2714,7 +2712,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249, f250);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     252, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2735,7 +2733,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249, f250, f251);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     253, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2756,7 +2754,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249, f250, f251, f252);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     254, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2777,7 +2775,7 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f225, f226, f227, f228, f229, f230, f231, f232, f233, f234, f235, f236,
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249, f250, f251, f252, f253);
-_HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
+HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(
     255, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
     f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30,
     f31, f32, f33, f34, f35, f36, f37, f38, f39, f40, f41, f42, f43, f44, f45,
@@ -2799,6 +2797,5 @@ _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(
     f237, f238, f239, f240, f241, f242, f243, f244, f245, f246, f247, f248,
     f249, f250, f251, f252, f253, f254);
 
-#undef _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_
+#undef HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION
 
-#endif // !_HX_MEMBER_MACRO_H_

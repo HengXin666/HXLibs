@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_JSON_READ_H_
-#define _HX_JSON_READ_H_
 
 #include <cstdint>
 #include <cassert>
@@ -87,10 +85,10 @@ inline void encodeUtf8(OutputStream& os, unsigned codepoint) {
 
 } // namespace cv
 
-template <std::size_t _I, typename T>
+template <std::size_t I, typename T>
 struct SetObjIdx {
     using Type = T;
-    inline static constexpr std::size_t Idx = _I;
+    inline static constexpr std::size_t Idx = I;
     constexpr SetObjIdx() = default;
     constexpr SetObjIdx(std::size_t _offset)
         : offset(_offset)
@@ -596,4 +594,3 @@ void fromJson(T& t, std::string_view json) {
 
 } // namespace HX::reflection
 
-#endif // !_HX_JSON_READ_H_

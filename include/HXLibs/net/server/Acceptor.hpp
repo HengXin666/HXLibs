@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_ACCEPTOR_H_
-#define _HX_ACCEPTOR_H_
 
 #include <HXLibs/net/socket/SocketFd.hpp>
 #include <HXLibs/coroutine/task/Task.hpp>
@@ -129,4 +127,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_ACCEPTOR_H_

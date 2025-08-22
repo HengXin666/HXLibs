@@ -17,18 +17,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MACRO_FOR_EACH_PAIR_H_
-#define _HX_MACRO_FOR_EACH_PAIR_H_
 
-#include <HXLibs/macro/ifEmpty.hpp>
-#include <HXLibs/macro/delay.hpp>
+#include <HXLibs/macro/IfEmpty.hpp>
+#include <HXLibs/macro/Delay.hpp>
 
-#define __HX_MACRO_FOR_EACH_PAIR_IMPL_THIS__() __HX_MACRO_FOR_EACH_PAIR_IMPL__
-#define __HX_MACRO_FOR_EACH_PAIR__00(macro, arg1, arg2, ...) \
-    macro(arg1, arg2) HX_DELAY(__HX_MACRO_FOR_EACH_PAIR_IMPL_THIS__)()(macro, __VA_ARGS__,)
-#define __HX_MACRO_FOR_EACH_PAIR__11(...)
-#define __HX_MACRO_FOR_EACH_PAIR_IMPL__(macro, arg1, arg2, ...) \
-    HX_JOIN(__HX_MACRO_FOR_EACH_PAIR__, HX_JOIN(IF_EMPTY(arg1), IF_EMPTY(arg2))) \
+#define _hx_MACRO_FOR_EACH_PAIR_IMPL_THIS__() _hx_MACRO_FOR_EACH_PAIR_IMPL__
+#define _hx_MACRO_FOR_EACH_PAIR__00(macro, arg1, arg2, ...) \
+    macro(arg1, arg2) HX_DELAY(_hx_MACRO_FOR_EACH_PAIR_IMPL_THIS__)()(macro, __VA_ARGS__,)
+#define _hx_MACRO_FOR_EACH_PAIR__11(...)
+#define _hx_MACRO_FOR_EACH_PAIR_IMPL__(macro, arg1, arg2, ...) \
+    HX_JOIN(_hx_MACRO_FOR_EACH_PAIR__, HX_JOIN(IF_EMPTY(arg1), IF_EMPTY(arg2))) \
     (macro, arg1, arg2, __VA_ARGS__)
 
 /**
@@ -37,6 +35,5 @@
  * @param (arg1, arg2)... 宏参数, 它们会被依次以 macro(arg1, arg2) 调用
  */
 #define FOR_EACH_PAIR(macro, arg1, arg2, ...) \
-    HX_EVAL(__HX_MACRO_FOR_EACH_PAIR_IMPL__(macro, arg1, arg2, __VA_ARGS__))
+    HX_EVAL(_hx_MACRO_FOR_EACH_PAIR_IMPL__(macro, arg1, arg2, __VA_ARGS__))
 
-#endif // !_HX_MACRO_FOR_EACH_PAIR_H_

@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_CONNECTION_HANDLER_H_
-#define _HX_CONNECTION_HANDLER_H_
 
 #include <HXLibs/coroutine/task/RootTask.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
@@ -88,4 +86,3 @@ struct ConnectionHandler {
 
 } // namespace HX::net
 
-#endif // !_HX_CONNECTION_HANDLER_H_

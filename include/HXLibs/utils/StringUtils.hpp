@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_STRING_UTILS_H_
-#define _HX_STRING_UTILS_H_
 
 #include <cstdint>
 #include <vector>
@@ -266,5 +264,3 @@ struct DateTimeFormat final {
 };
 
 } // namespace HX::utils
-
-#endif // _HX_STRING_UTILS_H_

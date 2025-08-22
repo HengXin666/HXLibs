@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_C_PMH_BUCKET_H_
-#define _HX_C_PMH_BUCKET_H_
 
 #include <algorithm>
 
@@ -115,4 +113,3 @@ constexpr CPmhBucket<M> makeCPmhBucket(
 
 } // namespace HX::container
 
-#endif // !_HX_C_PMH_BUCKET_H_

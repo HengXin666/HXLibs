@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_FILE_UTILS_H_
-#define _HX_FILE_UTILS_H_
 
 #include <fstream>
 #include <string>
@@ -336,5 +334,3 @@ constexpr OpenMode operator|(OpenMode lhs, OpenMode rhs) {
 }
 
 } // namespace HX::utils
-
-#endif // _HX_FILE_UTILS_H_

@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MIME_TYPE_H_
-#define _HX_MIME_TYPE_H_
 
 #include <cctype>
 #include <string_view>
@@ -588,4 +586,3 @@ inline std::string_view getMimeType(std::string_view extension) {
 
 } // namespace HX::net
 
-#endif // !_HX_MIME_TYPE_H_

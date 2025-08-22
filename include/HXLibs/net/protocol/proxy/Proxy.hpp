@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_PROXY_H_
-#define _HX_PROXY_H_
 
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/net/protocol/url/UrlParse.hpp>
@@ -194,4 +192,3 @@ private:
 
 } // namespace HX::net
 
-#endif // !_HX_PROXY_H_

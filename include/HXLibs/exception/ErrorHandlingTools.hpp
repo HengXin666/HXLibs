@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * */
-#ifndef _HX_ERROR_HANDLING_TOOLS_H_
-#define _HX_ERROR_HANDLING_TOOLS_H_
 
 #if defined(__linux__)
 
@@ -230,5 +228,3 @@ inline int checkSocketError(std::string msg, int code) {
 #else
     #error "Does not support the current operating system."
 #endif
-
-#endif // _HX_ERROR_HANDLING_TOOLS_H_

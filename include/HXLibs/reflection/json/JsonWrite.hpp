@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_JSON_WRITE_H_
-#define _HX_JSON_WRITE_H_
 
 #include <HXLibs/log/serialize/FormatString.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
@@ -44,4 +42,3 @@ inline void toJson(Obj const& obj, Stream& s) {
 
 } // namespace HX::reflection
 
-#endif // !_HX_JSON_WRITE_H_

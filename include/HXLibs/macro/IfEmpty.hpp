@@ -17,21 +17,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MACRO_IF_EMPTY_H_
-#define _HX_MACRO_IF_EMPTY_H_
 
-#include <HXLibs/macro/join.hpp>
+#include <HXLibs/macro/Join.hpp>
 
-#define __HX_MACRO_CHECK_N__(x, n, ...) n
+#define _hx_MACRO_CHECK_N__(x, n, ...) n
 
 /**
  * @brief 获取传入的第二个参数, 作为返回, 一般应该传入一个参数
- * @note 通过一些判断, 拼接为 `__HX_MACRO_IS_EMPTY__` 宏, 来作为 1 返回.
+ * @note 通过一些判断, 拼接为 `_hx_MACRO_IS_EMPTY__` 宏, 来作为 1 返回.
  */
-#define HX_CHECK(...) __HX_MACRO_CHECK_N__(__VA_ARGS__, 0, )
-#define __HX_MACRO_IS_EMPTY__() ~, 1
+#define HX_CHECK(...) _hx_MACRO_CHECK_N__(__VA_ARGS__, 0, )
+#define _hx_MACRO_IS_EMPTY__() ~, 1
 
 // 判断是否为空
-#define IF_EMPTY(x) HX_CHECK(HX_JOIN(__HX_MACRO_IS_EMPTY__, x)())
+#define IF_EMPTY(x) HX_CHECK(HX_JOIN(_hx_MACRO_IS_EMPTY__, x)())
 
-#endif // !_HX_MACRO_IF_EMPTY_H_

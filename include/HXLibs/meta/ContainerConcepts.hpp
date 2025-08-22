@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_CONTAINER_CONCEPTS_H_
-#define _HX_CONTAINER_CONCEPTS_H_
 
 #include <ostream>
 
@@ -76,4 +74,3 @@ concept SingleElementContainer = (requires(T t) {
 
 } // namespace HX::meta
 
-#endif // !_HX_CONTAINER_CONCEPTS_H_

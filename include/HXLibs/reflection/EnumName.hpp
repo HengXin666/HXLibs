@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_ENUM_NAME_H_
-#define _HX_ENUM_NAME_H_
 
 #include <cstdint>
 #include <stdexcept>
@@ -170,4 +168,3 @@ constexpr bool IsValidEnumName = false;
 
 } // namespace HX::reflection
 
-#endif // !_HX_ENUM_NAME_H_

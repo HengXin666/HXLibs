@@ -27,7 +27,7 @@ struct TimeLog {
 
 #include <iostream>
 
-auto __init__ = []{
+auto hx_init = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
         auto cwd = std::filesystem::current_path();

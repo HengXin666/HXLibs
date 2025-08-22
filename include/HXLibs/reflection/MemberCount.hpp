@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MEMBER_COUNT_H_
-#define _HX_MEMBER_COUNT_H_
 
 #include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/reflection/ReflectionTypes.hpp>
@@ -105,4 +103,3 @@ constexpr std::size_t membersCountVal = membersCount<T>();
 
 } // namespace HX::reflection
 
-#endif // !_HX_MEMBER_COUNT_H_

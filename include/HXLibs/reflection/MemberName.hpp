@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_MEMBER_NAME_H_
-#define _HX_MEMBER_NAME_H_
 
 #include <string_view>
 #include <tuple>
@@ -147,7 +145,7 @@ struct ReflectionVisitor<T, 0> {
 /**
  * @brief 偏特化模版生成 工具宏
  */
-#define _HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION_(N, ...) \
+#define HX_GENERATE_TEMPLATES_WITH_SPECIALIZATION(N, ...)   \
 template <typename T>                                       \
 struct ReflectionVisitor<T, N> {                            \
     static constexpr auto visit() {                         \
@@ -282,4 +280,3 @@ inline constexpr void forEach(T&& obj, Visit&& func) {
 
 } // namespace HX::reflection
 
-#endif // !_HX_MEMBER_NAME_H_

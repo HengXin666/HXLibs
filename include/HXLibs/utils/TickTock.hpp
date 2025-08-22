@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_TICK_TOCK_H_
-#define _HX_TICK_TOCK_H_
 
 #include <HXLibs/log/Log.hpp>
 
@@ -71,4 +69,3 @@ extern void notOptimized(T&&);
 
 } // namespace HX::utils
 
-#endif // !_HX_TICK_TOCK_H_

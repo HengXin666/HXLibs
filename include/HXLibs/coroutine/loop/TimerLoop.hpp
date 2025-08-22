@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_TIMERLOOP_H_
-#define _HX_TIMERLOOP_H_
 
 #include <chrono>
 #include <map>
@@ -134,4 +132,3 @@ private:
 
 } // namespace HX::coroutine
 
-#endif // !_HX_TIMERLOOP_H_

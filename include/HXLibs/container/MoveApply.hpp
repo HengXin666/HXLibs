@@ -18,8 +18,6 @@
  * limitations under the License.
  */
 
-#ifndef _HX_MOVE_APPLY_H_
-#define _HX_MOVE_APPLY_H_
 
 #include <tuple>
 
@@ -105,4 +103,3 @@ decltype(auto) moveApply(Lambda&& func, Tuple&& pt) {
 
 } // namespace HX::container
 
-#endif // !_HX_MOVE_APPLY_H_

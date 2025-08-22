@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_DEFINED_H_
-#define _HX_DEFINED_H_
 
 /**
  * @brief 提供一些编译期常量, 以适配不同的平台 (完全就是为了低贱的win)
@@ -45,4 +43,3 @@ enum class OsType : int {
 
 } // namespace HX::platform
 
-#endif // !_HX_DEFINED_H_

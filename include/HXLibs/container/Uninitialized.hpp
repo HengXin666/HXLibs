@@ -17,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _HX_UNINITIALIZED_H_
-#define _HX_UNINITIALIZED_H_
 
 #include <utility>
 
@@ -114,4 +112,3 @@ struct Uninitialized<T&&> : public Uninitialized<T> {};
 
 } // namespace HX::container
 
-#endif // !_HX_UNINITIALIZED_H_
