@@ -697,6 +697,110 @@ TEST_CASE("json 反序列化") {
 }
 ```
 
+### 3.3.4 (编译期) 枚举反射
+
+> [!TIP]
+> 目前仅支持反射 `[-128, 127]` 的枚举值.
+>
+> 日后根据需要, 本库会迭代升级...
+
+```cpp
+#include <HXLibs/reflection/EnumName.hpp>
+using namespace HX;
+
+enum MyEnum {
+    Z = -100,
+    A = 0,
+    B = 10,
+    C = 100
+};
+
+// 获取对应值的字符串
+static_assert(reflection::toEnumName(static_cast<MyEnum>(0)) == "A", "");
+
+// 从字符串反射到值
+static_assert(reflection::toEnum<MyEnumClass>("Z") == MyEnumClass::Z, "");
+```
+
+### 3.3.5 (编译期) 反射 `类、结构体、共用体、枚举类型名称`
+
+少部分情况下, 我们可能希望从类型反射到 类型的字符串编译期常量, 则可以使用本方法.
+
+> [!TIP]
+> 反射 Lambda 类型 是 UB (未定义行为)
+>
+> 同理, 使用者 **不应该** 反射 指针、引用、cv限定 等.
+
+```cpp
+#include <HXLibs/reflection/StructName.hpp>
+#include <HXLibs/log/Log.hpp>
+
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
+
+using namespace HX;
+
+TEST_CASE("测试类型反射: 基础类型") {
+    // 不建议 使用
+    static_assert(reflection::getStructName<int>() == "int", "");
+    static_assert(reflection::getStructName<bool>() == "bool", "");
+    static_assert(reflection::getStructName<float>() == "float", "");
+
+    // 如果存在指针. 不同的编译器实现不同. 不建议反射基础类型
+    log::hxLog.info(reflection::getStructName<const char *>());
+    static_assert(reflection::getStructName<unsigned int>() == "unsigned int", "");
+}
+
+namespace test {
+
+struct Student {
+    struct ClassRoom {
+        int id;
+    };
+    std::string name;
+};
+
+template <typename T, std::size_t N>
+struct Array {
+    T arr[N];
+};
+
+using hxArray = Array<double, 0721>;
+
+using hxVector = Array<Array<int, 2>, 3>;
+
+}
+
+template <typename... Args>
+struct Tmp {};
+
+TEST_CASE("测试类型反射: struct") {
+    struct Student {
+        struct ClassRoom {
+            int id;
+        };
+        std::string name;
+    };
+    static_assert(reflection::getStructName<Student>() == "Student", "");
+    // 只能获取到 类名, 不包含任何的 :: 嵌套
+    static_assert(reflection::getStructName<Student::ClassRoom>() == "ClassRoom", "");
+    static_assert(reflection::getStructName<struct Abcd>() == "Abcd", "");
+
+    // 支持命名空间
+    static_assert(reflection::getStructName<test::Student>() == "Student", "");
+    static_assert(reflection::getStructName<test::Student::ClassRoom>() == "ClassRoom", "");
+
+    // 支持模板
+    static_assert(reflection::getStructName<Tmp<int, double, Tmp<Tmp<>>>>() == "Tmp", "");
+    static_assert(reflection::getStructName<test::Array<int, 3>>() == "Array", "");
+    static_assert(reflection::getStructName<test::Array<struct ONaNi, 114514>>() == "Array", "");
+
+    // 如果是别名, 只能获取到 最初始的 名称
+    static_assert(reflection::getStructName<test::hxArray>() == "Array", "");
+    static_assert(reflection::getStructName<test::hxVector>() == "Array", "");
+}
+```
+
 ### 3.4 HX::log (日志模块)
 
 > 目前实现比较简单, 只是提供了颜色; 日后会支持协程、分线程的异步模式..

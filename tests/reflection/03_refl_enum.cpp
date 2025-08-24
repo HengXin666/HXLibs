@@ -18,6 +18,11 @@ TEST_CASE("简单反射实例") {
     CHECK(reflection::toEnumName(static_cast<MyEnum>(10))   == "B");
     CHECK(reflection::toEnumName(static_cast<MyEnum>(100))  == "C");
 
+    static_assert(reflection::toEnumName(static_cast<MyEnum>(-100)) == "Z", "");
+    static_assert(reflection::toEnumName(static_cast<MyEnum>(0))    == "A", "");
+    static_assert(reflection::toEnumName(static_cast<MyEnum>(10))   == "B", "");
+    static_assert(reflection::toEnumName(static_cast<MyEnum>(100))  == "C", "");
+
     CHECK(reflection::toEnum<MyEnum>("Z") == -100);
 
     enum class MyEnumClass : char {
