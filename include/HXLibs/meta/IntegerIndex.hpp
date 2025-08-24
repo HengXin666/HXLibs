@@ -18,13 +18,17 @@
  * limitations under the License.
  */
 
+#include <array>
+
 namespace HX::meta {
 
 // 整数序列包
 template <typename T, T... Is>
 struct IntegerIndex {
     using Type = T;
-    // inline static constexpr T Val[] {Is...};
+    static constexpr auto range() noexcept {
+        return std::array<T, sizeof...(Is)>{Is...};
+    }
 };
 
 namespace internal {

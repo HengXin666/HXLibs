@@ -36,6 +36,11 @@ namespace internal {
  */
 template <typename EnumType, EnumType Enum>
 inline constexpr std::string_view getEnumName() noexcept {
+    if constexpr (!std::is_enum_v<EnumType>) {
+        // 传入的不是枚举类型
+        static_assert(!sizeof(EnumType),
+            "The input type is not an enumeration");
+    }
 #if defined(_MSC_VER)
     constexpr std::string_view funcName = __FUNCSIG__;
 #else
@@ -57,14 +62,11 @@ inline constexpr std::string_view getEnumName() noexcept {
         "or MSVC or switch to the rfl::Field-syntax."
     );
 #endif
-    [&] {
-        // 如果是 enum class, 那么会有 Type::name
-        auto pos = split.rfind("::");
-        if (pos == std::string_view::npos) {
-            return;
-        }
+    // 如果是 enum class, 那么会有 Type::name
+    auto pos = split.rfind("::");
+    if (pos != std::string_view::npos) {
         split = split.substr(pos + 2);
-    }();
+    }
     return split;
 }
 
@@ -73,9 +75,17 @@ constexpr auto makeEnumRange() noexcept {
     // @todo, 通过偏特化允许用户定义范围
     // @todo, 支持 位定义的枚举, 如 0x01, 0x02, 0x04, 0x08 这种 (1 << i) 的枚举值
     if constexpr (std::is_unsigned_v<std::underlying_type_t<EnumType>>) {
-        return meta::makeIntegerIndexRange<uint64_t, static_cast<uint64_t>(0), static_cast<uint64_t>(255)>{};
+        return meta::makeIntegerIndexRange<
+            uint64_t,
+            static_cast<uint64_t>(0),
+            static_cast<uint64_t>(255)
+        >{};
     } else {
-        return meta::makeIntegerIndexRange<int64_t, static_cast<int64_t>(-128), static_cast<int64_t>(127)>{};
+        return meta::makeIntegerIndexRange<
+            int64_t,
+            static_cast<int64_t>(-128),
+            static_cast<int64_t>(127)
+        >{};
     }
 }
 
@@ -89,31 +99,28 @@ constexpr auto makeEnumRange() noexcept {
  */
 template <typename T>
 constexpr std::string_view toEnumName(T const& enumVal) noexcept {
-    if constexpr (std::is_unsigned_v<std::underlying_type_t<T>>) {
-        return [&] <uint64_t... Idx> (meta::IntegerIndex<uint64_t, Idx...>) {
-            std::string_view res{};
-            ([&]{
-                if (Idx == static_cast<uint64_t>(enumVal)) {
-                    res = internal::getEnumName<T, static_cast<T>(Idx)>();
-                    return true;
-                }
-                return false;
-            }() || ...);
-            return res;
-        }(internal::makeEnumRange<T>());
-    } else {    
-        return [&] <int64_t... Idx> (meta::IntegerIndex<int64_t, Idx...>) {
-            std::string_view res{};
-            ([&]{
-                if (Idx == static_cast<int64_t>(enumVal)) {
-                    res = internal::getEnumName<T, static_cast<T>(Idx)>();
-                    return true;
-                }
-                return false;
-            }() || ...);
-            return res;
-        }(internal::makeEnumRange<T>());
-    }
+    return [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
+        std::string_view res{};
+        ([&]{
+            if (Idx == static_cast<NT>(enumVal)) {
+                res = internal::getEnumName<T, static_cast<T>(Idx)>();
+                return true;
+            }
+            return false;
+        }() || ...);
+        return res;
+    }(internal::makeEnumRange<T>());
+}
+
+/**
+ * @brief 从枚举值获取其枚举的名称字符串
+ * @tparam T 
+ * @param enumVal 
+ * @return constexpr std::string_view 
+ */
+template <typename T, T EnumVal>
+constexpr std::string_view toEnumName() noexcept {
+    return internal::getEnumName<T, EnumVal>();
 }
 
 /**
@@ -124,43 +131,23 @@ constexpr std::string_view toEnumName(T const& enumVal) noexcept {
  */
 template <typename T>
 constexpr T toEnum(std::string_view name) {
-    if constexpr (std::is_unsigned_v<std::underlying_type_t<T>>) {
-        return [&] <uint64_t... Idx> (meta::IntegerIndex<uint64_t, Idx...>) {
-            T res;
-            bool isFind = false;
-            ([&]{
-                if (name == internal::getEnumName<T, static_cast<T>(Idx)>()) {
-                    res = static_cast<T>(Idx);
-                    isFind = true;
-                    return true;
-                };
-                return false;
-            }() || ...);
-            if (!isFind) [[unlikely]] {
-                // 找不到对应枚举名称
-                throw std::runtime_error{"not find enum name"};
-            }
-            return res;
-        }(internal::makeEnumRange<T>());
-    } else {    
-        return [&] <int64_t... Idx> (meta::IntegerIndex<int64_t, Idx...>) {
-            T res;
-            bool isFind = false;
-            ([&]{
-                if (name == internal::getEnumName<T, static_cast<T>(Idx)>()) {
-                    res = static_cast<T>(Idx);
-                    isFind = true;
-                    return true;
-                };
-                return false;
-            }() || ...);
-            if (!isFind) [[unlikely]] {
-                // 找不到对应枚举名称
-                throw std::runtime_error{"not find enum name"};
-            }
-            return res;
-        }(internal::makeEnumRange<T>());
-    }
+    return [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
+        T res;
+        bool isFind = false;
+        ([&]{
+            if (name == internal::getEnumName<T, static_cast<T>(Idx)>()) {
+                res = static_cast<T>(Idx);
+                isFind = true;
+                return true;
+            };
+            return false;
+        }() || ...);
+        if (!isFind) [[unlikely]] {
+            // 找不到对应枚举名称
+            throw std::runtime_error{"not find enum name"};
+        }
+        return res;
+    }(internal::makeEnumRange<T>());
 }
 
 template <typename T>

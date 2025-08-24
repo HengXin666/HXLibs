@@ -22,8 +22,16 @@
 
 namespace HX::reflection {
 
+/**
+ * @brief 获取类型名称
+ * @tparam T 仅 enum / class / struct / union
+ * @return constexpr std::string_view 
+ */
 template <typename T>
-inline constexpr std::string_view getStructName() {
+    requires(std::is_enum_v<T>
+          || std::is_class_v<T>
+          || std::is_union_v<T>)
+inline constexpr std::string_view getTypeName() noexcept {
 #if defined(_MSC_VER)
     constexpr std::string_view funcName = __FUNCSIG__;
 #else
@@ -55,7 +63,7 @@ inline constexpr std::string_view getStructName() {
         split = split.substr(pos + 2);
     }
 #elif defined(_MSC_VER)
-    auto split = funcName.substr(funcName.rfind("getStructName<") + sizeof("getStructName<") - 1);
+    auto split = funcName.substr(funcName.rfind("getTypeName<") + sizeof("getTypeName<") - 1);
     auto pos = split.find("<");
     if (pos != std::string_view::npos) {
         split = split.substr(0, pos);
@@ -66,6 +74,11 @@ inline constexpr std::string_view getStructName() {
     pos = split.rfind("::");
     if (pos != std::string_view::npos) {
         split = split.substr(pos + 2);
+    } else {
+        pos = split.find(' ');
+        if (pos != std::string_view::npos) {
+            split = split.substr(pos + 1);
+        }
     }
 #else
     static_assert(

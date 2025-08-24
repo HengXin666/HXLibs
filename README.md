@@ -724,32 +724,21 @@ static_assert(reflection::toEnum<MyEnumClass>("Z") == MyEnumClass::Z, "");
 
 ### 3.3.5 (编译期) 反射 `类、结构体、共用体、枚举类型名称`
 
-少部分情况下, 我们可能希望从类型反射到 类型的字符串编译期常量, 则可以使用本方法.
+少部分情况下, 我们可能希望从 **自定义类型** 反射到 类型的`字符串`编译期常量, 则可以使用本方法.
 
 > [!TIP]
 > 反射 Lambda 类型 是 UB (未定义行为)
 >
-> 同理, 使用者 **不应该** 反射 指针、引用、cv限定 等.
+> 同理, 使用者 **不应该** 反射 带指针、引用、cv限定的类型.
 
 ```cpp
-#include <HXLibs/reflection/StructName.hpp>
+#include <HXLibs/reflection/TypeName.hpp>
 #include <HXLibs/log/Log.hpp>
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
 using namespace HX;
-
-TEST_CASE("测试类型反射: 基础类型") {
-    // 不建议 使用
-    static_assert(reflection::getStructName<int>() == "int", "");
-    static_assert(reflection::getStructName<bool>() == "bool", "");
-    static_assert(reflection::getStructName<float>() == "float", "");
-
-    // 如果存在指针. 不同的编译器实现不同. 不建议反射基础类型
-    log::hxLog.info(reflection::getStructName<const char *>());
-    static_assert(reflection::getStructName<unsigned int>() == "unsigned int", "");
-}
 
 namespace test {
 
@@ -781,23 +770,23 @@ TEST_CASE("测试类型反射: struct") {
         };
         std::string name;
     };
-    static_assert(reflection::getStructName<Student>() == "Student", "");
+    static_assert(reflection::getTypeName<Student>() == "Student", "");
     // 只能获取到 类名, 不包含任何的 :: 嵌套
-    static_assert(reflection::getStructName<Student::ClassRoom>() == "ClassRoom", "");
-    static_assert(reflection::getStructName<struct Abcd>() == "Abcd", "");
+    static_assert(reflection::getTypeName<Student::ClassRoom>() == "ClassRoom", "");
+    static_assert(reflection::getTypeName<struct Abcd>() == "Abcd", "");
 
     // 支持命名空间
-    static_assert(reflection::getStructName<test::Student>() == "Student", "");
-    static_assert(reflection::getStructName<test::Student::ClassRoom>() == "ClassRoom", "");
+    static_assert(reflection::getTypeName<test::Student>() == "Student", "");
+    static_assert(reflection::getTypeName<test::Student::ClassRoom>() == "ClassRoom", "");
 
     // 支持模板
-    static_assert(reflection::getStructName<Tmp<int, double, Tmp<Tmp<>>>>() == "Tmp", "");
-    static_assert(reflection::getStructName<test::Array<int, 3>>() == "Array", "");
-    static_assert(reflection::getStructName<test::Array<struct ONaNi, 114514>>() == "Array", "");
+    static_assert(reflection::getTypeName<Tmp<int, double, Tmp<Tmp<>>>>() == "Tmp", "");
+    static_assert(reflection::getTypeName<test::Array<int, 3>>() == "Array", "");
+    static_assert(reflection::getTypeName<test::Array<struct ONaNi, 114514>>() == "Array", "");
 
     // 如果是别名, 只能获取到 最初始的 名称
-    static_assert(reflection::getStructName<test::hxArray>() == "Array", "");
-    static_assert(reflection::getStructName<test::hxVector>() == "Array", "");
+    static_assert(reflection::getTypeName<test::hxArray>() == "Array", "");
+    static_assert(reflection::getTypeName<test::hxVector>() == "Array", "");
 }
 ```
 
