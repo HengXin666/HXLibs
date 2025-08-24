@@ -24,6 +24,8 @@
 
 #include <HXLibs/meta/IntegerIndex.hpp>
 
+#include <HXLibs/container/CHashMap.hpp>
+
 namespace HX::reflection {
 
 namespace internal {
@@ -62,10 +64,13 @@ inline constexpr std::string_view getEnumName() noexcept {
         "or MSVC or switch to the rfl::Field-syntax."
     );
 #endif
-    // 如果是 enum class, 那么会有 Type::name
-    auto pos = split.rfind("::");
-    if (pos != std::string_view::npos) {
-        split = split.substr(pos + 2);
+    if (split[0] != '(') {
+        // 如果是 enum class, 那么会有 Type::name; 但是小心 (xx::Yy)zz 是无名枚举
+        // 因此含有 '(' 的就不处理了~
+        auto pos = split.rfind("::");
+        if (pos != std::string_view::npos) {
+            split = split.substr(pos + 2);
+        }
     }
     return split;
 }
@@ -92,6 +97,92 @@ constexpr auto makeEnumRange() noexcept {
 } // namespace internal
 
 /**
+ * @brief 判断 EnumType {Enum} 是否为有效的枚举值
+ */
+template <typename EnumType, EnumType Enum>
+constexpr bool isValidEnumValue = internal::getEnumName<EnumType, Enum>()[0] != '(';
+
+/**
+ * @brief 获取枚举的有效枚举值的个数
+ * @tparam EnumType 
+ * @return constexpr std::size_t 
+ */
+template <typename EnumType>
+constexpr std::size_t getValidEnumValueCnt() noexcept {
+    return [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
+        std::size_t res = 0;
+        ((res += static_cast<std::size_t>(
+            isValidEnumValue<EnumType, static_cast<EnumType>(Idx)>
+        )), ...);
+        return res;
+    }(internal::makeEnumRange<EnumType>());
+}
+
+namespace internal {
+
+// 技巧来源:
+// 实现 编译期常量 可以在 运行时 仅初始化一次
+// https://stackoverflow.com/questions/62458079/static-constexpr-variables-in-a-constexpr-function
+// 如果是 C++23 就直接上 constexpr static 就好了, 没有那么多 B 事情.
+
+// 获取 EnumType -> str 的映射
+template <typename EnumType>
+class EnumValueMapStr {
+    static constexpr auto getEnumValueMapStr() noexcept {
+        constexpr std::size_t Cnt = getValidEnumValueCnt<EnumType>();
+        using KV = std::pair<EnumType, std::string_view>;
+        std::array<KV, Cnt> arr;
+        std::size_t i = 0;
+        [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
+            ([&]() {
+                if (isValidEnumValue<EnumType, static_cast<EnumType>(Idx)>) {
+                    arr[i++] = {
+                        static_cast<EnumType>(Idx),
+                        internal::getEnumName<EnumType, static_cast<EnumType>(Idx)>()
+                    };
+                }
+            }(), ...);
+        }(internal::makeEnumRange<EnumType>());
+        container::CHashMap<EnumType, std::string_view, Cnt> hash{arr};
+        return hash;
+    }
+public:
+    inline static constexpr auto map = getEnumValueMapStr();
+    constexpr auto& operator()() noexcept { return map; }
+    static constexpr auto& make() noexcept { return map; }
+};
+
+
+// 获取 str -> EnumType 的映射
+template <typename EnumType>
+class EnumStrMapValue {
+    static constexpr auto getEnumStrMapValue() noexcept {
+        constexpr std::size_t Cnt = getValidEnumValueCnt<EnumType>();
+        using KV = std::pair<std::string_view, EnumType>;
+        std::array<KV, Cnt> arr;
+        std::size_t i = 0;
+        [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
+            ([&]() {
+                if (isValidEnumValue<EnumType, static_cast<EnumType>(Idx)>) {
+                    arr[i++] = {
+                        internal::getEnumName<EnumType, static_cast<EnumType>(Idx)>(),
+                        static_cast<EnumType>(Idx)
+                    };
+                }
+            }(), ...);
+        }(internal::makeEnumRange<EnumType>());
+        container::CHashMap<std::string_view, EnumType, Cnt> hash{arr};
+        return hash;
+    }
+public:
+    inline static constexpr auto map = getEnumStrMapValue();
+    constexpr auto& operator()() noexcept { return map; }
+    static constexpr auto& make() noexcept { return map; }
+};
+
+} // namespace internal
+
+/**
  * @brief 从枚举值获取其枚举的名称字符串
  * @tparam T 
  * @param enumVal 
@@ -99,6 +190,7 @@ constexpr auto makeEnumRange() noexcept {
  */
 template <typename T>
 constexpr std::string_view toEnumName(T const& enumVal) noexcept {
+#if 0
     return [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
         std::string_view res{};
         ([&]{
@@ -110,6 +202,13 @@ constexpr std::string_view toEnumName(T const& enumVal) noexcept {
         }() || ...);
         return res;
     }(internal::makeEnumRange<T>());
+#else
+    constexpr auto map = internal::EnumValueMapStr<T>::map;
+    if (auto it = map.find(enumVal); it != map.end()) {
+        return it->second;
+    }
+    return "";
+#endif
 }
 
 /**
@@ -131,6 +230,7 @@ constexpr std::string_view toEnumName() noexcept {
  */
 template <typename T>
 constexpr T toEnum(std::string_view name) {
+#if 0
     return [&] <typename NT, NT... Idx> (meta::IntegerIndex<NT, Idx...>) {
         T res;
         bool isFind = false;
@@ -148,10 +248,14 @@ constexpr T toEnum(std::string_view name) {
         }
         return res;
     }(internal::makeEnumRange<T>());
+#else
+    constexpr auto map = internal::EnumStrMapValue<T>::map;
+    if (auto it = map.find(name); it != map.end()) {
+        return it->second;
+    }
+    [[unlikely]] throw std::runtime_error{"not find enum name"};
+#endif
 }
-
-template <typename T>
-constexpr bool IsValidEnumName = false;
 
 } // namespace HX::reflection
 

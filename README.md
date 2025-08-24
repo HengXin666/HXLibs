@@ -720,6 +720,11 @@ static_assert(reflection::toEnumName(static_cast<MyEnum>(0)) == "A", "");
 
 // 从字符串反射到值
 static_assert(reflection::toEnum<MyEnumClass>("Z") == MyEnumClass::Z, "");
+
+// 支持获取枚举个数
+static_assert(reflection::getValidEnumValueCnt<MyEnum>() == 4, "");
+
+// @todo 支持获取枚举哈希表 (内部存在, 但是目前没有打算暴露)
 ```
 
 ### 3.3.5 (编译期) 反射 `类、结构体、共用体、枚举类型名称`
