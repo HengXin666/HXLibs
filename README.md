@@ -12,6 +12,18 @@ HXLibs 是一个现代 C++ 库. 目前集合了:
 
 - 支持聚合类反射 / 宏反射(支持别名 和 私有成员), 轻松支持 Json 的序列化与反序列化! (反序列化时对字符串的零拷贝)
 
+---
+
+还包含:
+
+- 协程库
+- 网络库
+- 反射库
+    - Json序列化库 (基于反射)
+- 日志库
+
+> 更多介绍 `@todo` ...
+
 ## 二、构建要求
 
 - Linux 5.1+ || Windows
@@ -377,19 +389,36 @@ struct Test {
     std::string name;
 };
 
-constexpr auto Cnt = reflection::membersCountVal<Test>;
-static_assert(Cnt == 2, ""); // 编译期获取 聚合类 成员个数
+// 支持获取字段个数 [编译期]
+constexpr auto Cnt = reflection::membersCount<Test>();
+CHECK(Cnt == 2);
+static_assert(Cnt == 2, "");
 
+// 支持从索引访问字段名 [编译期]
 constexpr auto Name = reflection::getMembersNames<Test>();
-static_assert(Name[0] == "a", "");
-static_assert(Name[1] == "name", ""); // 编译期获取 聚合类 成员字段
+CHECK(Name[0] == "name01");
+CHECK(Name[1] == "name02");
+static_assert(Name[0] == "name01", "");
+static_assert(Name[1] == "name02", "");
+
+// 支持获取字段名到索引的哈希 [编译期]
+constexpr auto map = reflection::getMembersNamesMap<Test>();
+static_assert(map.at("name01") == 0, "");
+static_assert(map.at("name02") == 1, "");
+static_assert(map.find("_name") == map.end(), "");
+
+// 获取到的哈希表是编译期常量, 可以进行编译期映射 [编译期]
+[[maybe_unused]] constexpr auto _ = std::index_sequence<
+    map.at("name01"),
+    map.at("name02")
+>{};
 
 // (部分)编译期 for 循环
 Test obj;
 reflection::forEach(obj, [&] <std::size_t I> (
     std::index_sequence<I>, // 字段索引 I (编译器字面量)
     auto name,              // 字段名称 std::string_view
-    auto /*const*/& val     // 字段引用 (如果传入的是 Test const&, 那么对应的 val 也是 auto const&)
+    auto& val               // 字段引用 (如果传入的是 Test const&, 那么对应的 val 也是 auto const&)
 ) {
     if constexpr (I == 0)
         val = 0;

@@ -20,15 +20,31 @@ TEST_CASE("initializer_list") {
             {}
         }}
     };
+    // 支持获取字段个数 [编译期]
     constexpr auto Cnt = reflection::membersCount<Test>();
     CHECK(Cnt == 2);
     static_assert(Cnt == 2, "");
 
+    // 支持从索引访问字段名 [编译期]
     constexpr auto Name = reflection::getMembersNames<Test>();
     CHECK(Name[0] == "name01");
     CHECK(Name[1] == "name02");
     static_assert(Name[0] == "name01", "");
     static_assert(Name[1] == "name02", "");
+
+    // 支持获取字段名到索引的哈希 [编译期]
+    constexpr auto map = reflection::getMembersNamesMap<Test>();
+    static_assert(map.at("name01") == 0, "");
+    static_assert(map.at("name02") == 1, "");
+    static_assert(map.find("_name") == map.end(), "");
+
+    // 获取到的哈希表是编译期常量, 可以进行编译期映射 [编译期]
+    {
+        [[maybe_unused]] constexpr auto _ = std::index_sequence<
+            map.at("name01"),
+            map.at("name02")
+        >{};
+    }
 
     log::hxLog.info(test);
 }

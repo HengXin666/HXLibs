@@ -24,6 +24,7 @@
 #include <utility>
 
 #include <HXLibs/reflection/MemberCount.hpp>
+#include <HXLibs/container/CHashMap.hpp>
 
 namespace HX::reflection {
 
@@ -238,7 +239,7 @@ Wrap(T) -> Wrap<T>;
  * @note https://godbolt.org/z/zzaWsP5j7
  */
 template <typename T>
-constexpr auto toWrap(T const& t) {
+constexpr auto toWrap(T const& t) noexcept {
     return Wrap{t};
 }
 
@@ -250,7 +251,7 @@ constexpr auto toWrap(T const& t) {
  * @return 所有成员变量的名称`array`
  */
 template <typename T>
-inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersNames() {
+inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersNames() noexcept {
     constexpr auto Cnt = membersCountVal<T>;
     std::array<std::string_view, Cnt> arr;
     constexpr auto tp = internal::getStaticObjPtrTuple<T>(); // 获取 tuple<成员指针...>
@@ -258,6 +259,22 @@ inline constexpr std::array<std::string_view, membersCountVal<T>> getMembersName
         ((arr[Is] = internal::getMemberName<internal::toWrap(std::get<Is>(tp))>()), ...);
     } (std::make_index_sequence<Cnt>{});
     return arr;
+}
+
+/**
+ * @brief 获取名称到索引的映射
+ * @tparam T 
+ * @return constexpr auto 编译期哈希表<std::string_view, std::size_t>
+ */
+template <typename T>
+inline constexpr auto getMembersNamesMap() noexcept {
+    constexpr auto Cnt = membersCountVal<T>;
+    constexpr auto tp = internal::getStaticObjPtrTuple<T>();
+    std::array<std::pair<std::string_view, std::size_t>, Cnt> arr;
+    [&] <std::size_t... Is> (std::index_sequence<Is...>) {
+        ((arr[Is] = {internal::getMemberName<internal::toWrap(std::get<Is>(tp))>(), Is}), ...);
+    } (std::make_index_sequence<Cnt>{});
+    return container::CHashMap<std::string_view, std::size_t, Cnt>{arr};
 }
 
 /**
