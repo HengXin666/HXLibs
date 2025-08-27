@@ -65,7 +65,7 @@ struct Acceptor {
             }
         }
         co_await _eventLoop.makeAioTask().prepClose(serverFd);
-        log::hxLog.info("已退出...", serverFd);
+        log::hxLog.debug("已退出...", serverFd);
     }
 
 private:

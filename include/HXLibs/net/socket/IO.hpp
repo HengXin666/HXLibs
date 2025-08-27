@@ -234,6 +234,16 @@ public:
     }
 
     /**
+     * @brief 绑定新的 fd
+     * @warning 必须把之前的 fd 给 close 了
+     * @param fd 
+     */
+    coroutine::Task<> bindNewFd(SocketFdType fd) noexcept {
+        co_await close();
+        _fd = fd;
+    }
+
+    /**
      * @brief 清空套接字
      * @warning 请注意, 希望你知道你在做什么! 而不是泄漏套接字!
      * @note 期望编译器可以自己优化下面方法为不调用, 仅为 debug 时候使用.
@@ -241,7 +251,7 @@ public:
     constexpr void reset() noexcept {
 #ifndef NDEBUG
         _fd = kInvalidSocket;
-#endif
+#endif // !NDEBUG
     }
 
     operator coroutine::EventLoop&() {

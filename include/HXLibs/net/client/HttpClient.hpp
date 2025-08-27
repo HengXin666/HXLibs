@@ -58,9 +58,18 @@ public:
         , _pool{}
         , _host{}
         , _headers{}
+        , _isAutoReconnect{true}
     {
         _pool.setFixedThreadNum(threadNum);
         _pool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
+    }
+
+    /**
+     * @brief 设置是否自动重连
+     * @param isAutoReconnect true (默认) 自动重连
+     */
+    void setAutoReconnect(bool isAutoReconnect) noexcept {
+        _isAutoReconnect = isAutoReconnect;
     }
 
     /**
@@ -201,8 +210,20 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> coConnect(std::string url) {
-        co_await makeSocket(url);
-        co_await sendReq<GET>(url);
+        co_await sendReq<GET>(std::move(url));
+    }
+
+    /**
+     * @brief 建立连接
+     * @param url 
+     */
+    void connect(std::string url) {
+        if (auto res = get(std::move(url)).get();
+            res.headers.at("connection") != "keep-alive"
+        ) [[unlikely]] {
+            log::hxLog.error("res:", res);
+            throw std::runtime_error{"connect Error: status != 200 or connection != keep-alive"};
+        }
     }
 
     /**
@@ -327,7 +348,7 @@ private:
             // 初始化连接 (如 Https 握手)
             co_return;
         } catch (...) {
-            ;
+            log::hxLog.error("连接失败");
         }
         // 总之得关闭
         co_await _eventLoop.makeAioTask().prepClose(_cliFd);
@@ -362,10 +383,25 @@ private:
         try {
             co_await req.sendHttpReq<Timeout>();
             Response res{io};
-            if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
+            do {
+                if (co_await res.parserRes<Timeout>()) [[unlikely]] {
+                    break;
+                }
                 // 读取超时
-                throw std::runtime_error{"Send Timed Out"};
-            }
+                if (_isAutoReconnect) {
+                    // 重新建立连接
+                    co_await makeSocket(url);
+                    // 绑定新的 fd
+                    co_await io.bindNewFd(_cliFd);
+                    // 重新发送一次请求
+                    co_await req.sendHttpReq<Timeout>();
+                    // 再次解析请求
+                    if (co_await res.parserRes<Timeout>()) [[likely]] {
+                        break;
+                    }
+                }
+                [[unlikely]] throw std::runtime_error{"Send Timed Out"};
+            } while (false);
             io.reset();
             co_return res.makeResponseData();
         } catch (...) {
@@ -373,6 +409,7 @@ private:
         }
         
         log::hxLog.error("解析出错"); // debug
+
         co_await io.close();
         _cliFd = kInvalidSocket;
         std::rethrow_exception(exceptionPtr);
@@ -410,6 +447,9 @@ private:
 
     // 请求头
     HeaderHashMap _headers;
+
+    // 是否自动重连
+    bool _isAutoReconnect;
 };
 
 HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>()), Socks5Proxy>;

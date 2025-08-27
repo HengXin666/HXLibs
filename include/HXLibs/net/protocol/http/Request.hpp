@@ -150,9 +150,12 @@ public:
      * @return Request& 
      */
     template <typename S>
-        requires std::convertible_to<S, std::string>
+        requires (requires (S&& data, std::string s) {
+            s += std::forward<S>(data);
+        })
     Request& setBody(S&& data) noexcept {
-        _body = std::forward<S>(data);
+        _body.clear();
+        _body += std::forward<S>(data);
         return *this;
     }
 
