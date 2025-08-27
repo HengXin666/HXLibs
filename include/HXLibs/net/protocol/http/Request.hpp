@@ -271,7 +271,7 @@ public:
      * @brief 获取请求体
      * @return 如果没有请求体, 则返回`""`
      */
-    std::string const& getReqBody() const noexcept {
+    std::string const& getBody() const noexcept {
         return _body;
     }
 
@@ -279,7 +279,7 @@ public:
      * @brief 获取请求体
      * @return 如果没有请求体, 则返回`""`
      */
-    std::string getReqBody() noexcept {
+    std::string getBody() noexcept {
         return std::move(_body);
     }
 

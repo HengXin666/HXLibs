@@ -108,7 +108,7 @@ public:
      * @brief 获取协议版本
      * @return std::string 
      */
-    std::string getProtocolVersion() const {
+    std::string const& getProtocolVersion() const {
         return _statusLine[ResponseLineDataType::ProtocolVersion];
     }
 
@@ -116,7 +116,7 @@ public:
      * @brief 获取状态码
      * @return std::string 
      */
-    std::string getStatusCode() const {
+    std::string const& getStatusCode() const {
         return _statusLine[ResponseLineDataType::StatusCode];
     }
 
@@ -124,7 +124,7 @@ public:
      * @brief 获取状态信息
      * @return std::string 
      */
-    std::string getStatusMessage() const {
+    std::string const& getStatusMessage() const {
         return _statusLine[ResponseLineDataType::StatusMessage];
     }
 
@@ -132,7 +132,7 @@ public:
      * @brief 获取响应头键值对 只读引用
      * @return 响应头键值对 (键均为小写)
      */
-    auto const& getHeaders() const {
+    auto const& getHeaders() const noexcept {
         return _responseHeaders;
     }
 
@@ -140,7 +140,7 @@ public:
      * @brief 获取响应头键值对 引用
      * @return 响应头键值对 (键均为小写)
      */
-    auto& getHeaders() {
+    auto& getHeaders() noexcept {
         return _responseHeaders;
     }
 
@@ -148,8 +148,16 @@ public:
      * @brief 获取响应体
      * @return std::string 
      */
-    std::string getBody() const {
+    std::string const& getBody() const noexcept {
         return _body;
+    }
+
+    /**
+     * @brief 获取响应体
+     * @return std::string 
+     */
+    std::string getBody() noexcept {
+        return std::move(_body);
     }
 
     /**
