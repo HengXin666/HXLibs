@@ -44,7 +44,7 @@ public:
             co_return co_await res
                 .setResLine(Status::CODE_404)
                 .setContentType(HTML)
-                .setBodyData(
+                .setBody(
     "<!DOCTYPE html><html lang=\"en\">"
     "<head><meta charset=\"UTF-8\"/>"
     "<title>404 Not Found</title>"

@@ -145,31 +145,14 @@ public:
 
     /**
      * @brief 设置请求体信息
+     * @tparam S 字符串类型
      * @param data 信息
      * @return Request& 
      */
-    Request& setBody(const std::string& data) {
-        _body = data;
-        return *this;
-    }
-
-    /**
-     * @brief 设置请求体信息 [[std::move优化]]
-     * @param data 信息
-     * @return Request& 
-     */
-    Request& setBody(std::string&& data) {
-        _body = std::move(data);
-        return *this;
-    }
-
-    /**
-     * @brief 设置请求体信息
-     * @param data 信息
-     * @return Request& 
-     */
-    Request& setBody(std::string_view data) {
-        _body = data;
+    template <typename S>
+        requires std::convertible_to<S, std::string>
+    Request& setBody(S&& data) noexcept {
+        _body = std::forward<S>(data);
         return *this;
     }
 

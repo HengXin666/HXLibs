@@ -183,7 +183,7 @@ public:
      * @return Response& 可链式调用
      */
     Response& setStatusAndContent(Status status, std::string const& content) {
-        setResLine(status).setContentType(TEXT).setBodyData(content);
+        setResLine(status).setContentType(TEXT).setBody(content);
         return *this;
     }
 
@@ -496,12 +496,15 @@ public:
 
     /**
      * @brief 设置响应体
-     * @param data 响应体数据
-     * @return [this&] 可以链式调用
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
+     * @tparam S 字符串类型
+     * @param data 信息
+     * @return Request& 
      */
-    Response& setBodyData(const std::string& data) {
-        _body = data;
+    template <typename S>
+        requires std::convertible_to<S, std::string>
+    Response& setBody(S&& data) noexcept {
+        _body = std::forward<S>(data);
         return *this;
     }
 
