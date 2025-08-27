@@ -268,10 +268,10 @@ public:
     }
 
     /**
-     * @brief 获取请求体 ( 临时设计的 )
+     * @brief 获取请求体
      * @return 如果没有请求体, 则返回`""`
      */
-    std::string getReqBody() const noexcept {
+    std::string const& getReqBody() const noexcept {
         return _body;
     }
 
