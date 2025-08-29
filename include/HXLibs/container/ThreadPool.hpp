@@ -29,6 +29,7 @@
 #include <HXLibs/container/SafeQueue.hpp>
 #include <HXLibs/container/MoveOnlyFunction.hpp>
 #include <HXLibs/container/MoveApply.hpp>
+#include <HXLibs/meta/TypeTraits.hpp>
 
 namespace HX::container {
 
@@ -125,6 +126,7 @@ struct ThreadPool {
     template <typename Func, typename... Args, typename Res = std::invoke_result_t<Func, Args...>>
     FutureResult<Res> addTask(Func&& func, Args&&... args) {
         FutureResult<Res> res;
+        res.via(this);
         auto cb = [func = std::move(func), 
                    ans = res.getFutureResult(),
                    argWap = makePreserveTuple(std::forward<Args>(args)...)
@@ -327,6 +329,76 @@ private:
     std::atomic_uint32_t _delCnt;   // 需要删除的线程数                     
     std::atomic_bool _isRun;        // 线程池是否在运行
 };
+
+template <typename T>
+template <typename Func, typename Res>
+    requires (std::is_same_v<Try<T>, meta::FunctionAtArg<0, Func>>)
+FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
+    Func&& func
+) && noexcept {
+    auto dispatch = _dispatch.get();
+    FutureResult<RemoveTryWarpType<Res>> res;
+    res.via(dispatch);
+    dispatch->addTask([self = std::move(*this),
+                       _func = std::forward<Func>(func),
+                       ans = res.getFutureResult()](
+    ) mutable {
+        Uninitialized<T> data;
+        try {
+            // 如果获取出错, 说明之前的任务出现异常
+            data.set(self.get());
+        } catch (...) {
+            ;
+        }
+        try {
+            if (data.isAvailable()) {
+                // 获取完毕, 无异常, 传入 func
+                if constexpr (std::is_void_v<decltype(_func(data.move()))>) {
+                    // func 返回值是 void
+                    _func(data.move());
+                    ans->setData(NonVoidType<void>{});
+                } else {
+                    // func 返回值是任意类型
+                    Res funcRes = _func(data.move());
+                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
+                        // 特判如果是 Try 则去掉一层
+                        if (funcRes) {
+                            ans->setData(funcRes.move());
+                        } else {
+                            std::rethrow_exception(self._res->getException());
+                        }
+                    } else {            
+                        ans->setData(std::move(funcRes));
+                    }
+                }
+            } else {
+                // 获取失败, 有异常, func 传入 Try<>{}
+                if constexpr (std::is_void_v<decltype(_func({}))>) {
+                    // func 返回值是 void
+                    _func({});
+                    ans->setData(NonVoidType<void>{});
+                } else {
+                    // func 返回值是任意类型
+                    Res funcRes = _func({});
+                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
+                        // 特判如果是 Try 则去掉一层
+                        if (funcRes) {
+                            ans->setData(funcRes.move());
+                        } else {
+                            std::rethrow_exception(self._res->getException());
+                        }
+                    } else {            
+                        ans->setData(std::move(funcRes));
+                    }
+                }
+            }
+        } catch (...) {
+            // 本次的 func 出现异常
+            ans->unhandledException();
+        }
+    });
+    return res;
+}
 
 } // namespace HX::container
 

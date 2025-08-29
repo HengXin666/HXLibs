@@ -61,6 +61,14 @@ struct Uninitialized {
         return std::move(_data);
     }
 
+    T& get() noexcept {
+        return _data;
+    }
+
+    T const& get() const noexcept {
+        return _data;
+    }
+
     template <typename... Ts>
     void set(Ts&&... args) {
         new (std::addressof(_data)) T(std::forward<Ts>(args)...);
@@ -82,7 +90,9 @@ private:
 
 template <>
 struct Uninitialized<void> {
-    Uninitialized() noexcept = default;
+    Uninitialized() noexcept 
+        : _available{false}
+    {}
     
     Uninitialized(Uninitialized const&) = delete;
     Uninitialized& operator=(Uninitialized const&) = delete;
@@ -93,11 +103,21 @@ struct Uninitialized<void> {
     ~Uninitialized() noexcept = default;
     
     bool isAvailable() const noexcept {
-        return true;
+        return _available;
     }
 
-    auto move() noexcept { return NonVoidHelper<>{}; }
-    void set(NonVoidHelper<>) noexcept {}
+    auto get() const noexcept { return NonVoidHelper<>{}; }
+
+    auto move() noexcept {
+        _available = false;
+        return NonVoidHelper<>{};
+    }
+
+    void set(NonVoidHelper<>) noexcept {
+        _available = true;
+    }
+private:
+    bool _available;
 };
 
 template <typename T>

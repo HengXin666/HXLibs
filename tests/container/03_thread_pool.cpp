@@ -5,7 +5,8 @@
 
 #include <HXLibs/log/Log.hpp>
 
-using namespace HX::container;
+using namespace HX;
+using namespace container;
 
 TEST_CASE("基本任务提交与获取结果") {
     ThreadPool pool;
@@ -49,7 +50,7 @@ TEST_CASE("基本任务提交与获取结果(固定容量版本)") {
     auto res2 = pool.addTask([](int a, int b) { return a + b; }, 1, 2);
     auto res3 = pool.addTask([] { 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-         return 99; 
+        return 99; 
     });
     int a = 0;
     auto res4 = pool.addTask([](int& a) { 
@@ -63,4 +64,53 @@ TEST_CASE("基本任务提交与获取结果(固定容量版本)") {
     REQUIRE(res3.get() == 99);
     REQUIRE(res4.get() == a);
     REQUIRE(res5.get() == NonVoidType<void>{});
+}
+
+TEST_CASE("测试异步(固定容量版本)") {
+    ThreadPool pool;
+    pool.run<ThreadPool::Model::FixedSizeAndNoCheck>(
+        std::chrono::milliseconds {1000}, ThreadPoolDefaultStrategy
+    );
+    pool.addTask([] { return 42; })
+    .thenTry([](Try<int> x) -> std::string {
+        if (x) {
+            log::hxLog.info(x.get());
+        }
+        return "123";
+    }).thenTry([](Try<std::string> x) {
+        if (x) {
+            log::hxLog.info("str:", x.move());
+        }
+        throw std::runtime_error{"no err..."};
+    }).thenTry([](Try<> x){
+        if (x) {
+            log::hxLog.info("void");
+        } else {
+            log::hxLog.error("err!");
+        }
+        return x; // 继续传递异常
+    }).thenTry([](Try<> x) {
+        if (x) {
+            log::hxLog.info("void");
+        } else {
+            log::hxLog.error("err!");
+        }
+        // 如果没有, 就不传递了
+    }).thenTry([](Try<> x) {
+        if (x) [[likely]] {
+            log::hxLog.info("这下不能传递了~");
+        } else [[unlikely]] {
+            log::hxLog.error("怎么还有问题???");
+        }
+    }).thenTry([](Try<>) {
+    });
+    log::hxLog.info("ok");
+
+    // 类型测试
+    Try<> {NonVoidType<void>{}};
+    Try<> {Uninitialized<void>{}.move()};
+    Try<> {Uninitialized<void>{}.get()};
+
+    // 阻塞等待
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }

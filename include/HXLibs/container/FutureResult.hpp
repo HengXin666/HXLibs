@@ -22,13 +22,16 @@
 #include <condition_variable>
 
 #include <HXLibs/container/Uninitialized.hpp>
+#include <HXLibs/container/Try.hpp>
+#include <HXLibs/meta/FunctionTraits.hpp>
 
 namespace HX::container {
+
 
 template <typename T = void>
 class FutureResult {
     struct _hx_Result {
-        using _hx_DataType = container::Uninitialized<T>;
+        using _hx_DataType = Uninitialized<T>;
 
         _hx_Result()
             : _data{}
@@ -78,6 +81,10 @@ class FutureResult {
         bool isException() const noexcept {
             return _exception == nullptr;
         }
+
+        std::exception_ptr getException() const noexcept {
+            return _exception;
+        }
     private:
         _hx_DataType _data;
         std::exception_ptr _exception;
@@ -110,7 +117,24 @@ public:
     void wait() {
         _res->wait();
     }
+
+    template <typename Func, typename Res = std::invoke_result_t<Func, Try<T>>>
+        requires (std::is_same_v<Try<T>, meta::FunctionAtArg<0, Func>>)
+    FutureResult<RemoveTryWarpType<Res>> thenTry(Func&& func) && noexcept;
+
 private:
+    template <typename>
+    friend class FutureResult;
+
+    // @todo 日后再设计 via, 目前仅依赖 ThreadPool; 这样就够了~
+    friend struct ThreadPool;
+    using ThreadPoolRef = struct ThreadPool*;
+
+    void via(ThreadPoolRef dispatch) {
+        _dispatch.set(dispatch);
+    }
+
+    Uninitialized<ThreadPoolRef> _dispatch;
     std::shared_ptr<FutureResultType> const _res;
 };
 
