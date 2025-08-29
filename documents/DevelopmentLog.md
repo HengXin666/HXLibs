@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-08-29 22:49:41] : 移动了 `UninitializedNonVoidVariant` 的全局的 `get` 函数的模板参数顺序, 使得可以 `get<T, exception::ExceptionMode::Nothrow>(v)` 指定是否使用抛出异常版本.
+
 - [2025-08-29 22:18:06] : `Try<T>` 支持重新抛出接口(`rethrow`), 并且补上注释
 
 - [2025-08-29 21:05:47] : `Try<T>` 支持获取`异常字符串`/`异常指针`

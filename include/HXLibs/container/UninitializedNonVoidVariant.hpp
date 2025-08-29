@@ -559,8 +559,10 @@ private:
     };
 };
 
-template <std::size_t Idx, typename... Ts, 
+template <
+    std::size_t Idx,
     exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts, 
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
 constexpr auto& get(
     UninitializedNonVoidVariant<Ts...>& v
@@ -568,8 +570,10 @@ constexpr auto& get(
     return v.template get<Idx, EMode>();
 }
 
-template <std::size_t Idx, typename... Ts, 
+template <
+    std::size_t Idx, 
     exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts, 
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
 constexpr const auto& get(
     UninitializedNonVoidVariant<Ts...> const& v
@@ -577,8 +581,10 @@ constexpr const auto& get(
     return v.template get<Idx, EMode>();
 }
 
-template <std::size_t Idx, typename... Ts, 
+template <
+    std::size_t Idx,
     exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts, 
     typename = std::enable_if_t<(Idx < UninitializedNonVoidVariant<Ts...>::N)>>
 constexpr auto&& get(
     UninitializedNonVoidVariant<Ts...>&& v
@@ -586,24 +592,30 @@ constexpr auto&& get(
     return std::move(std::move(v).template get<Idx, EMode>());
 }
 
-template <typename T, typename... Ts,
-    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+template <
+    typename T,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts>
 constexpr auto& get(
     UninitializedNonVoidVariant<Ts...>& v
 ) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<T, EMode>();
 }
 
-template <typename T, typename... Ts,
-    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+template <
+    typename T,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts>
 constexpr const auto& get(
     UninitializedNonVoidVariant<Ts...> const& v
 ) noexcept(EMode == exception::ExceptionMode::Nothrow) {
     return v.template get<T, EMode>();
 }
 
-template <typename T, typename... Ts,
-    exception::ExceptionMode EMode = exception::ExceptionMode::Throw>
+template <
+    typename T,
+    exception::ExceptionMode EMode = exception::ExceptionMode::Throw,
+    typename... Ts>
 constexpr auto&& get(
     UninitializedNonVoidVariant<Ts...>&& v
 ) noexcept(EMode == exception::ExceptionMode::Nothrow) {

@@ -65,7 +65,7 @@ TEST_CASE("NonVoidVariant") {
         v.swap(vv);
         bool res = v == vv;
         CHECK(res == false);
-        CHECK(get<int>(v) == 2233);
+        CHECK(get<int, exception::ExceptionMode::Nothrow>(v) == 2233);
         try {
             get<int>(vv); // vv = null, get 会抛异常
             CHECK(false);
