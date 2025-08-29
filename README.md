@@ -194,6 +194,22 @@ int main() {
     log::hxLog.info("状态码:", res.status);
     log::hxLog.info("拿到了 头:", res.headers);
     log::hxLog.info("拿到了 体:", res.body);
+
+    // 支持异步 API thenTry(Try<T>)
+    cli.get("http://httpbin.org/get").thenTry([](Try<ResponseData> resTry) -> void {
+        if (resTry) {
+            auto res = resTry.move();
+            log::hxLog.info("状态码:", res.status);
+            log::hxLog.info("拿到了 头:", res.headers);
+            log::hxLog.info("拿到了 体:", res.body);
+        } else {
+            log::hxLog.error("发生异常:", resTry.what());
+        }
+        return;
+    }).thenTry([](Try<void> /* 进一步的, 可以写为 `Try<>`, 因为默认参数: T = void*/) {
+        // ...
+        // 注意, Try<T> 的 应该是前一个的返回值类型
+    });
     return 0;
 }
 

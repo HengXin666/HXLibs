@@ -375,11 +375,11 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 // 获取失败, 有异常, func 传入 Try<>{}
                 if constexpr (std::is_void_v<decltype(_func({}))>) {
                     // func 返回值是 void
-                    _func({});
+                    _func(self._res->getException());
                     ans->setData(NonVoidType<void>{});
                 } else {
                     // func 返回值是任意类型
-                    Res funcRes = _func({});
+                    Res funcRes = _func(self._res->getException());
                     if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
                         // 特判如果是 Try 则去掉一层
                         if (funcRes) {

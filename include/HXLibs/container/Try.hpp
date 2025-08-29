@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-#include <HXLibs/container/Uninitialized.hpp>
+#include <HXLibs/container/UninitializedNonVoidVariant.hpp>
 
 namespace HX::container {
 
@@ -34,22 +34,40 @@ struct Try {
     Try(U&& data)
         : Try{}
     {
-        _data.set(std::forward<NonVoidType<U>>(data));
+        _data.template emplace<T>(std::forward<NonVoidType<U>>(data));
+    }
+
+    Try(std::exception_ptr ePtr)
+        : Try{}
+    {
+        _data.template emplace<std::exception_ptr>(ePtr);
     }
 
     operator bool() const noexcept {
-        return _data.isAvailable();
+        return _data.index() == 0;
     }
 
-    NonVoidType<T> move() noexcept {
-        return _data.move();
+    NonVoidType<T> move() {
+        return std::move(_data).template get<0>();
     }
 
-    NonVoidType<T> const& get() const noexcept {
-        return _data.get();
+    NonVoidType<T> const& get() const {
+        return _data.template get<0>();
+    }
+
+    std::exception_ptr exception() const {
+        return _data.template get<1>();
+    }
+
+    std::string what() const noexcept {
+        try {
+            std::rethrow_exception(exception());
+        } catch (std::exception const& e) {
+            return e.what();
+        }
     }
 private:
-    Uninitialized<NonVoidType<T>> _data;
+    UninitializedNonVoidVariant<NonVoidType<T>, std::exception_ptr> _data;
 };
 
 template <typename T>

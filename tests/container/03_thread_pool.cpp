@@ -75,34 +75,46 @@ TEST_CASE("测试异步(固定容量版本)") {
     .thenTry([](Try<int> x) -> std::string {
         if (x) {
             log::hxLog.info(x.get());
+            CHECK(true);
         }
         return "123";
     }).thenTry([](Try<std::string> x) {
         if (x) {
             log::hxLog.info("str:", x.move());
+            CHECK(true);
         }
         throw std::runtime_error{"no err..."};
     }).thenTry([](Try<> x){
         if (x) {
             log::hxLog.info("void");
         } else {
-            log::hxLog.error("err!");
+            log::hxLog.error("err!", x.what());
+            CHECK(true);
         }
         return x; // 继续传递异常
     }).thenTry([](Try<> x) {
         if (x) {
             log::hxLog.info("void");
         } else {
-            log::hxLog.error("err!");
+            log::hxLog.error("err!", x.what());
+            CHECK(true);
         }
         // 如果没有, 就不传递了
     }).thenTry([](Try<> x) {
         if (x) [[likely]] {
             log::hxLog.info("这下不能传递了~");
+            x.exception();
+            CHECK(true);
         } else [[unlikely]] {
             log::hxLog.error("怎么还有问题???");
         }
-    }).thenTry([](Try<>) {
+    }).thenTry([](Try<> x) {
+        if (x) {
+            ;
+        } else {
+            log::hxLog.error("我一眼就看出来你有问题:", x.what());
+            CHECK(true);
+        }
     });
     log::hxLog.info("ok");
 
@@ -110,6 +122,7 @@ TEST_CASE("测试异步(固定容量版本)") {
     Try<> {NonVoidType<void>{}};
     Try<> {Uninitialized<void>{}.move()};
     Try<> {Uninitialized<void>{}.get()};
+    Try<> {std::exception_ptr{}};
 
     // 阻塞等待
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
