@@ -43,27 +43,74 @@ struct Try {
         _data.template emplace<std::exception_ptr>(ePtr);
     }
 
-    operator bool() const noexcept {
+    /**
+     * @brief 判断当前是否有值
+     * @return true 有值
+     * @return false 无值, 仅异常
+     */
+    bool isVal() const noexcept {
         return _data.index() == 0;
     }
 
+    /**
+     * @brief 判断当前是否有值
+     * @return true 有值
+     * @return false 无值, 仅异常
+     */
+    operator bool() const noexcept {
+        return isVal();
+    }
+
+    /**
+     * @brief 移动值
+     * @return NonVoidType<T> 
+     */
     NonVoidType<T> move() {
         return std::move(_data).template get<0>();
     }
 
+    /**
+     * @brief 获取值 [只读引用]
+     * @return NonVoidType<T> const& 
+     */
     NonVoidType<T> const& get() const {
         return _data.template get<0>();
     }
 
+    /**
+     * @brief 获取值 [引用]
+     * @return NonVoidType<T>& 
+     */
+    NonVoidType<T>& get() {
+        return _data.template get<0>();
+    }
+
+    /**
+     * @brief 获取异常指针
+     * @return std::exception_ptr 
+     */
     std::exception_ptr exception() const {
         return _data.template get<1>();
     }
 
+    /**
+     * @brief 重新抛出之前捕获的异常
+     */
+    void rethrow() const {
+        std::rethrow_exception(exception());
+    }
+
+    /**
+     * @brief 获取异常原因
+     * @return std::string 
+     */
     std::string what() const noexcept {
         try {
             std::rethrow_exception(exception());
         } catch (std::exception const& e) {
-            return e.what();
+            [[likely]] return e.what();
+        } catch (...) {
+            return "unknown exception type";
         }
     }
 private:
