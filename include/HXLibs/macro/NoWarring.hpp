@@ -1,4 +1,3 @@
-#pragma once
 /*
  * Copyright Heng_Xin. All rights reserved.
  *
@@ -40,11 +39,25 @@
         _Pragma("GCC diagnostic push")                          \
         _Pragma("GCC diagnostic ignored \"-Wall\"")             \
         _Pragma("GCC diagnostic ignored \"-Wextra\"")           \
-        _Pragma("GCC diagnostic ignored \"-Wpedantic\"")
+        _Pragma("GCC diagnostic ignored \"-Wpedantic\"")        \
+        _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     #define HX_NO_WARNINGS_END                                  \
         _Pragma("GCC diagnostic pop")
 
 #else
     #define HX_NO_WARNINGS_BEGIN
     #define HX_NO_WARNINGS_END
+#endif
+
+#if defined(__GNUC__) && !defined(__clang__)
+// 仅 GCC 有 -Wmaybe-uninitialized
+    #define HX_NO_MAYBE_UNINITIALIZED_WARNINGS_BEGIN            \
+        _Pragma("GCC diagnostic push")                          \
+        _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+    #define HX_NO_MAYBE_UNINITIALIZED_WARNINGS_END              \
+        _Pragma("GCC diagnostic pop")
+#else
+// MSVC / Clang 下啥也不做
+    #define HX_NO_MAYBE_UNINITIALIZED_WARNINGS_BEGIN
+    #define HX_NO_MAYBE_UNINITIALIZED_WARNINGS_END
 #endif

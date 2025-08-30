@@ -27,6 +27,8 @@
 #include <HXLibs/exception/ExceptionMode.hpp>
 #include <HXLibs/log/serialize/CustomToString.hpp>
 
+#include <HXLibs/macro/NoWarring.hpp>
+
 namespace HX::container {
 
 template <typename... Ts>
@@ -526,6 +528,7 @@ private:
                             "visit: Lambda return type is not movable");
             }
             // 返回 带参数的, 支持移动 or 拷贝构造
+            HX_NO_MAYBE_UNINITIALIZED_WARNINGS_BEGIN
             Uninitialized<Res> res;
             auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
                 res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
@@ -535,6 +538,7 @@ private:
                 ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return res.move();
+            HX_NO_MAYBE_UNINITIALIZED_WARNINGS_END
         }
     }
 
@@ -572,6 +576,7 @@ private:
                             "visit: Lambda return type is not movable");
             }
             // 返回 带参数的, 支持移动 or 拷贝构造
+            HX_NO_MAYBE_UNINITIALIZED_WARNINGS_BEGIN
             Uninitialized<Res> res;
             auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
                 res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
@@ -581,6 +586,7 @@ private:
                 ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return res.move();
+            HX_NO_MAYBE_UNINITIALIZED_WARNINGS_END
         }
     }
 
@@ -697,3 +703,5 @@ struct CustomToString<container::UninitializedNonVoidVariant<Ts...>, FormatType>
 };
 
 } // namespace HX::log
+
+#include <HXLibs/macro/undef/NoWarring.hpp>

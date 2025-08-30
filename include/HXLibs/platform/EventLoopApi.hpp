@@ -119,3 +119,4 @@
     #error "Does not support the current operating system."
 #endif
 
+#include <HXLibs/macro/undef/NoWarring.hpp>
