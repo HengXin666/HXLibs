@@ -25,6 +25,7 @@
 #include <HXLibs/container/Uninitialized.hpp>
 #include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/exception/ExceptionMode.hpp>
+#include <HXLibs/log/serialize/CustomToString.hpp>
 
 namespace HX::container {
 
@@ -498,6 +499,16 @@ private:
         if (uv.index() == UninitializedNonVoidVariantNpos) [[unlikely]] {
             throw std::runtime_error("get: wrong index for variant");
         }
+
+        if constexpr (!meta::IsAllSameVal<decltype(
+            std::declval<Lambda>()(std::declval<NonVoidType<Ts>&&>())
+        )...>) {
+            // 全部的 Lambda 重载应该返回同一个类型
+            static_assert(sizeof...(Ts) < 0,
+                          "visit requires the visitor to have the same "
+                          "return type for all alternatives of a variant");
+        }
+
         if constexpr (std::is_void_v<Res>) {
             // void 返回值
             auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
@@ -508,9 +519,12 @@ private:
                 ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return;
-        } else if constexpr (requires {
-            new (nullptr) Res(std::forward(std::declval<Res&&>()));
-        }) {
+        } else {
+            if constexpr (!std::is_move_constructible_v<Res>) {
+                // Lambda 返回值不支持移动
+                static_assert(sizeof...(Ts) < 0,
+                            "visit: Lambda return type is not movable");
+            }
             // 返回 带参数的, 支持移动 or 拷贝构造
             Uninitialized<Res> res;
             auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
@@ -521,36 +535,60 @@ private:
                 ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return res.move();
-        } else {
-            // 返回 如 Lambda 这类 不支持 移动 or 拷贝构造的
-            // 您可以使用 std::function 来返回 ...
+        }
+    }
 
-#if 1       // 原因见: 
-            // https://github.com/HengXin666/HXTest/blob/main/src/06-std-analyse/test/08-Lambda/01_Lambda.cpp
-            static_assert(sizeof...(Ts) < 0, 
-                "visit requires the visitor to have the same "
-                "return type for all alternatives of a variant");
-#else
-            return [&] <std::size_t... Idx>(std::index_sequence<Idx...>) -> Res {
-                using FuncPtr = Res (*)(UninitializedNonVoidVariant<Ts...>&, Lambda&);
-                static FuncPtr table[] = {
-                    [] (UninitializedNonVoidVariant<Ts...>& uv, Lambda& ld) -> Res {
-                        if constexpr () {
-                            return ld(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
-                        } else {
-                            // [[unlikely]]
-                            return std::declval<Res>();
-                        }
-                    }...
-                };
-                return table[uv.index()](uv, lambda);
+    template <typename Lambda,
+        typename Res = decltype(std::declval<Lambda>()(
+            std::declval<UninitializedNonVoidVariantIndexToType<0, Ts...>>()))>
+    constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...> const& uv) const {
+        if (uv.index() == UninitializedNonVoidVariantNpos) [[unlikely]] {
+            throw std::runtime_error("get: wrong index for variant");
+        }
+
+        if constexpr (!meta::IsAllSameVal<decltype(
+            std::declval<Lambda>()(std::declval<NonVoidType<Ts>&&>())
+        )...>) {
+            // 全部的 Lambda 重载应该返回同一个类型
+            static_assert(sizeof...(Ts) < 0,
+                          "visit requires the visitor to have the same "
+                          "return type for all alternatives of a variant");
+        }
+
+        if constexpr (std::is_void_v<Res>) {
+            // void 返回值
+            auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
+                lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>());
+                return true;
+            };
+            [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
+                ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
-#endif
+            return;
+        } else {
+            if constexpr (!std::is_move_constructible_v<Res>) {
+                // Lambda 返回值不支持移动
+                static_assert(sizeof...(Ts) < 0,
+                            "visit: Lambda return type is not movable");
+            }
+            // 返回 带参数的, 支持移动 or 拷贝构造
+            Uninitialized<Res> res;
+            auto fun = [&] <std::size_t Idx> (std::index_sequence<Idx>) {
+                res.set(lambda(uv.template get<Idx, exception::ExceptionMode::Nothrow>()));
+                return true;
+            };
+            [&] <std::size_t... Idx>(std::index_sequence<Idx...>) {
+                ((uv.index() == Idx && fun(std::index_sequence<Idx>{})) || ...);
+            }(std::make_index_sequence<sizeof...(Ts)>{});
+            return res.move();
         }
     }
 
     template <typename Lambda, typename... Us, typename Res>
     friend constexpr Res visit(Lambda&&, UninitializedNonVoidVariant<Us...>&);
+
+    template <typename Lambda, typename... Us, typename Res>
+    friend constexpr Res visit(Lambda&&, UninitializedNonVoidVariant<Us...> const&);
 
     std::size_t _idx;
 
@@ -626,8 +664,36 @@ template <typename Lambda, typename... Ts,
     typename Res = decltype(std::declval<Lambda>()(
         get<0>(std::declval<UninitializedNonVoidVariant<Ts...>>())))>
 constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...>& uv) {
-    uv.visit(std::forward<Lambda>(lambda), uv);
+    return uv.visit(std::forward<Lambda>(lambda), uv);
+}
+
+template <typename Lambda, typename... Ts, 
+    typename Res = decltype(std::declval<Lambda>()(
+        get<0>(std::declval<UninitializedNonVoidVariant<Ts...>>())))>
+constexpr Res visit(Lambda&& lambda, UninitializedNonVoidVariant<Ts...> const& uv) {
+    return uv.visit(std::forward<Lambda>(lambda), uv);
 }
 
 } // namespace HX::container
 
+namespace HX::log {
+
+template <typename... Ts, typename FormatType>
+struct CustomToString<container::UninitializedNonVoidVariant<Ts...>, FormatType> {
+    FormatType* self;
+
+    std::string make(container::UninitializedNonVoidVariant<Ts...> const& v) {
+        return container::visit([&](auto&& val) {
+            return self->make(val);
+        }, v);
+    }
+
+    template <typename Stream>
+    void make(container::UninitializedNonVoidVariant<Ts...> const& v, Stream& s) {
+        container::visit([&](auto&& val) {
+            self->make(val, s);
+        }, v);
+    }
+};
+
+} // namespace HX::log

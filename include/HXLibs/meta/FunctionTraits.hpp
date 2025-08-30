@@ -65,6 +65,7 @@ struct FunctionTraits<Lambda> : FunctionTraits<decltype(&Lambda::operator())>{};
 
 /**
  * @brief 获取函数对象的信息, 如返回值、参数、参数个数
+ * @note 无法获取重载函数任何信息
  * @tparam Func 
  */
 template <typename Func>
@@ -77,5 +78,12 @@ using FunctionInfo = internal::FunctionTraits<meta::remove_cvref_t<Func>>;
  */
 template <std::size_t Idx, typename Func>
 using FunctionAtArg = typename FunctionInfo<Func>::template AtArg<Idx>;
+
+/**
+ * @brief 获取函数的返回值
+ * @tparam Func 
+ */
+template <typename Func>
+using FunctionReturnType = typename FunctionInfo<Func>::ReturnType;
 
 } // namespace HX::meta

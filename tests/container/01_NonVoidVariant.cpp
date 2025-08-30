@@ -75,6 +75,28 @@ TEST_CASE("NonVoidVariant") {
     }
 }
 
+TEST_CASE("测试自定义打印") {
+    struct NoMove {
+        NoMove& operator=(NoMove&&) = delete;
+    };
+
+    UninitializedNonVoidVariant<int, std::string, NoMove> v{"123"};
+    log::hxLog.info("v:", v);
+    v = 123;
+    log::hxLog.info("v:", v);
+    struct sb {
+        int x = 666;
+
+        auto func(UninitializedNonVoidVariant<int, std::string> const& v) {
+            return container::visit([&](auto&&) {
+                return;
+            }, v);
+        }
+
+        void func(int);
+    };
+}
+
 #include <variant>
 
 TEST_CASE("std::variant") {
@@ -126,4 +148,13 @@ TEST_CASE("构造 U to T") {
     uuu = sub;
     log::hxLog.info("uuu<sub>:", uuu.get<Base&>());
 #endif
+    struct sb {
+        int x = 666;
+        
+        auto func(std::variant<int, std::string> const& v) {
+            return std::visit([&](auto&&) -> std::string {
+                return log::formatString(x);
+            }, v);
+        }
+    };
 }

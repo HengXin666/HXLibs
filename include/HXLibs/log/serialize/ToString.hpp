@@ -32,6 +32,7 @@
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/reflection/EnumName.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
+#include <HXLibs/log/serialize/CustomToString.hpp>
 
 namespace HX::log {
 
@@ -551,6 +552,19 @@ struct FormatZipString {
         requires (meta::is_smart_pointer_v<T>)
     constexpr void make(T const& ptr, Stream& s) {
         ptr ? make(*ptr, s) : make(nullptr, s);
+    }
+
+    // 任意自定义
+    template <typename T>
+        requires (IsCustomToStringVal<T, FormatZipString>)
+    constexpr std::string make(T const& t) {
+        return CustomToString<T, FormatZipString>{this}.make(t);
+    }
+
+    template <typename T, typename Stream>
+        requires (IsCustomToStringVal<T, FormatZipString>)
+    constexpr void make(T const& t, Stream& s) {
+        CustomToString<T, FormatZipString>{this}.make(t, s);
     }
 };
 

@@ -50,11 +50,11 @@ struct AnyPtr {
 
 template <typename T, typename... Args>
 inline constexpr std::size_t membersCountImpl() {
-    if constexpr (meta::isConstructible<T, Any, Args...>) {
+    if constexpr (meta::IsConstructibleVal<T, Any, Args...>) {
         return membersCountImpl<T, Args..., Any>();
-    } else if constexpr (meta::isConstructible<T, AnyOpt, Args...>) {
+    } else if constexpr (meta::IsConstructibleVal<T, AnyOpt, Args...>) {
         return membersCountImpl<T, Args..., AnyOpt>();
-    } else if constexpr (meta::isConstructible<T, AnyPtr, Args...>) {
+    } else if constexpr (meta::IsConstructibleVal<T, AnyPtr, Args...>) {
         return membersCountImpl<T, Args..., AnyPtr>();
     } else {
         return sizeof...(Args);
