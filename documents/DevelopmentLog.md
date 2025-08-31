@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-08-31 20:32:47] : 新增协程的 readAll 接口, 修改 `EventLoop::sync` 使得其不会出现奇怪的问题...(触发bug原因未知(知道是赋值失败), 现在直接换实现, 采用封装更好的`Try<Res>`即可)
+
 - [2025-08-30 09:53:46] : 新增自定义打印类 `CustomToString`, 用户可以特化模板进行自定义; 修复 `UninitializedNonVoidVariant` 的 `visit` 的一些bug.
 
 - [2025-08-29 22:49:41] : 移动了 `UninitializedNonVoidVariant` 的全局的 `get` 函数的模板参数顺序, 使得可以 `get<T, exception::ExceptionMode::Nothrow>(v)` 指定是否使用抛出异常版本.

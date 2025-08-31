@@ -79,7 +79,7 @@ class FutureResult {
         }
 
         bool isException() const noexcept {
-            return _exception == nullptr;
+            return _exception != nullptr;
         }
 
         std::exception_ptr getException() const noexcept {
@@ -116,6 +116,9 @@ public:
 
     void wait() {
         _res->wait();
+        if (_res->isException()) [[unlikely]] {
+            std::rethrow_exception(_res->getException());
+        }
     }
 
     template <typename Func, typename Res = std::invoke_result_t<Func, Try<T>>>

@@ -62,6 +62,25 @@ struct Try {
     }
 
     /**
+     * @brief 设置值
+     * @tparam U 
+     * @param u 
+     */
+    template <typename U>
+    void setVal(U&& u) {
+        _data.template emplace<NonVoidType<T>>(std::forward<U>(u));
+    }
+
+    /**
+     * @brief 设置异常
+     * @tparam U 
+     * @param u 
+     */
+    void setException(std::exception_ptr ePtr) {
+        _data.template emplace<std::exception_ptr>(ePtr);
+    }
+
+    /**
      * @brief 移动值
      * @return NonVoidType<T> 
      */

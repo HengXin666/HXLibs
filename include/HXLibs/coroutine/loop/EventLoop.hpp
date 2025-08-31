@@ -29,6 +29,7 @@
 
 #include <HXLibs/platform/EventLoopApi.hpp>
 
+#include <HXLibs/container/Try.hpp>
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/task/AioTask.hpp>
 #include <HXLibs/coroutine/loop/TimerLoop.hpp>
@@ -358,32 +359,27 @@ struct EventLoop {
             // 需要先调用 run(), 方可调用 sync(), 以防止可能的死锁
             throw std::runtime_error{"Unexpected call"};
         }
-        std::exception_ptr exception{};
-        auto task = [&]() -> Task<> {
+        container::Try<Res> res;
+        auto task = [&res, _mainTask = std::move(mainTask)]() mutable -> Task<> {
             try {
-                co_await mainTask;
+                if constexpr (!std::is_void_v<Res>) {
+                    res.setVal(co_await _mainTask);
+                } else {
+                    co_await _mainTask;
+                    res.setVal(container::NonVoidType<void>{});
+                }
             } catch (...) {
-                exception = std::current_exception();
+                res.setException(std::current_exception());
             }
         };
         auto coTask = task();
-        static_cast<std::coroutine_handle<>>(coTask).resume();
+        start(coTask);
         run();
-        if (exception) [[unlikely]] {
-            std::rethrow_exception(exception);
+        if (!res) [[unlikely]] {
+            res.rethrow();
         }
         if constexpr (!std::is_void_v<Res>) {
-            auto& _handle = mainTask.getPromise();
-            if constexpr (requires {
-                _handle.promise().result();
-            }) {
-                if (_handle.done()) [[likely]] {
-                    return _handle.promise().result();
-                } else {
-                    // 不是期望的! 协程还没有执行完毕
-                    throw std::runtime_error{"The collaborative process has not been completed yet"};
-                }
-            }
+            return res.move();
         }
     }
     
