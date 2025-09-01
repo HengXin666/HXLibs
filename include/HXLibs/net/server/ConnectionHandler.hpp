@@ -68,7 +68,7 @@ struct ConnectionHandler {
                 // 写 (由端点内部完成)
 
                 // 清空
-                req.clear();
+                co_await req.clear();
                 res.clear();
             }
         } catch (std::exception const& err) {

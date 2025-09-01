@@ -88,7 +88,7 @@ public:
 
     /**
     * @brief 为服务器添加一个端点
-    * @tparam Methods 请求类型, 如`GET`、`POST`
+    * @tparam Methods 请求类型, 如`GET`、`POST`; 如果不写, 则全部注册!
     * @tparam Func 端点函数类型
     * @tparam Interceptors 拦截器类型
     * @param key url, 如"/"、"home/{id}"
@@ -98,11 +98,25 @@ public:
     */
     template <HttpMethod... Methods, typename Func, typename... Interceptors>
     HttpServer& addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
-        _router.addEndpoint<Methods...>(
-            path,
-            std::move(endpoint),
-            std::forward<Interceptors>(interceptors)...
-        );
+        if constexpr (sizeof...(Methods) == 0) {
+            _router.addEndpoint<
+                HttpMethod::GET, HttpMethod::HEAD,
+                HttpMethod::POST, HttpMethod::PUT,
+                HttpMethod::TRACE, HttpMethod::PATCH,
+                HttpMethod::CONNECT, HttpMethod::OPTIONS,
+                HttpMethod::DEL
+            >(
+                path,
+                endpoint,
+                interceptors...
+            );
+        } else {        
+            _router.addEndpoint<Methods...>(
+                path,
+                std::move(endpoint),
+                std::forward<Interceptors>(interceptors)...
+            );
+        }
         return *this;
     }
 

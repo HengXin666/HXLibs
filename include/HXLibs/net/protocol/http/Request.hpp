@@ -31,6 +31,9 @@
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
+// debug
+// #include <HXLibs/log/Log.hpp>
+
 namespace HX::net {
 
 /**
@@ -90,6 +93,7 @@ public:
         } else {
             // 发送请求体
             utils::StringUtil::append(buf, CONTENT_LENGTH_SV);
+            utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
             utils::StringUtil::append(buf, std::to_string(_body.size()));
             utils::StringUtil::append(buf, HEADER_END_SV);
             co_await _io.sendLinkTimeout<Timeout>(buf);
@@ -254,22 +258,33 @@ public:
         return _requestLine[RequestLineDataType::RequestType];
     }
 
-    template <typename Timeout = decltype(utils::operator""_s<"3">())>
+    /**
+     * @brief 朴素的解析 Body
+     * @tparam Timeout 超时时间
+     */
+    template <typename Timeout = decltype(utils::operator""_s<"5">())>
         requires(requires { Timeout::Val; })
     coroutine::Task<std::string> parseBody() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = _parserReqBody()) {
+        if (_completeBody) [[unlikely]] {
+            // 已经解析过 Http Body 了
+            throw std::runtime_error{"Have already analyzed the http body"};
+        }
+        _completeBody = true;
+        for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
             );
             if (res.index() == 1) [[unlikely]] {
-                co_return {};  // 超时
+                // 超时
+                throw std::runtime_error{"parseBody: Recv timeout"};
             }
             auto recvN = HXLIBS_CHECK_EVENT_LOOP(
                 (res.template get<0, exception::ExceptionMode::Nothrow>())
             );
             if (recvN == 0) [[unlikely]] {
-                co_return {}; // 连接断开
+                // 连接断开
+                throw std::runtime_error{"parseBody: Connection is Broken"};
             }
             _recvBuf.addSize(static_cast<std::size_t>(recvN));
         }
@@ -347,17 +362,23 @@ public:
 
     /**
      * @brief 清空已有的请求内容, 并且初始化标准
+     * @warning 显然应该在 clearBody() 之前调用
      */
-    void clear() noexcept {
+    coroutine::Task<> clear() noexcept {
+        if (!_completeBody) {
+            // 250 ms, 如果解析不完, 就滚蛋! 传递这么多没用的干什么?!
+            co_await parseBody<decltype(utils::operator""_ms<"250">())>();
+        }
+        _completeBody = false;
         _requestLine.clear();
         _requestHeaders.clear();
         _requestHeadersIt = _requestHeaders.end();
-        // _buf.clear();
         _recvBuf.clear();
         _body.clear();
         _completeRequestHeader = false;
         _remainingBodyLen.reset();
     }
+
 private:
     /**
      * @brief 请求行数据分类
@@ -395,12 +416,18 @@ private:
     // 通配符的结果
     std::string_view _urlWildcardData;
 
+    // IO 对象 (内含 协程事件循环)
+    IO& _io;
+
     /**
      * @brief 是否解析完成请求头
      */
     bool _completeRequestHeader = false;
 
-    IO& _io;
+    /**
+     * @brief 是否解析过 Body
+     */
+    bool _completeBody = false;
 
     friend class Router;
     friend class WebSocketFactory;
@@ -473,63 +500,9 @@ private:
                 }
                 [[fallthrough]];
             }
-            case 0x03: { // 解析完请求头, 开始请求体解析
-                // if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
-                //     // 是 空行之后 (\r\n\r\n) 的内容大小(char)
-                //     if (!_remainingBodyLen.has_value()) {
-                //         _body = buf;
-                //         _remainingBodyLen 
-                //             = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
-                //             - _body.size();
-                //     } else {
-                //         *_remainingBodyLen -= buf.size();
-                //         _body.append(buf);
-                //     }
-                //     if (*_remainingBodyLen != 0) {
-                //         _recvBuf.clear();
-                //         return *_remainingBodyLen;
-                //     }
-                // } else if (_requestHeaders.contains(TRANSFER_ENCODING_SV)) { // 存在请求体以`分块传输编码`
-                //     /**
-                //      * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
-                //      * */
-                //     if (_remainingBodyLen) { // 处理没有读取完的
-                //         if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
-                //             _body += buf;
-                //             *_remainingBodyLen -= buf.size();
-                //             return IO::kBufMaxSize;
-                //         } else { // 读取完了
-                //             _body.append(buf, 0, *_remainingBodyLen);
-                //             buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
-                //             _remainingBodyLen.reset();
-                //         }
-                //     }
-                //     while (true) {
-                //         std::size_t posLen = buf.find(CRLF);
-                //         if (posLen == std::string_view::npos) { // 没有读完
-                //             _recvBuf.moveToHead(buf);
-                //             return IO::kBufMaxSize;
-                //         }
-                //         if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
-                //             // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
-                //             buf = buf.substr(posLen + 2);
-                //             continue;
-                //         }
-                //         _remainingBodyLen = std::stol(std::string {buf.substr(0, posLen)}, nullptr, 16); // 转换为十进制整数
-                //         if (!*_remainingBodyLen) { // 解析完毕
-                //             return 0;
-                //         }
-                //         buf = buf.substr(posLen + 2);
-                //         if (buf.size() <= *_remainingBodyLen) { // 没有读完
-                //             _body += buf;
-                //             *_remainingBodyLen -= buf.size();
-                //             return IO::kBufMaxSize;
-                //         }
-                //         _body.append(buf.substr(0, *_remainingBodyLen));
-                //         buf = buf.substr(*_remainingBodyLen + 2);
-                //     }
-                // }
-                // @todo 断点续传协议
+            case 0x03: {
+                // 更改到懒解析Body, 如果已经读取了, 那放入缓存趴...
+                _recvBuf.moveToHead(buf);
                 break;
             }
             [[unlikely]] default:
@@ -541,6 +514,10 @@ private:
         return 0;
     }
 
+    /**
+     * @brief 解析 Body
+     * @return std::size_t 还需要解析的字节数
+     */
     std::size_t _parserReqBody() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
@@ -563,8 +540,8 @@ private:
             }
         } else if (_requestHeaders.contains(TRANSFER_ENCODING_SV)) { // 存在请求体以`分块传输编码`
             /**
-                * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
-                * */
+             * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
+             * */
             if (_remainingBodyLen) { // 处理没有读取完的
                 if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
                     _body += buf;
