@@ -331,6 +331,14 @@ public:
     // ===== ↑服务端使用↑ =====
 
     /**
+     * @brief 获取内部 IO
+     * @return IO& 
+     */
+    IO& getIO() noexcept {
+        return _io;
+    }
+
+    /**
      * @brief 清空已有的请求内容, 并且初始化标准
      */
     void clear() noexcept {

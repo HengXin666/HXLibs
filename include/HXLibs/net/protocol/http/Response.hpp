@@ -536,6 +536,14 @@ public:
         _sendBuf.clear();
         _completeResponseHeader = false;
     }
+
+    /**
+     * @brief 获取内部 IO
+     * @return IO& 
+     */
+    IO& getIO() noexcept {
+        return _io;
+    }
 private:
     /**
      * @brief 响应行数据分类
