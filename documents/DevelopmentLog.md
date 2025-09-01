@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-09-01 14:11:52] : 新增 编译期字符串NTTP; 修改了 TimeNTTP 的模板. 把 `Res` 的 body 改为懒解析. 使用 `parseBody` 获取. ([#10](https://github.com/HengXin666/HXLibs/issues/10))
+
 - [2025-09-01 12:29:50] : 解决: [#9](https://github.com/HengXin666/HXLibs/issues/9) 的端点函数获取`EventLoop`的问题. 为 `Res/Req` 新增 `getIo()` 接口. 然后直接 `utils::AsyncFile file{res.getIO()};` 即可使用.
 
 - [2025-08-31 20:32:47] : 新增协程的 readAll 接口, 修改 `EventLoop::sync` 使得其不会出现奇怪的问题...(触发bug原因未知(知道是赋值失败), 现在直接换实现, 采用封装更好的`Try<Res>`即可)

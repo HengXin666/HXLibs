@@ -20,6 +20,8 @@
 
 #include <chrono>
 
+#include <HXLibs/meta/FixedString.hpp>
+
 namespace HX::utils {
 
 namespace internal {
@@ -89,7 +91,7 @@ consteval std::size_t constexprCharToNum() {
 #else
 
 template <char... Cs>
-consteval std::size_t constexprCharToNum() {
+consteval std::size_t constexprCharToNum(meta::CharPack<Cs...>) {
     static_assert((('0' <= Cs && Cs <= '9') && ...) && sizeof...(Cs) <= 18,
         "Only numeric characters allowed");
     constexpr char str[] = {Cs...};
@@ -120,33 +122,60 @@ struct TimeNTTP {
     }
 };
 
-template <char... Time>
+template <meta::FixedString TimeStr>
 constexpr TimeNTTP<std::chrono::seconds,
-                   internal::constexprCharToNum<Time...>()>
+                   internal::constexprCharToNum(meta::ToCharPack<TimeStr>{})>
 operator""_s() {
     return {};
 }
 
-template <char... Time>
+template <meta::FixedString TimeStr>
 constexpr TimeNTTP<std::chrono::milliseconds,
-                   internal::constexprCharToNum<Time...>()>
+                   internal::constexprCharToNum(meta::ToCharPack<TimeStr>{})>
 operator""_ms() {
     return {};
 }
 
-template <char... Time>
+template <meta::FixedString TimeStr>
 constexpr TimeNTTP<std::chrono::microseconds,
-                   internal::constexprCharToNum<Time...>()>
+                   internal::constexprCharToNum(meta::ToCharPack<TimeStr>{})>
 operator""_us() {
     return {};
 }
 
-template <char... Time>
+template <meta::FixedString TimeStr>
 constexpr TimeNTTP<std::chrono::nanoseconds,
-                   internal::constexprCharToNum<Time...>()>
+                   internal::constexprCharToNum(meta::ToCharPack<TimeStr>{})>
+operator""_ns() {
+    return {};
+}
+
+template <char... TimeCs>
+constexpr TimeNTTP<std::chrono::seconds,
+                   internal::constexprCharToNum<TimeCs...>({})>
+operator""_s() {
+    return {};
+}
+
+template <char... TimeCs>
+constexpr TimeNTTP<std::chrono::milliseconds,
+                   internal::constexprCharToNum<TimeCs...>({})>
+operator""_ms() {
+    return {};
+}
+
+template <char... TimeCs>
+constexpr TimeNTTP<std::chrono::microseconds,
+                   internal::constexprCharToNum<TimeCs...>({})>
+operator""_us() {
+    return {};
+}
+
+template <char... TimeCs>
+constexpr TimeNTTP<std::chrono::nanoseconds,
+                   internal::constexprCharToNum<TimeCs...>({})>
 operator""_ns() {
     return {};
 }
 
 } // namespace HX::utils
-
