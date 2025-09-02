@@ -260,7 +260,7 @@ public:
      * @param buf [in] 需要写入的数据
      * @return int 写入的字节数
      */
-    coroutine::Task<int> write(std::span<char> buf) {
+    coroutine::Task<int> write(std::span<char const> buf) {
         co_return static_cast<int>(HXLIBS_CHECK_EVENT_LOOP(
             co_await _eventLoop.makeAioTask().prepWrite(
                 _fd, buf, static_cast<std::uint64_t>(-1)
@@ -308,7 +308,7 @@ public:
 #else
     ~AsyncFile() noexcept(false) {
         if (_fd != kInvalidLocalFd) [[unlikely]] {
-            throw std::runtime_error{"Before that, it is necessary to call close()"};
+            // throw std::runtime_error{"[AsyncFile]: Before that, it is necessary to call close()"};
         }
     }
 #endif // !NDEBUG

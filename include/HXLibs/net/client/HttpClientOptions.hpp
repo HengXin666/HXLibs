@@ -41,7 +41,10 @@ struct ProxyType {
     }
 };
 
-template <typename Timeout = decltype(utils::operator""_ms<'5', '0', '0', '0'>()), typename Proxy = Socks5Proxy>
+template <
+    typename Timeout = decltype(utils::operator""_ms<"5000">()),
+    typename Proxy = Socks5Proxy
+>
     requires(requires { Timeout::Val; })
 struct HttpClientOptions {
     // 代理地址

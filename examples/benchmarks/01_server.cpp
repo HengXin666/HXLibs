@@ -32,13 +32,23 @@ int main() {
     });
 
     // 站点`/mp4`, 测试大文件下载量 I/O `misaka.mp4` 大小为 574.6 MB (带断点续传)
-    serv.addEndpoint<GET, HEAD>("/mp4", [] ENDPOINT {
+    serv.addEndpoint<GET, HEAD>("/mp4/1", [] ENDPOINT {
         co_await res.useRangeTransferFile(req.getRangeRequestView(), "bigFile/misaka.mp4");
     });
 
-    // 站点`/html/1`, 测试小文件 (普通I/O)
+    // 站点`/mp4`, 测试大文件下载量 I/O `misaka.mp4` 大小为 574.6 MB (ChunkedEncoding)
+    serv.addEndpoint<GET>("/mp4/2", [] ENDPOINT {
+        co_await res.useChunkedEncodingTransferFile("bigFile/misaka.mp4");
+    });
+
+    // 站点`/html/1`, 测试小文件 (普通I/O) [普通异步文件流读写]
     serv.addEndpoint<GET>("/html/1", [] ENDPOINT {
         co_await res.useRangeTransferFile(req.getRangeRequestView(), "bigFile/HXLibs.html");
+    });
+
+    // 站点`/html/2`, 测试小文件 (普通I/O) [ChunkedEncoding]
+    serv.addEndpoint<GET>("/html/2", [] ENDPOINT {
+        co_await res.useChunkedEncodingTransferFile("bigFile/HXLibs.html");
     });
 
     serv.syncRun();

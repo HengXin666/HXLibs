@@ -20,6 +20,8 @@
 
 #include <string>
 #include <string_view>
+#include <array>
+#include <numeric>
 
 namespace HX::utils {
 
@@ -41,6 +43,44 @@ struct NumericBaseConverter {
             num /= 16;
         } while (num);
         return {res.rbegin(), res.rend()};
+    }
+
+    /**
+     * @brief 进制转换, 从 str 转换为 T 整数类型, 仅支持 [2 ~ (10 + 26)] 进制, 不区分字母大小写
+     * @tparam T 整数类型
+     * @tparam Base 进制
+     * @tparam Str 
+     * @param sv 
+     * @return T 
+     */
+    template <typename T, T Base = static_cast<T>(10), typename Str>
+    static T strToNum(Str&& sv) noexcept {
+        T res{0};
+        T pow{1};
+        for (auto it = sv.rbegin(); it != sv.rend(); ++it) {
+            if constexpr (Base > 10) {
+                if constexpr (Base > 10 + 26) {
+                    // 未定义, 不支持
+                    static_assert(!sizeof(T), "UB: Base > 36");
+                }
+                constexpr static std::array<char, 128> Benchmark = []() {
+                    std::array<char, 128> arr{};
+                    std::iota(arr.begin(), arr.end(), 0);
+                    for (char c = '0'; c <= '9'; ++c)
+                        arr[static_cast<std::size_t>(c)] = '0';
+                    for (char c = 'a'; c <= 'z'; ++c)
+                        arr[static_cast<std::size_t>(c)] = 'a' - 10;
+                    for (char c = 'A'; c <= 'Z'; ++c)
+                        arr[static_cast<std::size_t>(c)] = 'A' - 10;
+                    return arr;
+                }();
+                res += static_cast<T>(*it - Benchmark[static_cast<std::size_t>(*it)]) * pow;
+            } else {
+                res += static_cast<T>(*it - '0') * pow;
+            }
+            pow *= Base;
+        }
+        return res;
     }
 };
 

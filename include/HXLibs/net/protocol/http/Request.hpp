@@ -31,9 +31,6 @@
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
-// debug
-// #include <HXLibs/log/Log.hpp>
-
 namespace HX::net {
 
 /**
@@ -49,6 +46,7 @@ public:
         , _body()
         , _remainingBodyLen(std::nullopt)
         , _io{io}
+        , _boundary{}
     {}
 
 #if 0
@@ -71,27 +69,22 @@ public:
         requires(requires { Timeout::Val; })
     coroutine::Task<> sendHttpReq() {
         using namespace std::string_view_literals;
-        // 发送请求行
+#ifndef NODEBUG
+        // 不能存在 CONTENT_LENGTH_SV, 仅debug模式会检测
+        if (auto it = _requestHeaders.find(CONTENT_LENGTH_SV); 
+            it != _requestHeaders.end()
+        ) [[unlikely]] {
+            throw std::runtime_error{"Should not be manually added: Content-Length"};
+        }
+#endif // !NODEBUG
         std::vector<char> buf;
         buf.reserve(IO::kBufMaxSize); // 预留空间
-        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestType]);
-        utils::StringUtil::append(buf, " "sv);
-        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestPath]);
-        utils::StringUtil::append(buf, " "sv);
-        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::ProtocolVersion]);
-        utils::StringUtil::append(buf, CRLF);
-        // 发送请求头
-        for (const auto& [key, val] : _requestHeaders) {
-            utils::StringUtil::append(buf, key);
-            utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
-            utils::StringUtil::append(buf, val);
-            utils::StringUtil::append(buf, CRLF);
-        }
+        _buildLineAndHead(buf);
         if (_body.empty()) {
             utils::StringUtil::append(buf, CRLF);
             co_await _io.sendLinkTimeout<Timeout>(buf);
         } else {
-            // 发送请求体
+            // 请求体
             utils::StringUtil::append(buf, CONTENT_LENGTH_SV);
             utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
             utils::StringUtil::append(buf, std::to_string(_body.size()));
@@ -100,6 +93,51 @@ public:
             co_await _io.sendLinkTimeout<Timeout>(_body);
         }
         co_return;
+    }
+
+    template <typename Timeout>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> sendChunkedReq(std::string_view path) {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+#ifndef NODEBUG
+        // 不能存在 CONTENT_LENGTH_SV, 仅debug模式会检测
+        if (auto it = _requestHeaders.find(CONTENT_LENGTH_SV); 
+            it != _requestHeaders.end()
+        ) [[unlikely]] {
+            throw std::runtime_error{"Should not be manually added: Content-Length"};
+        }
+#endif // !NODEBUG
+        utils::AsyncFile file{_io};
+        co_await file.open(path, utils::OpenMode::Read);
+        _requestHeaders[std::string{TRANSFER_ENCODING_SV}] = "chunked"; // 分块编码请求头要求
+        // 开始发送分块编码
+        std::vector<char> buf, sendBuf;
+        buf.reserve(utils::FileUtils::kBufMaxSize);
+        sendBuf.reserve(16);
+        // 把 Line + Head 组装好, 然后直接发送
+        _buildLineAndHead(buf);
+        utils::StringUtil::append(buf, HEADER_END_SV); // \r\n\r\n
+        co_await _io.sendLinkTimeout<Timeout>(buf);
+        buf.resize(utils::FileUtils::kBufMaxSize);
+        // 读取文件
+        std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
+        _buildToChunkedEncoding<true>(size, sendBuf);
+        co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+        co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+        for (;;) {
+            if (!size) [[unlikely]] {
+                // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
+                _buildToChunkedEncoding<false, true>(0, sendBuf);
+                co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+                break;
+            }
+            size = static_cast<std::size_t>(co_await file.read(buf));
+            _buildToChunkedEncoding(size, sendBuf);
+            co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+            co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+        }
+        co_await file.close();
     }
 
     /**
@@ -143,8 +181,10 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addHeaders(const HeaderHashMap& heads) {
-        _requestHeaders.insert(heads.begin(), heads.end());
+    Request& addHeaders(HeaderHashMap&& heads) {
+        for (auto&& [k, v] : heads) {
+            _requestHeaders[k] = std::move(v);
+        }
         return *this;
     }
 
@@ -292,6 +332,71 @@ public:
     }
 
     /**
+     * @brief 解析 Body 并且保存到 path
+     * @param path 保存路径
+     * @return coroutine::Task<> 
+     */
+    template <typename Timeout = decltype(utils::operator""_s<"5">())>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<> saveToFile(std::string_view path) {
+        utils::AsyncFile file{_io};
+        co_await file.open(path, utils::OpenMode::Write);
+        if (_completeBody) [[unlikely]] {
+            // 已经解析过 Http Body 了
+            throw std::runtime_error{"Have already analyzed the http body"};
+        }
+        _completeBody = true;
+        log::hxLog.debug("saveToFile ing...");
+        for (std::size_t n = co_await _coParserReqBody(file); n; n = co_await _coParserReqBody(file)) {
+            auto res = co_await _io.recvLinkTimeout<Timeout>(
+                // 保留原有的数据
+                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
+            );
+            if (res.index() == 1) [[unlikely]] {
+                // 超时
+                throw std::runtime_error{"parseBody: Recv timeout"};
+            }
+            auto recvN = HXLIBS_CHECK_EVENT_LOOP(
+                (res.template get<0, exception::ExceptionMode::Nothrow>())
+            );
+            if (recvN == 0) [[unlikely]] {
+                // 连接断开
+                throw std::runtime_error{"parseBody: Connection is Broken"};
+            }
+            _recvBuf.addSize(static_cast<std::size_t>(recvN));
+        }
+    }
+
+    // @todo 
+    coroutine::Task<> _getMultipartFiles() {
+        static_assert(true, "@todo Func...");
+        if (auto it = _requestHeaders.find(CONTENT_TYPE_SV); it != _requestHeaders.end()) {
+            // multipart/form-data 协议
+            if (_boundary.empty()) {            
+                std::string_view str = it->second;
+                auto pos = str.find("multipart/form-data; boundary=");
+                if (pos == std::string::npos) {
+                    // return 0;
+                }
+                _boundary = str.substr(sizeof("multipart/form-data; boundary=") - 1);
+            }
+            /*
+            ------WebKitFormBoundary123\r\n
+            Content-Disposition: form-data; name="text"\r\n
+            \r\n
+            hello\r\n
+            ------WebKitFormBoundary123\r\n
+            Content-Disposition: form-data; name="file"; filename="a.txt"\r\n
+            Content-Type: text/plain\r\n
+            \r\n
+            <文件内容>\r\n
+            ------WebKitFormBoundary123--\r\n
+            */
+        }
+        co_return ;
+    }
+
+    /**
      * @brief 获取请求PATH
      * @return 请求PATH (如: "/", "/home?loli=watasi"...)
      */
@@ -370,6 +475,7 @@ public:
             co_await parseBody<decltype(utils::operator""_ms<"250">())>();
         }
         _completeBody = false;
+        _boundary = {};
         _requestLine.clear();
         _requestHeaders.clear();
         _requestHeadersIt = _requestHeaders.end();
@@ -419,6 +525,9 @@ private:
     // IO 对象 (内含 协程事件循环)
     IO& _io;
 
+    // multipart/form-data 协议边界.
+    std::string_view _boundary;
+
     /**
      * @brief 是否解析完成请求头
      */
@@ -435,6 +544,51 @@ private:
     template <typename Timeout, typename Proxy>
         requires(requires { Timeout::Val; })
     friend class HttpClient;
+
+    /**
+     * @brief 组装请求行和请求头 (不包含 `content-length`, 和 最终的`\r\n\r\n`分割)
+     * @param buf 
+     */
+    void _buildLineAndHead(std::vector<char>& buf) {
+        using namespace std::string_view_literals;
+        // 请求行
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestType]);
+        utils::StringUtil::append(buf, " "sv);
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::RequestPath]);
+        utils::StringUtil::append(buf, " "sv);
+        utils::StringUtil::append(buf, _requestLine[RequestLineDataType::ProtocolVersion]);
+        utils::StringUtil::append(buf, CRLF);
+        // 请求头
+        for (const auto& [key, val] : _requestHeaders) {
+            utils::StringUtil::append(buf, key);
+            utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
+            utils::StringUtil::append(buf, val);
+            utils::StringUtil::append(buf, CRLF);
+        }
+    }
+
+    /**
+     * @brief [仅客户端] 把 size 大小转换为 16 进制并以符合 ChunkedEncoding 的格式写入 sendBuf
+     * @param size 内容大小
+     * @param sendBuf 用于写入头部的 buf
+     * @warning 内部会清空 `sendBuf`, 再以`ChunkedEncoding`格式写入 buf 到 `sendBuf`!
+     */
+    template <bool IsFirst = false, bool IsEnd = false>
+    void _buildToChunkedEncoding(std::size_t size, std::vector<char>& sendBuf) {
+        sendBuf.clear();
+        if constexpr (!IsFirst) {
+            utils::StringUtil::append(sendBuf, CRLF);
+        }
+#ifdef HEXADECIMAL_CONVERSION
+        utils::StringUtil::append(sendBuf, utils::NumericBaseConverter::hexadecimalConversion(size));
+#else
+        utils::StringUtil::append(sendBuf, std::format("{:X}", size)); // 需要十六进制嘞
+#endif // !HEXADECIMAL_CONVERSION
+        utils::StringUtil::append(sendBuf, CRLF);
+        if constexpr (IsEnd) {
+            utils::StringUtil::append(sendBuf, CRLF);
+        }
+    }
 
     /**
      * @brief 解析请求
@@ -502,7 +656,11 @@ private:
             }
             case 0x03: {
                 // 更改到懒解析Body, 如果已经读取了, 那放入缓存趴...
-                _recvBuf.moveToHead(buf);
+                if (buf.size() >= 2) {
+                    _recvBuf.moveToHead(buf.substr(2));
+                } else {
+                    _recvBuf.moveToHead(buf);
+                }
                 break;
             }
             [[unlikely]] default:
@@ -523,12 +681,12 @@ private:
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
         if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
-            // 是 空行之后 (\r\n\r\n) 的内容大小(char)
+            // 计算剩余待解析字节数
             if (!_remainingBodyLen.has_value()) {
                 _body = buf;
                 _remainingBodyLen 
                     = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
-                    - _body.size();
+                    - buf.size();
             } else {
                 *_remainingBodyLen -= buf.size();
                 _body.append(buf);
@@ -544,16 +702,17 @@ private:
              * */
             if (_remainingBodyLen) { // 处理没有读取完的
                 if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
-                    _body += buf;
+                    _body.append(buf);
                     *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
                     return IO::kBufMaxSize;
                 } else { // 读取完了
-                    _body.append(buf, 0, *_remainingBodyLen);
+                    _body.append(buf.substr(0, *_remainingBodyLen));
                     buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
                     _remainingBodyLen.reset();
                 }
             }
-            while (true) {
+            for (;;) {
                 std::size_t posLen = buf.find(CRLF);
                 if (posLen == std::string_view::npos) { // 没有读完
                     _recvBuf.moveToHead(buf);
@@ -564,14 +723,17 @@ private:
                     buf = buf.substr(posLen + 2);
                     continue;
                 }
-                _remainingBodyLen = std::stol(std::string {buf.substr(0, posLen)}, nullptr, 16); // 转换为十进制整数
+                _remainingBodyLen = utils::NumericBaseConverter::strToNum<std::size_t, 16>(
+                    buf.substr(0, posLen)
+                ); // 转换为十进制整数
                 if (!*_remainingBodyLen) { // 解析完毕
                     return 0;
                 }
                 buf = buf.substr(posLen + 2);
                 if (buf.size() <= *_remainingBodyLen) { // 没有读完
-                    _body += buf;
+                    _body.append(buf);
                     *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
                     return IO::kBufMaxSize;
                 }
                 _body.append(buf.substr(0, *_remainingBodyLen));
@@ -579,6 +741,77 @@ private:
             }
         }
         return 0;
+    }
+
+    /**
+     * @brief 解析 Body 写入文件中
+     * @return std::size_t 还需要解析的字节数
+     */
+    coroutine::Task<std::size_t> _coParserReqBody(utils::AsyncFile& file) {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
+            // 计算剩余待解析字节数
+            if (!_remainingBodyLen.has_value()) {
+                co_await file.write(buf); // _body = buf;
+                _remainingBodyLen 
+                    = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
+                    - buf.size();
+            } else {
+                *_remainingBodyLen -= buf.size();
+                co_await file.write(buf); // _body.append(buf);
+            }
+
+            if (*_remainingBodyLen != 0) {
+                _recvBuf.clear();
+                co_return *_remainingBodyLen;
+            }
+        } else if (_requestHeaders.contains(TRANSFER_ENCODING_SV)) { // 存在请求体以`分块传输编码`
+            /**
+             * @todo 目前只支持 chunked 编码, 不支持压缩的 (2024-9-6 09:36:25) 
+             * */
+            if (_remainingBodyLen) { // 处理没有读取完的
+                if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
+                    co_await file.write(buf); // _body.append(buf);
+                    *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
+                    co_return IO::kBufMaxSize;
+                } else { // 读取完了
+                    co_await file.write(buf.substr(0, *_remainingBodyLen)); // _body.append(buf.substr(0, *_remainingBodyLen));
+                    buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
+                    _remainingBodyLen.reset();
+                }
+            }
+            for (;;) {
+                std::size_t posLen = buf.find(CRLF);
+                if (posLen == std::string_view::npos) { // 没有读完
+                    _recvBuf.moveToHead(buf);
+                    co_return IO::kBufMaxSize;
+                }
+                if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
+                    // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
+                    buf = buf.substr(posLen + 2);
+                    continue;
+                }
+                _remainingBodyLen = utils::NumericBaseConverter::strToNum<std::size_t, 16>(
+                    buf.substr(0, posLen)
+                ); // 转换为十进制整数
+                if (!*_remainingBodyLen) { // 解析完毕
+                    co_return 0;
+                }
+                buf = buf.substr(posLen + 2);
+                if (buf.size() <= *_remainingBodyLen) { // 没有读完
+                    co_await file.write(buf); // _body.append(buf);
+                    *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
+                    co_return IO::kBufMaxSize;
+                }
+                co_await file.write(buf.substr(0, *_remainingBodyLen)); // _body.append(buf.substr(0, *_remainingBodyLen));
+                buf = buf.substr(*_remainingBodyLen + 2);
+            }
+        }
+        co_return 0;
     }
 };
 

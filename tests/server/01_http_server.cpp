@@ -66,8 +66,8 @@ TEST_CASE("测试普通请求") {
     {
         HttpClient cli;
         auto res = cli.post(
-            "http://127.0.0.1:28205/", {{"Connection", "close"}},
-            {}, HttpContentType::None
+            "http://127.0.0.1:28205/",
+            {}, HttpContentType::None, {{"Connection", "close"}}
         ).get();
         CHECK(res.status == 200);
         CHECK(res.body == "<h1>Hello HXLibs</h1>");

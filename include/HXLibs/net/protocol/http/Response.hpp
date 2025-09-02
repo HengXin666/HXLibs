@@ -217,17 +217,22 @@ public:
         co_await file.open(filePath);
         try {
             std::vector<char> buf(utils::FileUtils::kBufMaxSize);
-            while (true) {
-                // 读取文件
-                std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
-                _buildToChunkedEncoding({buf.data(), size});
-                co_await _io.fullySend(_sendBuf);
-                if (size != buf.size()) {
+            // 读取文件
+            std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
+            _buildToChunkedEncoding<true>(size);   // 朴素的版本: len\r\n
+            co_await _io.fullySend(_sendBuf);      // 发送
+            co_await _io.fullySend({buf.data(), size});           // 发送文件
+            for (;;) {
+                if (!size) [[unlikely]] {
                     // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
-                    _buildToChunkedEncoding("");
+                    _buildToChunkedEncoding<false, true>(0); // 发送完成的版本: \r\n0\r\n\r\n
                     co_await _io.fullySend(_sendBuf);
                     break;
                 }
+                size = static_cast<std::size_t>(co_await file.read(buf));
+                _buildToChunkedEncoding(size);         // 补充上次的头版本: \r\nlen\r\n
+                co_await _io.fullySend(_sendBuf);      // 发送
+                co_await _io.fullySend({buf.data(), size});           // 发送文件
             }
         } catch (...) {
             // _io.send 会抛异常
@@ -606,20 +611,25 @@ private:
     }
 
     /**
-     * @brief [仅服务端] 将`buf`转化为`ChunkedEncoding`的Body, 放入`_body`以分片发送
-     * @param buf 
+     * @brief [仅服务端] 把 size 大小转换为 16 进制并以符合 ChunkedEncoding 的格式写入 _sendBuf
+     * @param size 内容大小
      * @warning 内部会清空 `_sendBuf`, 再以`ChunkedEncoding`格式写入 buf 到 `_sendBuf`!
      */
-    void _buildToChunkedEncoding(std::string_view buf) {
+    template <bool IsFirst = false, bool IsEnd = false>
+    void _buildToChunkedEncoding(std::size_t size) {
         _sendBuf.clear();
+        if constexpr (!IsFirst) {
+            utils::StringUtil::append(_sendBuf, CRLF);
+        }
 #ifdef HEXADECIMAL_CONVERSION
-        utils::StringUtil::append(_sendBuf, utils::NumericBaseConverter::hexadecimalConversion(buf.size()));
+        utils::StringUtil::append(_sendBuf, utils::NumericBaseConverter::hexadecimalConversion(size));
 #else
-        utils::StringUtil::append(_sendBuf, std::format("{:X}", buf.size())); // 需要十六进制嘞
+        utils::StringUtil::append(_sendBuf, std::format("{:X}", size)); // 需要十六进制嘞
 #endif // !HEXADECIMAL_CONVERSION
         utils::StringUtil::append(_sendBuf, CRLF);
-        utils::StringUtil::append(_sendBuf, buf);
-        utils::StringUtil::append(_sendBuf, CRLF);
+        if constexpr (IsEnd) {
+            utils::StringUtil::append(_sendBuf, CRLF);
+        }
     }
 
     /**
@@ -726,6 +736,7 @@ private:
                         if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
                             _body += buf;
                             *_remainingBodyLen -= buf.size();
+                            _recvBuf.clear();
                             return IO::kBufMaxSize;
                         } else { // 读取完了
                             _body.append(buf, 0, *_remainingBodyLen);
@@ -733,7 +744,7 @@ private:
                             _remainingBodyLen.reset();
                         }
                     }
-                    while (true) {
+                    for (;;) {
                         std::size_t posLen = buf.find(CRLF);
                         if (posLen == std::string_view::npos) { // 没有读完
                             _recvBuf.moveToHead(buf);
@@ -744,8 +755,8 @@ private:
                             buf = buf.substr(posLen + 2);
                             continue;
                         }
-                        _remainingBodyLen = std::stol(
-                            std::string{buf.substr(0, posLen)}, nullptr, 16
+                        _remainingBodyLen = utils::NumericBaseConverter::strToNum<std::size_t, 16>(
+                            buf.substr(0, posLen)
                         ); // 转换为十进制整数
                         if (!*_remainingBodyLen) { // 解析完毕
                             return 0;
@@ -754,14 +765,16 @@ private:
                         if (buf.size() <= *_remainingBodyLen) { // 没有读完
                             _body += buf;
                             *_remainingBodyLen -= buf.size();
+                            _recvBuf.clear();
                             return IO::kBufMaxSize;
                         }
                         _body.append(buf.substr(0, *_remainingBodyLen));
                         buf = buf.substr(*_remainingBodyLen + 2);
                     }
-                } else if (_responseHeaders.contains("content-range")) {
+                } 
+                // else if (_responseHeaders.contains("content-range")) {
                     // 断点续传 @todo
-                }
+                // }
                 break;
             }
             [[unlikely]] default:

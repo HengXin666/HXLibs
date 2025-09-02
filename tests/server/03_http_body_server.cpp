@@ -12,9 +12,9 @@ int main() {
     });
     server.asyncRun(1);
     net::HttpClient cli;
-    cli.post("http://0.0.0.0:28205/123", {}, "{}", 
+    cli.post("http://0.0.0.0:28205/123", "{}", 
             HX::net::HttpContentType::Json).wait();
-    cli.post("http://0.0.0.0:28205/2233", {}, "{}", 
+    cli.post("http://0.0.0.0:28205/2233", "{}", 
             HX::net::HttpContentType::Json).wait();
     return 0;
 }

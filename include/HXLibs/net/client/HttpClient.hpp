@@ -82,6 +82,69 @@ public:
     }
 
     /**
+     * @brief 分块编码上传文件
+     * @tparam Method 请求方式
+     * @param url 请求 URL
+     * @param path 需要上传的文件路径
+     * @param contentType 正文类型
+     * @param headers 请求头
+     * @return container::FutureResult<>
+     */
+    template <HttpMethod Method>
+    container::FutureResult<ResponseData> uploadChunked(
+        std::string url,
+        std::string_view path,
+        HttpContentType contentType = HttpContentType::Text,
+        HeaderHashMap headers = {}
+    ) {
+        return _pool.addTask([this,
+                              _url = std::move(url),
+                              _path = path,
+                              _contentType = contentType,
+                              _headers = std::move(headers)]() {
+            return _eventLoop.sync(coUploadChunked<Method>(
+                std::move(_url),
+                _path,
+                _contentType,
+                std::move(_headers)
+            ));
+        });
+    }
+
+    /**
+     * @brief 分块编码上传文件
+     * @tparam Method 请求方式
+     * @param url 请求 URL
+     * @param path 需要上传的文件路径
+     * @param contentType 正文类型
+     * @param headers 请求头
+     * @return coroutine::Task<> 
+     */
+    template <HttpMethod Method>
+    coroutine::Task<ResponseData> coUploadChunked(
+        std::string url,
+        std::string_view path,
+        HttpContentType contentType = HttpContentType::Text,
+        HeaderHashMap headers = {}
+    ) {
+        if (needConnect()) {
+            co_await makeSocket(url);
+        }
+        IO io{_cliFd, _eventLoop};
+        Request req{io};
+        req.setReqLine<Method>(UrlParse::extractPath(url));
+        preprocessHeaders(url, contentType, req);
+        req.addHeaders(std::move(headers));
+        co_await req.sendChunkedReq<Timeout>(path);
+        Response res{io};
+        if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+            throw std::runtime_error{"Recv Timed Out"};
+        }
+        co_await io.close();
+        co_return res.makeResponseData();
+    }
+
+    /**
      * @brief 发送一个 GET 请求, 其会在后台线程协程池中执行
      * @param url 请求的 URL
      * @return container::FutureResult<ResponseData> 
@@ -114,9 +177,9 @@ public:
      */
     container::FutureResult<ResponseData> post(
         std::string url,
-        HeaderHashMap headers,
         std::string body,
-        HttpContentType contentType
+        HttpContentType contentType,
+        HeaderHashMap headers = {}
     ) {
         return requst<POST>(
             std::move(url), std::move(headers), 
@@ -132,9 +195,9 @@ public:
      */
     coroutine::Task<ResponseData> coPost(
         std::string url,
-        HeaderHashMap headers,
         std::string body,
-        HttpContentType contentType
+        HttpContentType contentType,
+        HeaderHashMap headers = {}
     ) {
         co_return co_await coRequst<POST>(
             std::move(url), std::move(headers),
@@ -245,7 +308,7 @@ public:
         if (_cliFd == kInvalidSocket) {
             co_return;
         }
-        auto task = [this] () -> coroutine::Task<> {
+        auto task = [this]() -> coroutine::Task<> {
             co_await _eventLoop.makeAioTask().prepClose(_cliFd);
             _cliFd = kInvalidSocket;
         };
@@ -323,14 +386,18 @@ private:
         AddressResolver resolver;
         UrlInfoExtractor parser{_options.proxy.get().size() ? _options.proxy.get() : url};
         auto entry = resolver.resolve(parser.getHostname(), parser.getService());
-        _cliFd = HXLIBS_CHECK_EVENT_LOOP((
-            co_await _eventLoop.makeAioTask().prepSocket(
-                entry._curr->ai_family,
-                entry._curr->ai_socktype,
-                entry._curr->ai_protocol,
-                0
-            )
-        ));
+        try {
+            _cliFd = HXLIBS_CHECK_EVENT_LOOP((
+                co_await _eventLoop.makeAioTask().prepSocket(
+                    entry._curr->ai_family,
+                    entry._curr->ai_socktype,
+                    entry._curr->ai_protocol,
+                    0
+                )
+            ));
+        } catch (std::exception const& e) {
+            log::hxLog.error("创建套接字失败:", e.what());
+        }
         try {
             auto sockaddr = entry.getAddress();
             co_await _eventLoop.makeAioTask().prepConnect(
@@ -374,7 +441,7 @@ private:
         Request req{io};
         req.setReqLine<Method>(UrlParse::extractPath(url));
         preprocessHeaders(url, contentType, req);
-        req._requestHeaders = std::move(_headers);
+        req.addHeaders(std::move(_headers));
         if (body.size()) {
             // @todo 请求体还需要支持一些格式!
             req.setBody(std::forward<Str>(body));
@@ -452,7 +519,6 @@ private:
     bool _isAutoReconnect;
 };
 
-HttpClient() -> HttpClient<decltype(utils::operator""_ms<'5', '0', '0', '0'>()), Socks5Proxy>;
+HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), Socks5Proxy>;
 
 } // namespace HX::net
-
