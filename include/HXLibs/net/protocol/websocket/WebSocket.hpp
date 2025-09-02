@@ -170,10 +170,10 @@ class WebSocket : public internal::WebSocketBase<Model> {
 
 public:
     // 默认Ping-Pong超时时间: 20s
-    using DefaultPPTimeout = decltype(utils::operator""_s<'2', '0'>());
+    using DefaultPPTimeout = decltype(utils::operator""_s<"20">());
 
     // 默认读取数据的超时时间: 60s
-    using DefaultRDTimeout = decltype(utils::operator""_s<'6', '0'>());
+    using DefaultRDTimeout = decltype(utils::operator""_s<"60">());
 
     WebSocket(IO& io)
         : Base{}
@@ -184,6 +184,10 @@ public:
         : Base{seed}
         , _io{io}
     {}
+
+    IO& getIO() noexcept {
+        return _io;
+    }
 
     /**
      * @brief 读取文本
