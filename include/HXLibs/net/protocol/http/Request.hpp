@@ -117,7 +117,7 @@ public:
         sendBuf.reserve(16);
         // 把 Line + Head 组装好, 然后直接发送
         _buildLineAndHead(buf);
-        utils::StringUtil::append(buf, HEADER_END_SV); // \r\n\r\n
+        utils::StringUtil::append(buf, CRLF); // \r\n + \r\n
         co_await _io.sendLinkTimeout<Timeout>(buf);
         buf.resize(utils::FileUtils::kBufMaxSize);
         // 读取文件
@@ -656,11 +656,7 @@ private:
             }
             case 0x03: {
                 // 更改到懒解析Body, 如果已经读取了, 那放入缓存趴...
-                if (buf.size() >= 2) {
-                    _recvBuf.moveToHead(buf.substr(2));
-                } else {
-                    _recvBuf.moveToHead(buf);
-                }
+                _recvBuf.moveToHead(buf);
                 break;
             }
             [[unlikely]] default:

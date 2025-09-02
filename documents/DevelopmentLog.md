@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-09-02 16:01:16] : 修复Res解析请求头和请求体的`\r\n\r\n`错误过步问题; 原因是 `chunked` 的发送有问题 (多发了`\r\n`)
+
 - [2025-09-02 10:34:33] : 客户端支持 `chunked` 上传文件; 服务端支持 `chunked` 或者流 `Body` 分块保存文件到本地路径. 新增进制转换类的`strToNum`函数, 无需 `std::stolu` 的 `std::string` 构造. ([#10](https://github.com/HengXin666/HXLibs/issues/10))
 
 - [2025-09-01 16:58:27] : 修复bug: 客户端指定发送body, 可能导致解析出错(忘记写`HEADER_SEPARATOR_SV`); `Res`的`clear()` 修改为协程; 并且会清理 `Body` 防止粘包; (`@todo`: 安全问题: 可能body过大而业务实际上没有用到, 导致浪费性能解析body) (slowloris/大 body DoS 攻击)

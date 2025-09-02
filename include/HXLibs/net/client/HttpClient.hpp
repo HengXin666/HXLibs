@@ -395,27 +395,27 @@ private:
                     0
                 )
             ));
+            try {
+                auto sockaddr = entry.getAddress();
+                co_await _eventLoop.makeAioTask().prepConnect(
+                    _cliFd,
+                    sockaddr._addr,
+                    sockaddr._addrlen
+                );
+                if (_options.proxy.get().size()) {
+                    // 初始化代理
+                    IO io{_cliFd, _eventLoop};
+                    Proxy proxy{io};
+                    co_await proxy.connect(_options.proxy.get(), url);
+                    io.reset();
+                }
+                // 初始化连接 (如 Https 握手)
+                co_return;
+            } catch (...) {
+                log::hxLog.error("连接失败");
+            }
         } catch (std::exception const& e) {
             log::hxLog.error("创建套接字失败:", e.what());
-        }
-        try {
-            auto sockaddr = entry.getAddress();
-            co_await _eventLoop.makeAioTask().prepConnect(
-                _cliFd,
-                sockaddr._addr,
-                sockaddr._addrlen
-            );
-            if (_options.proxy.get().size()) {
-                // 初始化代理
-                IO io{_cliFd, _eventLoop};
-                Proxy proxy{io};
-                co_await proxy.connect(_options.proxy.get(), url);
-                io.reset();
-            }
-            // 初始化连接 (如 Https 握手)
-            co_return;
-        } catch (...) {
-            log::hxLog.error("连接失败");
         }
         // 总之得关闭
         co_await _eventLoop.makeAioTask().prepClose(_cliFd);
