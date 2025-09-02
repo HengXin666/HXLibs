@@ -256,25 +256,27 @@ public:
     }
 
     /**
-     * @brief 异步将 buf 写入到文件中
+     * @brief 异步将 buf 写入到文件中, 内部保证完全写入
      * @param buf [in] 需要写入的数据
-     * @return int 写入的字节数
      */
-    coroutine::Task<int> write(std::span<char const> buf) {
-        co_return static_cast<int>(HXLIBS_CHECK_EVENT_LOOP(
-            co_await _eventLoop.makeAioTask().prepWrite(
-                _fd, buf, static_cast<std::uint64_t>(-1)
-            )
-        ));
+    coroutine::Task<> write(std::span<char const> buf) {
+        for (; !buf.empty(); buf = buf.subspan(
+            static_cast<std::size_t>(HXLIBS_CHECK_EVENT_LOOP(
+                co_await _eventLoop.makeAioTask().prepWrite(
+                    _fd, buf, static_cast<std::uint64_t>(-1)
+                )
+            ))
+        )) {
+            // 文件 大多数情况下内核会尽量写满, 部分写很少见 (但不能依赖这一点!)
+        }
     }
 
     /**
-     * @brief 同步将 buf 写入到文件中
+     * @brief 同步将 buf 写入到文件中, 内部保证完全写入
      * @param buf [in] 需要写入的数据
-     * @return int 写入的字节数
      */
-    int syncWrite(std::span<char> buf) {
-        return _eventLoop.sync(write(buf));
+    void syncWrite(std::span<char> buf) {
+        _eventLoop.sync(write(buf));
     }
 
     /**
