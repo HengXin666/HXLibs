@@ -329,7 +329,7 @@ public:
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
     container::FutureResult<> wsLoop(std::string url, Func&& func) {
         return _pool.addTask([this, _url = std::move(url),
-                              _func = std::forward<Func>(func)] {
+                              _func = std::forward<Func>(func)]() mutable {
             return coWsLoop(std::move(_url), std::forward<Func>(_func)).runSync();
         });
     }
