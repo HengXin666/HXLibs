@@ -193,7 +193,7 @@ struct FormatZipString {
         requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
     constexpr std::string make(T const& t) {
         if constexpr (NF != static_cast<size_t>(-1)) {
-            return std::format("{:." + std::format("{}", NF) + "f}", t);
+            return std::format("{:.{}f}", t, NF);
         } else {
             return std::format("{}", t);
         }

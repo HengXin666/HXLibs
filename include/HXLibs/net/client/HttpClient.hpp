@@ -330,7 +330,7 @@ public:
     container::FutureResult<> wsLoop(std::string url, Func&& func) {
         return _pool.addTask([this, _url = std::move(url),
                               _func = std::forward<Func>(func)] {
-            return coWsLoop(std::move(_url), _func).runSync();
+            return coWsLoop(std::move(_url), std::forward<Func>(_func)).runSync();
         });
     }
 
