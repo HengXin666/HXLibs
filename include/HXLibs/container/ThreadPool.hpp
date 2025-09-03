@@ -133,7 +133,7 @@ struct ThreadPool {
         ]() mutable {
             try {
                 if constexpr (std::is_void_v<Res>) {
-                    ans->setData(NonVoidType<void>{});
+                    ans->setData(NonVoidType<>{});
                     moveApply(std::move(func), std::move(argWap));
                 } else {
                     ans->setData(moveApply(std::move(func), std::move(argWap)));
@@ -332,7 +332,7 @@ private:
 
 template <typename T>
 template <typename Func, typename Res>
-    requires (std::is_same_v<Try<T>, meta::FunctionAtArg<0, Func>>)
+    requires (std::is_same_v<typename FutureResult<T>::TryType, meta::FunctionAtArg<0, Func>>)
 FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
     Func&& func
 ) && noexcept {
@@ -356,7 +356,7 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 if constexpr (std::is_void_v<decltype(_func(data.move()))>) {
                     // func 返回值是 void
                     _func(data.move());
-                    ans->setData(NonVoidType<void>{});
+                    ans->setData(NonVoidType<>{});
                 } else {
                     // func 返回值是任意类型
                     Res funcRes = _func(data.move());
@@ -376,7 +376,7 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 if constexpr (std::is_void_v<decltype(_func({}))>) {
                     // func 返回值是 void
                     _func(self._res->getException());
-                    ans->setData(NonVoidType<void>{});
+                    ans->setData(NonVoidType<>{});
                 } else {
                     // func 返回值是任意类型
                     Res funcRes = _func(self._res->getException());

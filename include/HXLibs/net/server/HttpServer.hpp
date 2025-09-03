@@ -54,24 +54,16 @@ public:
      */
     void syncStop() {
         using namespace utils;;
-        _isRun.store(false, std::memory_order_release);
-        std::size_t errCnt = 0;
+        _isRun.store(false, std::memory_order_release);;
         while (_runNum) {
             try {         
                 HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-                if (cli.get(
+                cli.get(
                     "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
-                    ).get().status / 100 == 2
-                ) {
-                    errCnt = 0;
-                } else if (++errCnt > 5) {
-                    // 超过 5 次失败, 则认为服务器已经关闭
-                    // 特别是是对于在 端点 中按照引用, 传入 *this (HttpServer) 的
-                    // 必然是死锁的, 因为当前方法是阻塞的, 希望他是非阻塞的? 也不是不行
-                    break;
-                }
+                ).get();
+                cli.close().wait();
             } catch (...) {
-                break;
+                ;
             }
         }
         log::hxLog.warning("服务器已关闭...");
@@ -110,7 +102,7 @@ public:
                 endpoint,
                 interceptors...
             );
-        } else {        
+        } else {
             _router.addEndpoint<Methods...>(
                 path,
                 std::move(endpoint),
@@ -130,7 +122,7 @@ public:
         requires(requires { Timeout::Val; })
     void syncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
-        Timeout timeout = utils::operator""_s<'3', '0'>()
+        Timeout timeout = {}
     ) {
         asyncRun(threadNum, timeout);
         _threads.clear();
@@ -147,7 +139,7 @@ public:
         requires(requires { Timeout::Val; })
     void asyncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
-        Timeout = utils::operator""_s<'3', '0'>()
+        Timeout = {}
     ) {
         if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};

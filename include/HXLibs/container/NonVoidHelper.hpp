@@ -44,7 +44,7 @@ struct NonVoidHelper<void> {
     }
 };
 
-template <typename T>
+template <typename T = void>
 using NonVoidType = NonVoidHelper<T>::Type;
 
 } // namespace HX::container

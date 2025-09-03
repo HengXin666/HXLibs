@@ -63,7 +63,7 @@ TEST_CASE("基本任务提交与获取结果(固定容量版本)") {
     REQUIRE(res2.get() == 3);
     REQUIRE(res3.get() == 99);
     REQUIRE(res4.get() == a);
-    REQUIRE(res5.get() == NonVoidType<void>{});
+    REQUIRE(res5.get() == NonVoidType<>{});
 }
 
 TEST_CASE("测试异步(固定容量版本)") {
@@ -119,7 +119,7 @@ TEST_CASE("测试异步(固定容量版本)") {
     log::hxLog.info("ok");
 
     // 类型测试
-    Try<> {NonVoidType<void>{}};
+    Try<> {NonVoidType<>{}};
     Try<> {Uninitialized<void>{}.move()};
     Try<> {Uninitialized<void>{}.get()};
     Try<> {std::exception_ptr{}};

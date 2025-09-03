@@ -366,7 +366,7 @@ struct EventLoop {
                     res.setVal(co_await _mainTask);
                 } else {
                     co_await _mainTask;
-                    res.setVal(container::NonVoidType<void>{});
+                    res.setVal(container::NonVoidType<>{});
                 }
             } catch (...) {
                 res.setException(std::current_exception());

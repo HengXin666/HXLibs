@@ -100,7 +100,7 @@ TEST_CASE("测试自定义打印") {
 #include <variant>
 
 TEST_CASE("std::variant") {
-    std::variant<A, int, int, NonVoidType<void>> v{};
+    std::variant<A, int, int, NonVoidType<>> v{};
     // CHECK(v.index() == std::variant_npos); // v.index() = 0
     // v.emplace<int>(1); // 调用已删除的成员函数 'emplace'clang(ovl_deleted_call)
     // CHECK(v.index() == 0);

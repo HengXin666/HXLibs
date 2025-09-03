@@ -132,6 +132,13 @@ struct Try {
             return "unknown exception type";
         }
     }
+
+    /**
+     * @brief 重置 Try 数据
+     */
+    void reset() noexcept {
+        _data.reset();
+    }
 private:
     UninitializedNonVoidVariant<NonVoidType<T>, std::exception_ptr> _data;
 };

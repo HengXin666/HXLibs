@@ -27,7 +27,6 @@
 
 namespace HX::container {
 
-
 template <typename T = void>
 class FutureResult {
     struct _hx_Result {
@@ -93,6 +92,7 @@ class FutureResult {
         bool _isResed;
     };
 public:
+    using TryType = Try<RemoveTryWarpType<T>>;
     using FutureResultType = _hx_Result;
 
     FutureResult()
@@ -121,8 +121,8 @@ public:
         }
     }
 
-    template <typename Func, typename Res = std::invoke_result_t<Func, Try<T>>>
-        requires (std::is_same_v<Try<T>, meta::FunctionAtArg<0, Func>>)
+    template <typename Func, typename Res = std::invoke_result_t<Func, TryType>>
+        requires (std::is_same_v<TryType, meta::FunctionAtArg<0, Func>>)
     FutureResult<RemoveTryWarpType<Res>> thenTry(Func&& func) && noexcept;
 
 private:

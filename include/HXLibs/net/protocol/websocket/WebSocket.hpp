@@ -685,7 +685,7 @@ public:
         // 发送 ws 升级协议
         Request req{io};
         auto key = internal::randomBase64();
-        req.setReqLine<GET>(UrlParse::extractPath(url))
+        req.setReqLine<WS>(UrlParse::extractPath(url))
            .addHeaders("Origin", UrlParse::extractWsOrigin(url))
            .addHeaders("Connection", "Upgrade")
            .addHeaders("Upgrade", "websocket")
