@@ -27,7 +27,7 @@ template <typename T, std::size_t N>
 struct ArrayBuf {
     ArrayBuf()
         : _nowSize{}
-        , arr{}
+        , _arr{}
     {}
 
     /**
@@ -37,7 +37,7 @@ struct ArrayBuf {
      */
     void moveToHead(std::span<T const> s) {
         _nowSize = s.size();
-        std::memmove(arr, s.data(), s.size());
+        std::memmove(_arr, s.data(), s.size());
     }
 
     /**
@@ -73,11 +73,11 @@ struct ArrayBuf {
     }
 
     constexpr T const* data() const {
-        return arr;
+        return _arr;
     }
 
     constexpr T* data() {
-        return arr;
+        return _arr;
     }
 
     void clear() {
@@ -86,7 +86,7 @@ struct ArrayBuf {
 
 private:
     std::size_t _nowSize;
-    T arr[N];
+    T _arr[N];
 };
 
 } // namespace HX::container

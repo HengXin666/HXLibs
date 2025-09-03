@@ -95,6 +95,10 @@ public:
         co_return;
     }
 
+    /**
+     * @brief 分块编码发送文件
+     * @tparam Timeout 超时时间
+     */
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<> sendChunkedReq(std::string_view path) {
@@ -679,16 +683,11 @@ private:
         if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
             // 计算剩余待解析字节数
             if (!_remainingBodyLen.has_value()) {
-                _body = buf;
-                _remainingBodyLen 
-                    = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
-                    - buf.size();
-            } else {
+                _remainingBodyLen = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second);
+            }
+            if (*_remainingBodyLen != 0) {
                 *_remainingBodyLen -= buf.size();
                 _body.append(buf);
-            }
-
-            if (*_remainingBodyLen != 0) {
                 _recvBuf.clear();
                 return *_remainingBodyLen;
             }
@@ -750,16 +749,12 @@ private:
         if (_requestHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
             // 计算剩余待解析字节数
             if (!_remainingBodyLen.has_value()) {
-                co_await file.write(buf); // _body = buf;
-                _remainingBodyLen 
-                    = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second) 
-                    - buf.size();
-            } else {
+                _remainingBodyLen = std::stoull(_requestHeaders.find(CONTENT_LENGTH_SV)->second);
+            }
+            
+            if (*_remainingBodyLen != 0) {
                 *_remainingBodyLen -= buf.size();
                 co_await file.write(buf); // _body.append(buf);
-            }
-
-            if (*_remainingBodyLen != 0) {
                 _recvBuf.clear();
                 co_return *_remainingBodyLen;
             }

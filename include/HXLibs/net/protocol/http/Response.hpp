@@ -148,14 +148,6 @@ public:
      * @brief 获取响应体
      * @return std::string 
      */
-    std::string const& getBody() const noexcept {
-        return _body;
-    }
-
-    /**
-     * @brief 获取响应体
-     * @return std::string 
-     */
     std::string getBody() noexcept {
         return std::move(_body);
     }
@@ -577,6 +569,8 @@ private:
     IO& _io;
     bool _completeResponseHeader = false;           //是否解析完成响应头
 
+    friend class WebSocketFactory;
+
     /**
      * @brief [仅服务端] 生成响应行和响应头
      */
@@ -719,15 +713,11 @@ private:
                 if (_responseHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
                     // 是 空行之后 (\r\n\r\n) 的内容大小(char)
                     if (!_remainingBodyLen.has_value()) {
-                        _body = buf;
-                        _remainingBodyLen = std::stoull(_responseHeaders.find(CONTENT_LENGTH_SV)->second) 
-                                          - _body.size();
-                    } else {
+                        _remainingBodyLen = std::stoull(_responseHeaders.find(CONTENT_LENGTH_SV)->second);
+                    }
+                    if (*_remainingBodyLen != 0) {
                         *_remainingBodyLen -= buf.size();
                         _body.append(buf);
-                    }
-
-                    if (*_remainingBodyLen != 0) {
                         _recvBuf.clear();
                         return *_remainingBodyLen;
                     }
@@ -775,6 +765,7 @@ private:
                 // else if (_responseHeaders.contains("content-range")) {
                     // 断点续传 @todo
                 // }
+                _recvBuf.moveToHead(buf);
                 break;
             }
             [[unlikely]] default:

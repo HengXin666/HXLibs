@@ -175,14 +175,16 @@ public:
     // 默认读取数据的超时时间: 60s
     using DefaultRDTimeout = decltype(utils::operator""_s<"60">());
 
-    WebSocket(IO& io)
+    WebSocket(IO& io, std::vector<char> recvBuf)
         : Base{}
         , _io{io}
+        , _recvBuf{std::move(recvBuf)}
     {}
 
-    WebSocket(IO& io, std::size_t seed)
+    WebSocket(IO& io, std::vector<char> recvBuf, std::size_t seed)
         : Base{seed}
         , _io{io}
+        , _recvBuf{std::move(recvBuf)}
     {}
 
     IO& getIO() noexcept {
@@ -193,7 +195,7 @@ public:
      * @brief 读取文本
      * @return coroutine::Task<std::string> 
      */
-    coroutine::Task<std::string> recvText() const {
+    coroutine::Task<std::string> recvText() {
         co_return (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content;
     }
 
@@ -201,7 +203,7 @@ public:
      * @brief 读取二进制
      * @return coroutine::Task<std::string> 
      */
-    coroutine::Task<std::string> recvBytes() const {
+    coroutine::Task<std::string> recvBytes() {
         co_return (co_await recv<false, DefaultRDTimeout>(OpCode::Binary)).content;
     }
 
@@ -212,7 +214,7 @@ public:
      * @return coroutine::Task<> 
      */
     template <typename T>
-    coroutine::Task<> recvJson(T& obj) const {
+    coroutine::Task<> recvJson(T& obj) {
         reflection::fromJson(
             obj,
             (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content
@@ -230,7 +232,7 @@ public:
      */
     template <bool TimeoutIsError = false, typename Timeout = DefaultPPTimeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<WebSocketPacket> recv(OpCode recvType, OpCode alternative = OpCode::Unknown) const {
+    coroutine::Task<WebSocketPacket> recv(OpCode recvType, OpCode alternative = OpCode::Unknown) {
         for (;;) {
             auto res = co_await recvPacket<Timeout>();
             if (!res) [[unlikely]] {
@@ -329,7 +331,7 @@ public:
      * @brief 主动关闭连接
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> close() const {
+    coroutine::Task<> close() {
         // 发送断线协商
         co_await send(OpCode::Close);
 
@@ -369,6 +371,81 @@ public:
 private:
     IO& _io;
 
+    // 缓存之前多读取的内容, 特别的, 原本头部的数据是在尾部! 应该使用 back() + pop_back() 进行遍历
+    std::vector<char> _recvBuf;
+
+    // === 提供二度封装的统一的读取接口, 如果 _recvBuf 有数据, 就先从 _recvBuf 获取 ===
+
+    /**
+     * @brief 读取
+     * @tparam Timeout 超时时间
+     * @tparam Res
+     * > 
+     */
+    template <typename Timeout, typename Res = coroutine::WhenAnyReturnType<
+        coroutine::AioTask,
+        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
+    >>
+        requires(requires { Timeout::Val; })
+    coroutine::Task<Res> recvLinkTimeout(std::span<char> buf) {
+        auto size = _recvBuf.size();
+        if (size) [[unlikely]] {
+            for (char& c : buf) {
+                c = _recvBuf.back();
+                _recvBuf.pop_back();
+            }
+            if (size >= buf.size()) {
+                Res res;
+                res.template emplace<0>(static_cast<
+                    coroutine::AwaiterReturnValue<coroutine::AioTask>
+                >(buf.size()));
+                co_return res;
+            }
+            // @todo 此处偷懒了, 因为也没有使用到 get<0>() 的实际的值, 所以没有影响
+            // 但是不保证日后!
+            co_return co_await _io.recvLinkTimeout<Timeout>(buf.subspan(size));
+        } else {
+            co_return co_await _io.recvLinkTimeout<Timeout>(buf);
+        }
+    }
+
+    /**
+     * @brief 直接将二进制写入到类型T中, 注意需要区分大小端
+     * @warning 默认是网络序(大端), 如果需要使用, 注意转换
+     * @tparam T 
+     * @return coroutine::Task<T> 
+     */
+    template <typename T>
+    coroutine::Task<T> recvStruct() {
+        T res;
+        co_await fullyRecv(std::span<char>{
+            reinterpret_cast<char*>(&res), sizeof(T)
+        });
+        co_return res;
+    }
+    
+
+    /**
+     * @brief 完全读取
+     * @param buf 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> fullyRecv(std::span<char> buf) {
+        auto size = _recvBuf.size();
+        if (size) [[unlikely]] {
+            for (char& c : buf) {
+                c = _recvBuf.back();
+                _recvBuf.pop_back();
+            }
+            if (size >= buf.size()) {
+                co_return;
+            }
+            co_await _io.fullyRecv(buf.subspan(size));
+        } else {
+            co_await _io.fullyRecv(buf);
+        }
+    }
+
     // 响应 pong (无需暴露, 库内部使用即可)
     template <typename Timeout = DefaultPPTimeout>
         requires(requires { Timeout::Val; })
@@ -389,7 +466,7 @@ private:
      */
     template <typename Timeout>
         requires(requires { Timeout::Val; })
-    coroutine::Task<std::optional<WebSocketPacket>> recvPacket() const {
+    coroutine::Task<std::optional<WebSocketPacket>> recvPacket() {
         WebSocketPacket packet;
         uint8_t head[2];
 /*
@@ -435,7 +512,7 @@ private:
         // 记录第一帧数据内容
         OpCode firstOpCode{OpCode::Unknown};
         do {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(
+            auto res = co_await recvLinkTimeout<Timeout>(
                 std::span<char>{reinterpret_cast<char*>(head), 2});
             if (res.index() == 1 
              || res.template get<0, exception::ExceptionMode::Nothrow>() <= 0
@@ -490,11 +567,11 @@ private:
             // 解析包的长度
             std::size_t payloadLen;
             if (payloadLen8 == 0x7E) {
-                uint16_t payloadLen16 = co_await _io.recvStruct<uint16_t>();
+                uint16_t payloadLen16 = co_await recvStruct<uint16_t>();
                 payloadLen16 = utils::ByteUtils::byteswapIfLittle(payloadLen16);
                 payloadLen = static_cast<std::size_t>(payloadLen16);
             } else if (payloadLen8 == 0x7F) {
-                uint64_t payloadLen64 = co_await _io.recvStruct<uint64_t>();
+                uint64_t payloadLen64 = co_await recvStruct<uint64_t>();
                 payloadLen64 = utils::ByteUtils::byteswapIfLittle(payloadLen64);
                 if constexpr (sizeof(uint64_t) > sizeof(std::size_t)) {
                     if (payloadLen64 > std::numeric_limits<std::size_t>::max()) {
@@ -510,7 +587,7 @@ private:
             if constexpr (IsServer) {
                 // 获取掩码
                 uint8_t maskKeyArr[4];
-                co_await _io.fullyRecv(std::span<char>{
+                co_await fullyRecv(std::span<char>{
                     reinterpret_cast<char*>(maskKeyArr),
                     4
                 });
@@ -518,7 +595,7 @@ private:
                 // 解析数据
                 std::string tmp;
                 tmp.resize(payloadLen);
-                co_await _io.fullyRecv(tmp);
+                co_await fullyRecv(tmp);
     
                 const std::size_t len = tmp.size();
                 auto* p = reinterpret_cast<uint8_t*>(tmp.data());
@@ -530,7 +607,7 @@ private:
                 // 解析数据
                 std::string tmp;
                 tmp.resize(payloadLen);
-                co_await _io.fullyRecv(tmp);
+                co_await fullyRecv(tmp);
                 packet.content += std::move(tmp);
             }
         } while (!fin);
@@ -671,7 +748,17 @@ public:
                                internal::webSocketSecretHash(wsKey->second))
                     .sendRes();
 
-        co_return {req._io};
+        co_return {req._io, [&]{
+            // 缓存迁移
+            std::vector<char> buf;
+            std::size_t n = res._recvBuf.size();
+            buf.resize(n);
+            auto* data = res._recvBuf.data();
+            for (std::size_t i = 0, j = n - 1; i < n; ++i, --j) {
+                buf[i] = data[j];
+            }
+            return buf;
+        }()};
     }
 
     /**
@@ -719,7 +806,17 @@ public:
                 "Failed to create a websocket connection (Accept hash mismatch)"};
         }
         // ws连接 成功
-        co_return {io, std::random_device{}()};
+        co_return {io, [&]{
+            // 缓存迁移
+            std::vector<char> buf;
+            std::size_t n = res._recvBuf.size();
+            buf.resize(n);
+            auto* data = res._recvBuf.data();
+            for (std::size_t i = 0, j = n - 1; i < n; ++i, --j) {
+                buf[i] = data[j];
+            }
+            return buf;
+        }(), std::random_device{}()};
     }
 
     /**
