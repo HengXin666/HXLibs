@@ -10,21 +10,15 @@ using namespace container;
 coroutine::Task<> coMain() {
     HttpClient cli{};
     log::hxLog.debug("开始请求");
-    container::Try<ResponseData> t = co_await cli.coGet("http://0.0.0.0:28205/get");
-    if (!t) [[unlikely]] {
-        log::hxLog.error("coMain:", t.what());
-        co_return ;
-    }
-    auto res = t.move();
+    auto res = (co_await cli.coGet("http://0.0.0.0:28205/get")).move();
     log::hxLog.info("状态码:", res.status);
     log::hxLog.info("拿到了 头:", res.headers);
     log::hxLog.info("拿到了 体:", res.body);
     co_await cli.coClose();
 }
 
-HttpServer server{"0.0.0.0", "28205"};
-
 int main() {
+    HttpServer server{"0.0.0.0", "28205"};
     server.addEndpoint<GET>("/get", [] ENDPOINT {
         std::string json;
         reflection::toJson<true>(req.getHeaders(), json);
@@ -33,9 +27,11 @@ int main() {
                     .sendRes();
         co_await io.close();
     });
-    server.asyncRun<decltype(utils::operator""_s<"1">())>();
+    server.asyncRun<decltype(utils::operator""_s<"1">())>(1);
 
-    coMain().runSync();
+    coroutine::EventLoop loop;
+    loop.sync(coMain());
+
     HttpClient cli{};
     auto t = cli.get("http://0.0.0.0:28205/get").get();
     do {

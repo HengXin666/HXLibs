@@ -660,7 +660,6 @@ private:
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf = {_recvBuf.data(), _recvBuf.size()};
-        log::hxLog.debug(buf);
         switch ((_completeResponseHeader << 1) | (!_statusLine.empty())) {
             case 0x00: { // 响应行
                 if (_statusLine.empty()) { // 响应行还未解析

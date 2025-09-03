@@ -53,13 +53,13 @@ TEST_CASE("测试普通请求") {
     std::this_thread::sleep_for((1500_ms).toChrono());
     {
         HttpClient cli;
-        auto res = cli.get("http://127.0.0.1:28205/").get();
+        auto res = cli.get("http://127.0.0.1:28205/").get().move();
         CHECK(res.status == 200);
         CHECK(res.body == "<h1>Hello HXLibs</h1>");
 
         log::hxLog.info("status:", res.status);
         
-        res = cli.get("/114514", {{"Connection", "close"}}).get();
+        res = cli.get("/114514", {{"Connection", "close"}}).get().move();
         log::hxLog.info("status:", res.status);
         CHECK(res.status == 404);
     }
@@ -68,7 +68,7 @@ TEST_CASE("测试普通请求") {
         auto res = cli.post(
             "http://127.0.0.1:28205/",
             {}, HttpContentType::None, {{"Connection", "close"}}
-        ).get();
+        ).get().move();
         CHECK(res.status == 200);
         CHECK(res.body == "<h1>Hello HXLibs</h1>");
     }

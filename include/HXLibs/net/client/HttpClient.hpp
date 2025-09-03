@@ -91,7 +91,7 @@ public:
      * @return container::FutureResult<>
      */
     template <HttpMethod Method>
-    container::FutureResult<container::Try<ResponseData>> uploadChunked(
+    container::FutureResult<ResponseData> uploadChunked(
         std::string url,
         std::string_view path,
         HttpContentType contentType = HttpContentType::Text,
@@ -246,24 +246,13 @@ public:
         Str&& body = {},
         HttpContentType contentType = HttpContentType::None
     ) {
-        container::Try<ResponseData> res;
         _headers = std::move(headers);
-        auto task = [&]() -> coroutine::Task<> {
-            try {
-                if (needConnect()) {
-                    co_await makeSocket(url);
-                }
-                res.setVal(co_await sendReq<Method>(
-                    url, std::move(body), contentType)
-                );
-            } catch (...) {
-                res.setException(std::current_exception());
+        co_return _eventLoop.trySync([&]() -> coroutine::Task<ResponseData> {
+            if (needConnect()) {
+                co_await makeSocket(url);
             }
-        };
-        auto taskMain = task();
-        _eventLoop.start(taskMain);
-        _eventLoop.run();
-        co_return res;
+            co_return co_await sendReq<Method>(url, std::move(body), contentType);
+        }());
     }
 
     /**
@@ -272,22 +261,12 @@ public:
      * @return coroutine::Task<container::Try<>> 
      */
     coroutine::Task<container::Try<>> coConnect(std::string_view url) {
-        container::Try<> res;
-        auto task = [&]() -> coroutine::Task<> {
-            try {
-                if (needConnect()) {
-                    co_await coClose();
-                }
-                co_await makeSocket(url);
-                res.setVal(container::NonVoidType<>{});
-            } catch (...) {
-                res.setException(std::current_exception());
+        co_return _eventLoop.trySync([&]() -> coroutine::Task<> {
+            if (needConnect()) {
+                co_await coClose();
             }
-        };
-        auto taskMain = task();
-        _eventLoop.start(taskMain);
-        _eventLoop.run();
-        co_return res;
+            co_await makeSocket(url);
+        }());
     }
 
     /**
@@ -315,18 +294,14 @@ public:
      * @tparam NowOsType 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<> coClose() {
-        if (_cliFd == kInvalidSocket) {
-            co_return;
-        }
-        auto task = [this]() -> coroutine::Task<> {
+    coroutine::Task<container::Try<>> coClose() {
+        co_return _eventLoop.trySync([this]() -> coroutine::Task<> {
+            if (_cliFd == kInvalidSocket) {
+                co_return;
+            }
             co_await _eventLoop.makeAioTask().prepClose(_cliFd);
             _cliFd = kInvalidSocket;
-        };
-        auto taskMain = task();
-        _eventLoop.start(taskMain);
-        _eventLoop.run();
-        co_return;
+        }());
     }
 
     /**
@@ -363,16 +338,13 @@ public:
             IO io{_cliFd, _eventLoop};
             container::Uninitialized<WebSocketClient> ws;
             try {
-                log::hxLog.info("第一次建立ws...");
                 ws.set(co_await WebSocketFactory::connect<Timeout>(url, io));
             } catch (...) {
-                log::hxLog.error("第一次建立ws: 失败");
                 res.setException(std::current_exception());
             }
             if (!ws.isAvailable()) [[unlikely]] {
                 // 之前的连接断开了, 再次尝试连接
                 if (_isAutoReconnect) [[likely]] {
-                    log::hxLog.info("第二次建立ws...");
                     // 重新建立连接
                     co_await makeSocket(url);
                     // 绑定新的 fd
@@ -381,7 +353,6 @@ public:
                         res.reset();
                         ws.set(co_await WebSocketFactory::connect<Timeout>(url, io));
                     } catch(...) {
-                        log::hxLog.error("第二次建立ws: 失败");
                         res.setException(std::current_exception());
                     }
                 }
