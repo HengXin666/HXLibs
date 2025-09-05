@@ -47,7 +47,7 @@ using platform::ModeType;
  */
 struct FileUtils {
     /// @brief 读取文件buf数组的缓冲区大小
-    inline static constexpr std::size_t kBufMaxSize = 1 << 12;
+    inline static constexpr std::size_t kBufMaxSize = 1 << 17; // 128KB
 public:
     /**
      * @brief 获取文件拓展名 (如`loli.png`->`.png`)
@@ -224,7 +224,6 @@ public:
         for (int len = 0; (len = co_await read(buf)); ) {
             res += std::string_view{buf.data(), static_cast<std::size_t>(len)};
         }
-        log::hxLog.info(res.size());
         co_return res;
     }
 
@@ -310,7 +309,7 @@ public:
 #else
     ~AsyncFile() noexcept(false) {
         if (_fd != kInvalidLocalFd) [[unlikely]] {
-            // throw std::runtime_error{"[AsyncFile]: Before that, it is necessary to call close()"};
+            throw std::runtime_error{"[AsyncFile]: Before that, it is necessary to call close()"};
         }
     }
 #endif // !NDEBUG

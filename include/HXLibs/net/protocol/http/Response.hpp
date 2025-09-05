@@ -41,7 +41,7 @@ namespace HX::net {
  */
 struct ResponseData {
     int status = 0;        // 状态码
-    HeaderHashMap headers; // 响应头
+    HeaderHashMap headers; // 响应头, 应该仅使用英文小写字母
     std::string body;      // 响应体
 };
 
@@ -85,10 +85,10 @@ public:
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(requires { Timeout::Val; })
     coroutine::Task<bool> parserRes() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = _parserRes()) {
+        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes(), IO::kBufMaxSize)) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
+                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时

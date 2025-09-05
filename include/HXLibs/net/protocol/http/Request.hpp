@@ -243,10 +243,10 @@ public:
     template <typename Timeout>
         requires(requires { Timeout::Val; })
     coroutine::Task<bool> parserReq() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = _parserReq()) {
+        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserReq(), IO::kBufMaxSize)) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
+                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
@@ -350,7 +350,6 @@ public:
             throw std::runtime_error{"Have already analyzed the http body"};
         }
         _completeBody = true;
-        log::hxLog.debug("saveToFile ing...");
         for (std::size_t n = co_await _coParserReqBody(file); n; n = co_await _coParserReqBody(file)) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
                 // 保留原有的数据

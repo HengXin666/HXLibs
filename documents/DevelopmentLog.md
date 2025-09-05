@@ -1,5 +1,34 @@
 # 开发日志
 
+- [2025-09-05 11:52:49] : Res / Req 解析时候尽可能按需读取. 修复了多读导致的bug. 修改 IO / File buf 大小, 减小系统调用次数, 提升吞吐量:
+
+```bash
+# examples/HttpServer/benchmarks_01_server
+╭─     ~                                                                                                                  ✔  at 11:51:19   ─╮
+╰─ wrk -d10s -t32 -c100 http://127.0.0.1:28205/mp4/1                                                                                                ─╯
+Running 10s test @ http://127.0.0.1:28205/mp4/1
+  32 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.07s   439.76ms   2.00s    60.86%
+    Req/Sec     2.46      2.87    20.00     89.69%
+  481 requests in 10.11s, 283.97GB read
+  Socket errors: connect 0, read 481, write 0, timeout 131
+Requests/sec:     47.58
+Transfer/sec:     28.09GB
+
+╭─     ~                                                                                                    ✔  took 10s    at 11:51:44   ─╮
+╰─ wrk -d10s -t32 -c100 http://127.0.0.1:28205/html/2                                                                                               ─╯
+Running 10s test @ http://127.0.0.1:28205/html/2
+  32 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.08ms    3.15ms  64.76ms   88.74%
+    Req/Sec   615.72    327.64     1.74k    72.14%
+  197167 requests in 10.10s, 104.33GB read
+  Socket errors: connect 0, read 197167, write 0, timeout 0
+Requests/sec:  19527.86
+Transfer/sec:     10.33GB
+```
+
 - [2025-09-03 16:11:20] : fixbug: `content-length`如果等于0, 那么解析 body 时候会因为 `std::size_t` 导致: `0 - 数字 = (-1) - (数字 - 1)`; 新增 websocket 读取缓存. 可以把 res 的 `_recvBuf` 迁移到 ws 中, 防止多读导致数据丢失. (写入数据的顺序有标准, 是逆序填充(类似于栈), 从而优化性能)
 
 - [2025-09-03 14:27:46] : 新增`EventLoop::trySync`接口, 可以把异常包装到 `Try` 中. 并且修改部分`客户端`的API使用该接口

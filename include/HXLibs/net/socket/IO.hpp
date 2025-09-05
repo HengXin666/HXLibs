@@ -52,7 +52,7 @@ auto* getTimePtr() noexcept {
  */
 class IO {
 public:
-    inline constexpr static std::size_t kBufMaxSize = 1 << 10;
+    inline constexpr static std::size_t kBufMaxSize = 1 << 14; // 16kb
 
     IO(coroutine::EventLoop& eventLoop)
         : _fd{kInvalidSocket}
