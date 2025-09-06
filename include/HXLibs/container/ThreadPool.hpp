@@ -332,7 +332,9 @@ private:
 
 template <typename T>
 template <typename Func, typename Res>
-    requires (std::is_same_v<typename FutureResult<T>::TryType, meta::FunctionAtArg<0, Func>>)
+    requires (requires (Func func, FutureResult<T>::TryType t) {
+            func(std::move(t));
+        })
 FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
     Func&& func
 ) && noexcept {
@@ -343,7 +345,8 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                        _func = std::forward<Func>(func),
                        ans = res.getFutureResult()](
     ) mutable {
-        Uninitialized<T> data;
+        using InArgType = typename FutureResult<T>::TryType;
+        Uninitialized<InArgType> data;
         try {
             // 如果获取出错, 说明之前的任务出现异常
             data.set(self.get());
@@ -355,11 +358,11 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 // 获取完毕, 无异常, 传入 func
                 if constexpr (std::is_void_v<decltype(_func(data.move()))>) {
                     // func 返回值是 void
-                    _func(data.move());
+                    _func(InArgType{data.move()});
                     ans->setData(NonVoidType<>{});
                 } else {
                     // func 返回值是任意类型
-                    Res funcRes = _func(data.move());
+                    Res funcRes = _func(InArgType{data.move()});
                     if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
                         // 特判如果是 Try 则去掉一层
                         if (funcRes) {
@@ -373,13 +376,13 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 }
             } else {
                 // 获取失败, 有异常, func 传入 Try<>{}
-                if constexpr (std::is_void_v<decltype(_func({}))>) {
+                if constexpr (std::is_void_v<decltype(_func(InArgType{}))>) {
                     // func 返回值是 void
-                    _func(self._res->getException());
+                    _func(InArgType{self._res->getException()});
                     ans->setData(NonVoidType<>{});
                 } else {
                     // func 返回值是任意类型
-                    Res funcRes = _func(self._res->getException());
+                    Res funcRes = _func(InArgType{self._res->getException()});
                     if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
                         // 特判如果是 Try 则去掉一层
                         if (funcRes) {

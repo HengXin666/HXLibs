@@ -15,7 +15,7 @@ coroutine::Task<> coMain() {
     log::hxLog.info("拿到了 头:", res.headers);
     log::hxLog.info("拿到了 体:", res.body);
     co_await cli.coClose();
-}
+} 
 
 int main() {
     HttpServer server{"0.0.0.0", "28205"};
@@ -56,7 +56,14 @@ int main() {
             log::hxLog.error("发生异常:", resTry.what());
         }
         return resTry;
-    });
+    }).thenTry([](auto t) {
+        if (!t) [[unlikely]] {
+            log::hxLog.error("coMain:", t.what());
+            return;
+        }
+        auto res = t.move();
+        log::hxLog.info("期望是空的:", res); // 应该是空的
+    }).wait();
 
     cli.close();
     log::hxLog.debug("end");

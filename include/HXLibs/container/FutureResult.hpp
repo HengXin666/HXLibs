@@ -23,7 +23,6 @@
 
 #include <HXLibs/container/Uninitialized.hpp>
 #include <HXLibs/container/Try.hpp>
-#include <HXLibs/meta/FunctionTraits.hpp>
 
 namespace HX::container {
 
@@ -122,7 +121,9 @@ public:
     }
 
     template <typename Func, typename Res = std::invoke_result_t<Func, TryType>>
-        requires (std::is_same_v<TryType, meta::FunctionAtArg<0, Func>>)
+        requires (requires (Func func, TryType t) {
+            func(std::move(t));
+        })
     FutureResult<RemoveTryWarpType<Res>> thenTry(Func&& func) && noexcept;
 
 private:
