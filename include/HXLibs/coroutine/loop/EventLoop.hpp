@@ -23,7 +23,6 @@
 #include <coroutine>
 
 #if defined (_WIN32)
-#include <unordered_set>
 #include <array>
 #endif
 
@@ -230,7 +229,7 @@ struct Iocp {
      * @return false 无任务
      */
     bool isRun() const {
-        return _taskCnt._numSqesPending;
+        return _taskCnt._numSqesPending || _taskCnt._runingHandle.size();
     }
 
     void run(std::optional<std::chrono::system_clock::duration> timeout) {

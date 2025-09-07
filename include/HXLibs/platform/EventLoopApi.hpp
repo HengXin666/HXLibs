@@ -110,7 +110,7 @@
          * @brief [[线程安全]] 初始化 InitWin32Api
          */
         inline static void ensure() {
-            thread_local static InitWin32Api _{};
+            static InitWin32Api _{};
         }
     };
 

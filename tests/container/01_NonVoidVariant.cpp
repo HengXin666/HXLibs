@@ -93,7 +93,7 @@ TEST_CASE("测试自定义打印") {
             }, v);
         }
 
-        void func(int);
+        void func(int) {}
     };
 }
 

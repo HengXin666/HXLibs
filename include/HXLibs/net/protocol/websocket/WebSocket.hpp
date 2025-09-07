@@ -382,10 +382,19 @@ private:
      * @tparam Res
      * > 
      */
-    template <typename Timeout, typename Res = coroutine::WhenAnyReturnType<
+    template <typename Timeout, typename Res = 
+#if defined(__linux__)
+    coroutine::WhenAnyReturnType<
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
-    >>
+    >
+#elif defined(_WIN32)
+    container::UninitializedNonVoidVariant<uint64_t, void> // 只能固定返回值
+#else
+    // 暂时不支持该操作系统
+    #error "Unsupported operating system"
+#endif // !defined(__linux__)
+    >
         requires(requires { Timeout::Val; })
     coroutine::Task<Res> recvLinkTimeout(std::span<char> buf) {
         auto size = _recvBuf.size();

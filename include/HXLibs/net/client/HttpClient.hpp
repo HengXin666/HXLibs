@@ -251,7 +251,7 @@ public:
             if (needConnect()) {
                 co_await makeSocket(url);
             }
-            co_return co_await sendReq<Method>(url, std::move(body), contentType);
+            co_return co_await sendReq<Method>(std::move(url), std::move(body), contentType);
         }());
     }
 

@@ -582,7 +582,7 @@ BOOL AcceptEx(
         [[maybe_unused]] int addrlen
     ) && {
         // ::io_uring_prep_connect(_sqe, fd, addr, addrlen);
-        associateHandle(fd);
+        associateHandle<false>(fd);
         
         // bind 是必须的, 即使是客户端
         ::sockaddr_in localAddr {};
