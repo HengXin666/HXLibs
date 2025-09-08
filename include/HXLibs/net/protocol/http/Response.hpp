@@ -330,7 +330,7 @@ public:
                         if (!size) [[unlikely]] {
                             break;
                         }
-                        co_await _io.fullySend(buf);
+                        co_await _io.fullySend({buf.data(), size});
                         remaining -= size;
                     }
                 } catch (...) {
@@ -408,7 +408,7 @@ public:
                             if (!size) [[unlikely]] {
                                 break;
                             }
-                            co_await _io.fullySend(buf);
+                            co_await _io.fullySend({buf.data(), size});
                             co_await _io.fullySend(CRLF);
                             remaining -= size;
                         }
@@ -440,7 +440,7 @@ public:
                     if (!size) [[unlikely]] {
                         break;
                     }
-                    co_await _io.fullySend(buf);
+                    co_await _io.fullySend({buf.data(), size});
                     remaining -= size;
                 }
             } catch (...) {
