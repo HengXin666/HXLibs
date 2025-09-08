@@ -60,14 +60,17 @@ int main() {
     log::hxLog.warning("====== 测试同步 ======");
 
     HttpClient cli{HttpClientOptions<decltype(3_s)>{}};
-    cli.wsLoop("ws://127.0.0.1:28205/ws",
-        [](WebSocketClient ws) -> coroutine::Task<> {
+    auto res = cli.wsLoop("ws://127.0.0.1:28205/ws",
+        [](WebSocketClient ws) -> coroutine::Task<std::string> {
             co_await ws.sendText("hello 我是同步接口的协程回调");
             auto msg = co_await ws.recvText();
             log::hxLog.info("收到: ", msg);
             co_await ws.close();
+            co_return msg;
         }
-    ).wait();
+    ).get();
+
+    log::hxLog.info(res ? "get 收到:" : "get 失败:", res ? res.get() : res.what());
     
     std::this_thread::sleep_for(1s);
     log::hxLog.warning("一切都结束了..., 之后的连接是服务器为了快速关闭而RAII创建的客户端的请求");

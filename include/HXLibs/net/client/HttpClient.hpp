@@ -314,9 +314,12 @@ public:
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
      * @return container::FutureResult<>
      */
-    template <typename Func>
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
-    container::FutureResult<container::Try<>> wsLoop(std::string url, Func&& func) {
+    template <
+        typename Func, 
+        typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
+    >
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+    container::FutureResult<container::Try<Res>> wsLoop(std::string url, Func&& func) {
         return _pool.addTask([this, _url = std::move(url),
                               _func = std::forward<Func>(func)]() mutable {
             return coWsLoop(std::move(_url), std::forward<Func>(_func)).runSync();
@@ -330,10 +333,13 @@ public:
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
      * @return coroutine::Task<> 
      */
-    template <typename Func>
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
-    coroutine::Task<container::Try<>> coWsLoop(std::string url, Func&& func) {
-        container::Try<> res;
+    template <
+        typename Func, 
+        typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
+    >
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+    coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func) {
+        container::Try<Res> res;
         auto taskObj = [&]() -> coroutine::Task<> {
             if (needConnect()) {
                 co_await makeSocket(url);
@@ -362,8 +368,12 @@ public:
             }
             if (ws.isAvailable()) [[likely]] {
                 try {
-                    co_await func(ws.move());
-                    res.setVal(container::NonVoidType<>{});
+                    if constexpr (!std::is_void_v<Res>) {
+                        res.setVal(co_await func(ws.move()));
+                    } else {
+                        co_await func(ws.move());
+                        res.setVal(container::NonVoidType<>{});
+                    }
                 } catch (...) {
                     // 如果内部没有捕获异常, 就重抛给外部
                     res.setException(std::current_exception());
