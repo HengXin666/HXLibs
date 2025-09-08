@@ -231,7 +231,7 @@ public:
      * @param alternative 备选读取类型 (可选为: Text / Binary / Pong), Unknown 为无备选
      */
     template <bool TimeoutIsError = false, typename Timeout = DefaultPPTimeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<WebSocketPacket> recv(OpCode recvType, OpCode alternative = OpCode::Unknown) {
         for (;;) {
             auto res = co_await recvPacket<Timeout>();
@@ -395,7 +395,7 @@ private:
     #error "Unsupported operating system"
 #endif // !defined(__linux__)
     >
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<Res> recvLinkTimeout(std::span<char> buf) {
         auto size = _recvBuf.size();
         if (size) [[unlikely]] {
@@ -457,7 +457,7 @@ private:
 
     // 响应 pong (无需暴露, 库内部使用即可)
     template <typename Timeout = DefaultPPTimeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> pong(std::string data) const {
         return send(OpCode::Pong, std::move(data));
     }
@@ -474,7 +474,7 @@ private:
      * @note 如果超时则返回 std::nullopt, 如果解析出错, 则抛异常
      */
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<std::optional<WebSocketPacket>> recvPacket() {
         WebSocketPacket packet;
         uint8_t head[2];
@@ -775,7 +775,7 @@ public:
      * @tparam Timeout 创建连接请求的超时时间
      */
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     static coroutine::Task<WebSocketClient> connect(std::string_view url, IO& io) {
         using namespace std::string_view_literals;
         // 发送 ws 升级协议

@@ -66,7 +66,7 @@ public:
      * @throw 超时
      */
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> sendHttpReq() {
         using namespace std::string_view_literals;
 #ifndef NODEBUG
@@ -100,7 +100,7 @@ public:
      * @tparam Timeout 超时时间
      */
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> sendChunkedReq(std::string_view path) {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
@@ -241,7 +241,7 @@ public:
      * @return coroutine::Task<bool> 断开连接则为false, 解析成功为true
      */
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserReq() {
         for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserReq(), IO::kBufMaxSize)) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(
@@ -307,7 +307,7 @@ public:
      * @tparam Timeout 超时时间
      */
     template <typename Timeout = decltype(utils::operator""_s<"5">())>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<std::string> parseBody() {
         if (_completeBody) [[unlikely]] {
             // 已经解析过 Http Body 了
@@ -341,7 +341,7 @@ public:
      * @return coroutine::Task<> 
      */
     template <typename Timeout = decltype(utils::operator""_s<"5">())>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> saveToFile(std::string_view path) {
         utils::AsyncFile file{_io};
         co_await file.open(path, utils::OpenMode::Write);
@@ -545,7 +545,7 @@ private:
     friend class WebSocketFactory;
 
     template <typename Timeout, typename Proxy>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     friend class HttpClient;
 
     /**

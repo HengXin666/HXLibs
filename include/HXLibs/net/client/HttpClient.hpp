@@ -43,7 +43,7 @@
 namespace HX::net {
 
 template <typename Timeout, typename Proxy>
-    requires(requires { Timeout::Val; })
+    requires(utils::HasTimeNTTP<Timeout>)
 class HttpClient {
 public:
     /**
@@ -51,7 +51,7 @@ public:
      * @param options 选项
      * @param threadNum 线程数
      */
-    HttpClient(HttpClientOptions<Timeout, Proxy>&& options = HttpClientOptions{}) 
+    HttpClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) 
         : _options{std::move(options)}
         , _eventLoop{}
         , _cliFd{kInvalidSocket}

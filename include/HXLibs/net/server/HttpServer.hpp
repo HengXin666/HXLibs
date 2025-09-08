@@ -119,7 +119,7 @@ public:
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     void syncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
         Timeout timeout = {}
@@ -136,7 +136,7 @@ public:
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     void asyncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
         Timeout = {}
@@ -166,7 +166,7 @@ public:
 
 private:
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     void _sync() {
         try {
             coroutine::EventLoop _eventLoop;

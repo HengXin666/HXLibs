@@ -111,15 +111,20 @@ template <typename TimeType, std::size_t Time>
 struct TimeNTTP {
     using Rep = typename TimeType::rep;
     using Period = typename TimeType::period;
-    inline static constexpr auto Val = std::chrono::duration<Rep, Period>{Time};
+    inline static constexpr auto StdChronoVal = std::chrono::duration<Rep, Period>{Time};
 
-    constexpr decltype(Val) toChrono() const noexcept {
-        return Val;
+    constexpr decltype(StdChronoVal) toChrono() const noexcept {
+        return StdChronoVal;
     }
 
-    constexpr operator decltype(Val)() {
-        return Val;
+    constexpr operator decltype(StdChronoVal)() {
+        return StdChronoVal;
     }
+};
+
+template <typename T>
+constexpr bool HasTimeNTTP = requires {
+    { T::StdChronoVal };
 };
 
 template <meta::FixedString TimeStr>

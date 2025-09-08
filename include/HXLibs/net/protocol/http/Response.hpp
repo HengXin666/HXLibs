@@ -83,7 +83,7 @@ public:
      * @return coroutine::Task<bool> 是否解析完毕 
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserRes() {
         for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes(), IO::kBufMaxSize)) {
             auto res = co_await _io.recvLinkTimeout<Timeout>(

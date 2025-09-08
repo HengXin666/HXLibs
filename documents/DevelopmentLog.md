@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-09-08 16:08:25] : 新增一个简易的 HttpClientPool ([#14](https://github.com/HengXin666/HXLibs/issues/14)); 修改 TimeNTTP 相关的约束. 新增 `utils::HasTimeNTTP<Timeout>` 作为统一的约束判断.
+
 - [2025-09-08 13:39:01] : 修复: [#14](https://github.com/HengXin666/HXLibs/issues/14) (单个Http客户端对象不应该内设多个线程, 并发请求会共用一个fd, 等. 导致竞争.) 现在一个 HttpClient 仅会对应一个线程, 内部不会竞争. 由任务队列保证.
 
 - [2025-09-08 11:03:10] : 修复bug: `Res`发送文件多发的问题 (应该使用`{buf.data(), size}`限制)

@@ -90,10 +90,10 @@ TEST_CASE("测试朴素get的自动重连") {
     for (std::size_t _ = 0; _ < 5; ++_) {
         log::hxLog.info("连接ing...(", _, ")");
         log::hxLog.info("-->", client.get("http://0.0.0.0:28205/").get().move().body);
-        std::this_thread::sleep_for(decltype(200_ms)::Val); // 等待 0.2s
+        std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }
-    std::this_thread::sleep_for(decltype(200_ms)::Val); // 期望超时?
+    std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 期望超时?
 }
 
 TEST_CASE("测试get变长body的自动重连") {
@@ -102,7 +102,7 @@ TEST_CASE("测试get变长body的自动重连") {
         log::hxLog.info("连接ing...(", _, ")");
         log::hxLog.info("-->", client.get("http://0.0.0.0:28205/" 
             + std::to_string((uint64_t)std::pow(5 - _, 10))).get().move().body);
-        std::this_thread::sleep_for(decltype(200_ms)::Val); // 等待 0.2s
+        std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }
 }
@@ -129,10 +129,10 @@ TEST_CASE("测试 file + get 交替") {
         log::hxLog.info("连接ing...(", _, ")");
         log::hxLog.info("-->", client.get("http://0.0.0.0:28205/ass").get().move().body.size() 
             == utils::FileUtils::getFileSize("./ass/2.ass"));
-        std::this_thread::sleep_for(decltype(200_ms)::Val); // 等待 0.2s
+        std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         log::hxLog.info("-->", client.get("http://0.0.0.0:28205/" 
             + std::to_string((uint64_t)std::pow(5 - _, 10))).get().move().body);
-        std::this_thread::sleep_for(decltype(200_ms)::Val); // 等待 0.2s
+        std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }
 }

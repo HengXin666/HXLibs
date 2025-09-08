@@ -33,7 +33,7 @@ namespace HX::net {
 struct ConnectionHandler {
 
     template <typename Timeout>
-        requires(requires { Timeout::Val; })
+        requires(utils::HasTimeNTTP<Timeout>)
     static coroutine::RootTask<> start(
         SocketFdType fd,
         std::atomic_bool const& isRun,
