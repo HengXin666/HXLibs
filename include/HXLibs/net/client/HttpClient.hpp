@@ -312,7 +312,7 @@ public:
      * @tparam Func 
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
-     * @return container::FutureResult<>
+     * @return container::FutureResult<container::Try<Res>>
      */
     template <
         typename Func, 
@@ -331,7 +331,7 @@ public:
      * @tparam Func 
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
-     * @return coroutine::Task<> 
+     * @return coroutine::Task<container::Try<Res>> 
      */
     template <
         typename Func, 

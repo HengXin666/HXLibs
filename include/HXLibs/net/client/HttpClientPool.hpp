@@ -130,11 +130,14 @@ public:
      * @tparam Func 
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
-     * @return container::FutureResult<>
+     * @return container::FutureResult<container::Try<Res>>
      */
-    template <typename Func>
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<>>)
-    container::FutureResult<container::Try<>> wsLoop(std::string url, Func&& func) {
+    template <
+        typename Func, 
+        typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
+    >
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+    container::FutureResult<container::Try<Res>> wsLoop(std::string url, Func&& func) {
         return _cliPool[getIdxAndNext()]->wsLoop(
             std::move(url), std::forward<Func>(func)
         );
