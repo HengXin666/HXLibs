@@ -51,7 +51,7 @@ public:
      * @param options 选项
      * @param threadNum 线程数
      */
-    HttpClient(HttpClientOptions<Timeout, Proxy>&& options = HttpClientOptions{}, uint32_t threadNum = 1) 
+    HttpClient(HttpClientOptions<Timeout, Proxy>&& options = HttpClientOptions{}) 
         : _options{std::move(options)}
         , _eventLoop{}
         , _cliFd{kInvalidSocket}
@@ -60,7 +60,10 @@ public:
         , _headers{}
         , _isAutoReconnect{true}
     {
-        _pool.setFixedThreadNum(threadNum);
+        // https://github.com/HengXin666/HXLibs/issues/14
+        // 并发时候可能会对fd并发. 多个不同任务不可能共用流式缓冲区.
+        // 所以, 使用线程池仅需要的是一个任务队列, 和一个任务线程.
+        _pool.setFixedThreadNum(1);
         _pool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
     }
 
@@ -93,18 +96,18 @@ public:
     template <HttpMethod Method>
     container::FutureResult<ResponseData> uploadChunked(
         std::string url,
-        std::string_view path,
+        std::string path,
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
         return _pool.addTask([this,
                               _url = std::move(url),
-                              _path = path,
+                              _path = std::move(path),
                               _contentType = contentType,
                               _headers = std::move(headers)]() {
             return _eventLoop.sync(coUploadChunked<Method>(
                 std::move(_url),
-                _path,
+                std::move(_path),
                 _contentType,
                 std::move(_headers)
             ));
@@ -123,7 +126,7 @@ public:
     template <HttpMethod Method>
     coroutine::Task<ResponseData> coUploadChunked(
         std::string url,
-        std::string_view path,
+        std::string path,
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
