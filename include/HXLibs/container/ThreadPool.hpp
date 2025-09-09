@@ -236,7 +236,7 @@ private:
     void makeWorker(std::size_t num) {
         for (std::size_t i = 0; i < num; ++i) {
             auto up = std::make_unique<std::thread>([this] {
-                std::decay_t<decltype(_taskQueue.front())> task;
+                std::decay_t<decltype(_taskQueue.frontAndPop())> task;
                 while (_isRun) [[likely]] {
                     {
                         // 挂起, 并等待任务
@@ -333,7 +333,7 @@ private:
 template <typename T>
 template <typename Func, typename Res>
     requires (requires (Func func, FutureResult<T>::TryType t) {
-            func(std::move(t));
+            { func(std::move(t)) } -> std::same_as<Res>;
         })
 FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
     Func&& func
@@ -345,7 +345,7 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                        _func = std::forward<Func>(func),
                        ans = res.getFutureResult()](
     ) mutable {
-        using InArgType = typename FutureResult<T>::TryType;
+        using InArgType = typename FutureResult<T>::TryType; // func 参数类型, Try<RemoveTryWarpType<T>>
         Uninitialized<InArgType> data;
         try {
             // 如果获取出错, 说明之前的任务出现异常
@@ -362,16 +362,17 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                     ans->setData(NonVoidType<>{});
                 } else {
                     // func 返回值是任意类型
-                    Res funcRes = _func(InArgType{data.move()});
-                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
+                    Uninitialized<Res> funcRes;
+                    funcRes.set(_func(InArgType{data.move()}));
+                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
                         // 特判如果是 Try 则去掉一层
-                        if (funcRes) {
-                            ans->setData(funcRes.move());
+                        if (funcRes.get().isVal()) {
+                            ans->setData(funcRes.move().move());
                         } else {
                             std::rethrow_exception(self._res->getException());
                         }
                     } else {            
-                        ans->setData(std::move(funcRes));
+                        ans->setData(std::move(funcRes.move()));
                     }
                 }
             } else {
@@ -383,14 +384,14 @@ FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
                 } else {
                     // func 返回值是任意类型
                     Res funcRes = _func(InArgType{self._res->getException()});
-                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<decltype(funcRes)>>) {
+                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
                         // 特判如果是 Try 则去掉一层
                         if (funcRes) {
                             ans->setData(funcRes.move());
                         } else {
                             std::rethrow_exception(self._res->getException());
                         }
-                    } else {            
+                    } else {
                         ans->setData(std::move(funcRes));
                     }
                 }

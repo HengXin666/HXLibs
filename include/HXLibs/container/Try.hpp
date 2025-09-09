@@ -22,15 +22,25 @@
 
 namespace HX::container {
 
+template <typename T>
+constexpr bool IsTryTypeVal = requires (T) {
+    typename T::TryType;
+};
+
 template <typename T = void>
 struct Try {
     using TryType = T;
 
-    Try() 
+    explicit Try() 
         : _data{}
     {}
 
+    Try(Try&&) noexcept = default;
+    Try& operator=(Try&&) noexcept = default;
+
     template <typename U>
+        requires (std::convertible_to<U, NonVoidType<T>>
+              && !IsTryTypeVal<U>)
     Try(U&& data)
         : Try{}
     {
@@ -141,11 +151,6 @@ struct Try {
     }
 private:
     UninitializedNonVoidVariant<NonVoidType<T>, std::exception_ptr> _data;
-};
-
-template <typename T>
-constexpr bool IsTryTypeVal = requires (T) {
-    typename T::TryType;
 };
 
 namespace internal {

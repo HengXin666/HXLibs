@@ -63,7 +63,6 @@ public:
      */
     std::size_t getIdxAndNext() noexcept {
         std::unique_lock _{_mtx};
-        // @todo 日后替换为某些负载均衡的策略
         return ++_index %= _cliPool.size();
     }
 
@@ -77,7 +76,7 @@ public:
         std::string url,
         HeaderHashMap headers = {}
     ) {
-        return _cliPool[getIdxAndNext()]->get(
+        return _cliPool.at(getIdxAndNext())->get(
             std::move(url), std::move(headers)
         );
     }
@@ -95,7 +94,7 @@ public:
         HttpContentType contentType,
         HeaderHashMap headers = {}
     ) {
-        return _cliPool[getIdxAndNext()]->post(
+        return _cliPool.at(getIdxAndNext())->post(
             std::move(url), std::move(body),
             contentType, std::move(headers)
         );
@@ -117,7 +116,7 @@ public:
         Str&& body = {},
         HttpContentType contentType = HttpContentType::None
     ) {
-        return _cliPool[getIdxAndNext()]->template requst<Method>(
+        return _cliPool.at(getIdxAndNext())->template requst<Method>(
             std::move(url),
             std::move(headers),
             std::forward<Str>(body),
@@ -138,7 +137,7 @@ public:
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
     container::FutureResult<container::Try<Res>> wsLoop(std::string url, Func&& func) {
-        return _cliPool[getIdxAndNext()]->wsLoop(
+        return _cliPool.at(getIdxAndNext())->wsLoop(
             std::move(url), std::forward<Func>(func)
         );
     }
@@ -159,7 +158,7 @@ public:
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
-        return _cliPool[getIdxAndNext()]->uploadChunked(
+        return _cliPool.at(getIdxAndNext())->uploadChunked(
             std::move(url), std::move(path),
             contentType, std::move(headers)
         );

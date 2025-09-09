@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-09-09 16:43:49] : 修复Try的构造模板不严谨. 导致 thenTry 在传入参数 Try<T>, T = 数字 等情况下, 无法正确约束的bug.
+
 - [2025-09-08 23:09:51] : 升级客户端的 ws 接口. 支持任意返回值类型: `Task<T>` 的 `T`. 而不是只能 `void`
 
 - [2025-09-08 16:08:25] : 新增一个简易的 HttpClientPool ([#14](https://github.com/HengXin666/HXLibs/issues/14)); 修改 TimeNTTP 相关的约束. 新增 `utils::HasTimeNTTP<Timeout>` 作为统一的约束判断.

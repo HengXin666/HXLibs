@@ -50,6 +50,11 @@ int main() {
             co_await ws.sendText(std::move(msg) += " (HXLibs::Server 已阅)");
         }
         // 如果 ws 已断开, 那么会抛异常, 然后服务端会自动断开连接 (准确的说是close fd)
+    }).addEndpoint<WS>("/ws/oku", [] ENDPOINT {
+        auto ws = co_await WebSocketFactory::accept(req, res);
+        for (int i = 0; i < 5; ++i)
+            co_await ws.sendText(std::to_string(i));
+        co_return co_await ws.close();
     });
     serv.asyncRun(1, 1500_ms);
     
@@ -71,6 +76,16 @@ int main() {
     ).get();
 
     log::hxLog.info(res ? "get 收到:" : "get 失败:", res ? res.get() : res.what());
+
+    log::hxLog.warning("====== 测试多消息 ======");
+    cli.wsLoop("ws://127.0.0.1:28205/ws/oku", [](WebSocketClient ws) -> coroutine::Task<> {
+        try {
+            for (;;)
+                log::hxLog.info("->:", co_await ws.recvText());
+        } catch (...) {
+            log::hxLog.warning("断开ws");
+        }
+    });
     
     std::this_thread::sleep_for(1s);
     log::hxLog.warning("一切都结束了..., 之后的连接是服务器为了快速关闭而RAII创建的客户端的请求");

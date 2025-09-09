@@ -122,10 +122,9 @@ public:
 
     template <typename Func, typename Res = std::invoke_result_t<Func, TryType>>
         requires (requires (Func func, FutureResult<T>::TryType t) { // https://github.com/HengXin666/HXLibs/issues/13
-            func(std::move(t));
+            { func(std::move(t)) } -> std::same_as<Res>;
         })
     FutureResult<RemoveTryWarpType<Res>> thenTry(Func&& func) && noexcept;
-
 private:
     template <typename>
     friend class FutureResult;
