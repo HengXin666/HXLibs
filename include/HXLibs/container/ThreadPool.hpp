@@ -332,76 +332,106 @@ private:
 
 template <typename T>
 template <typename Func, typename Res>
-    requires (requires (Func func, FutureResult<T>::TryType t) {
+    requires (requires (Func func, FutureResult<T>::ArgTryType t) {
             { func(std::move(t)) } -> std::same_as<Res>;
         })
-FutureResult<RemoveTryWarpType<Res>> FutureResult<T>::thenTry(
+std::conditional_t<
+    IsFutureResultType<Res>, 
+    void, 
+    FutureResult<RemoveTryWarpType<Res>>
+> FutureResult<T>::thenTry(
     Func&& func
 ) && noexcept {
-    auto dispatch = _dispatch.get();
-    FutureResult<RemoveTryWarpType<Res>> res;
-    res.via(dispatch);
-    dispatch->addTask([self = std::move(*this),
-                       _func = std::forward<Func>(func),
-                       ans = res.getFutureResult()](
-    ) mutable {
-        using InArgType = typename FutureResult<T>::TryType; // func 参数类型, Try<RemoveTryWarpType<T>>
-        Uninitialized<InArgType> data;
-        try {
-            // 如果获取出错, 说明之前的任务出现异常
-            data.set(self.get());
-        } catch (...) {
-            ;
-        }
-        try {
-            if (data.isAvailable()) {
-                // 获取完毕, 无异常, 传入 func
-                if constexpr (std::is_void_v<decltype(_func(data.move()))>) {
-                    // func 返回值是 void
+    if constexpr (IsFutureResultType<Res>) {
+        // 是 FutureResult<FutureResult<T>>
+        _dispatch.get()->addTask([self = std::move(*this),
+                           _func = std::forward<Func>(func)](
+        ) mutable noexcept {
+            using InArgType = typename FutureResult<T>::ArgTryType; // func 参数类型, Try<RemoveTryWarpType<T>>
+            Uninitialized<InArgType> data;
+            try {
+                // 如果获取出错, 说明之前的任务出现异常
+                data.set(self.get());
+            } catch (...) {
+                ;
+            }
+            try {
+                if (data.isAvailable()) {
+                    // 获取完毕, 无异常, 传入 func
                     _func(InArgType{data.move()});
-                    ans->setData(NonVoidType<>{});
                 } else {
-                    // func 返回值是任意类型
-                    Uninitialized<Res> funcRes;
-                    funcRes.set(_func(InArgType{data.move()}));
-                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
+                    // 获取失败, 有异常, func 传入 Try<>{errPtr}
+                    _func(InArgType{self._res->getException()});
+                }
+            } catch (...) {
+                // 本次的 func 出现异常
+                ;
+            }
+        });
+    } else {
+        // 不是 FutureResult<FutureResult<T>>
+        auto dispatch = _dispatch.get();
+        FutureResult<RemoveTryWarpType<Res>> res;
+        res.via(dispatch);
+        dispatch->addTask([self = std::move(*this),
+                           _func = std::forward<Func>(func),
+                           ans = res.getFutureResult()](
+        ) mutable noexcept {
+            using InArgType = typename FutureResult<T>::ArgTryType; // func 参数类型, Try<RemoveTryWarpType<T>>
+            Uninitialized<InArgType> data;
+            try {
+                // 如果获取出错, 说明之前的任务出现异常
+                data.set(self.get());
+            } catch (...) {
+                ;
+            }
+            try {
+                if (data.isAvailable()) {
+                    // 获取完毕, 无异常, 传入 func
+                    if constexpr (std::is_void_v<decltype(_func(data.move()))>) {
+                        // func 返回值是 void
+                        _func(InArgType{data.move()});
+                        ans->setData(NonVoidType<>{});
+                    } else if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
                         // 特判如果是 Try 则去掉一层
+                        Uninitialized<Res> funcRes;
+                        funcRes.set(_func(InArgType{data.move()}));
                         if (funcRes.get().isVal()) {
                             ans->setData(funcRes.move().move());
                         } else {
                             std::rethrow_exception(self._res->getException());
                         }
                     } else {            
-                        ans->setData(std::move(funcRes.move()));
+                        // func 返回值是任意类型
+                        ans->setData(_func(InArgType{data.move()}));
                     }
-                }
-            } else {
-                // 获取失败, 有异常, func 传入 Try<>{}
-                if constexpr (std::is_void_v<decltype(_func(InArgType{}))>) {
-                    // func 返回值是 void
-                    _func(InArgType{self._res->getException()});
-                    ans->setData(NonVoidType<>{});
                 } else {
-                    // func 返回值是任意类型
-                    Res funcRes = _func(InArgType{self._res->getException()});
-                    if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
+                    // 获取失败, 有异常, func 传入 Try<>{errPtr}
+                    if constexpr (std::is_void_v<decltype(_func(InArgType{}))>) {
+                        // func 返回值是 void
+                        _func(InArgType{self._res->getException()});
+                        ans->setData(NonVoidType<>{});
+                    } else if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
                         // 特判如果是 Try 则去掉一层
-                        if (funcRes) {
-                            ans->setData(funcRes.move());
+                        Uninitialized<Res> funcRes;
+                        funcRes.set(_func(InArgType{self._res->getException()}));
+                        if (funcRes.get().isVal()) {
+                            ans->setData(funcRes.move().move());
                         } else {
                             std::rethrow_exception(self._res->getException());
                         }
                     } else {
-                        ans->setData(std::move(funcRes));
+                        // func 返回值是任意类型
+                        ans->setData(_func(InArgType{self._res->getException()}));
                     }
                 }
+            } catch (...) {
+                // 本次的 func 出现异常
+                ans->unhandledException();
             }
-        } catch (...) {
-            // 本次的 func 出现异常
-            ans->unhandledException();
-        }
-    });
-    return res;
+        });
+        return res;
+    }
 }
 
 } // namespace HX::container

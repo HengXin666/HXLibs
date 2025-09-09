@@ -26,6 +26,15 @@
 
 namespace HX::container {
 
+/**
+ * @brief 判断是否为 FutureResult<T> 类型
+ * @tparam T 
+ */
+template <typename T>
+bool constexpr IsFutureResultType = requires {
+    typename T::FutureResultType;
+};
+
 template <typename T = void>
 class FutureResult {
     struct _hx_Result {
@@ -91,7 +100,7 @@ class FutureResult {
         bool _isResed;
     };
 public:
-    using TryType = Try<RemoveTryWarpType<T>>;
+    using ArgTryType = Try<RemoveTryWarpType<T>>; // thenTry 的 Func 的传入参数类型
     using FutureResultType = _hx_Result;
 
     FutureResult()
@@ -120,11 +129,29 @@ public:
         }
     }
 
-    template <typename Func, typename Res = std::invoke_result_t<Func, TryType>>
-        requires (requires (Func func, FutureResult<T>::TryType t) { // https://github.com/HengXin666/HXLibs/issues/13
+    /**
+     * @brief 异步执行
+     * @tparam Func 异步函数
+     * @tparam Res 异步函数 返回值
+     * @tparam ArgTryType 异步函数 传入参数, 应该为 Try<RemoveTryWarpType<T>>
+     * @param func 
+     * @param t 
+     * @return 返回类型:
+            - 如果异步函数返回 FutureResult<U>, 那么为 void. 此时 Func 不应该抛出异常
+            - 如果异步函数返回 Try<U> 或者 U, 那么为 FutureResult<U>. 可链式调用
+     * @note 为何不可返回 FutureResult<U> ?
+            - 因为: 如果允许, 则变成: FutureResult<FutureResult<U>>, 此时可能会导致死锁!
+     */
+    template <typename Func, typename Res = std::invoke_result_t<Func, ArgTryType>>
+        requires (requires (Func func, FutureResult<T>::ArgTryType t) {
+            // https://github.com/HengXin666/HXLibs/issues/13
             { func(std::move(t)) } -> std::same_as<Res>;
         })
-    FutureResult<RemoveTryWarpType<Res>> thenTry(Func&& func) && noexcept;
+    std::conditional_t<
+        IsFutureResultType<Res>,
+        void,
+        FutureResult<RemoveTryWarpType<Res>>
+    > thenTry(Func&& func) && noexcept;
 private:
     template <typename>
     friend class FutureResult;

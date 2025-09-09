@@ -23,7 +23,7 @@
 namespace HX::container {
 
 template <typename T>
-constexpr bool IsTryTypeVal = requires (T) {
+constexpr bool IsTryTypeVal = requires {
     typename T::TryType;
 };
 
