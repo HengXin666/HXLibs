@@ -466,10 +466,17 @@ private:
         }
         std::exception_ptr exceptionPtr{};
         try {
-            co_await req.sendHttpReq<Timeout>();
+            bool isOkFd = true;
+            try {
+                co_await req.sendHttpReq<Timeout>();
+            } catch (std::system_error const& e) {
+                // @todo win 都 💩 没有 throw system_error 怎么办?
+                // e: 大概率是 断开的管道
+                isOkFd = false;
+            }
             Response res{io};
             do {
-                if (co_await res.parserRes<Timeout>()) {
+                if (isOkFd && co_await res.parserRes<Timeout>()) {
                     break;
                 }
                 // 读取超时
