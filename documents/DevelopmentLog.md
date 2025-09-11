@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-09-11 13:45:31] : 修复 端点函数 多`Method` 情况下, `_addEndpoint` 参数是 `Func&&` 导致推导为 `Func&`从而因为内部 `std::move` 而资源被窃取了. 导致安全隐患的Bug.
+
 - [2025-09-10 00:28:38] : 修复 `FutureResult` 在某些情况下的 `thenTry` 的`自提交死锁`问题 ([#15](https://github.com/HengXin666/HXLibs/issues/15)). 并且修复因为模板using名称类似导致类型萃取的bug.
 
 - [2025-09-09 16:43:49] : 修复Try的构造模板不严谨. 导致 thenTry 在传入参数 Try<T>, T = 数字 等情况下, 无法正确约束的bug.

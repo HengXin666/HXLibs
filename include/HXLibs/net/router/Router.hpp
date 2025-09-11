@@ -126,7 +126,7 @@ private:
     template <HttpMethod Method,
         typename Func,
         typename... Interceptors>
-    void _addEndpoint(std::string_view path, Func&& endpoint, Interceptors&&... interceptors) {
+    void _addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
         using namespace std::string_view_literals;
         auto isResolvePathVariable = path.find_first_of("{"sv) != std::string_view::npos;
         auto isParseWildcardPath = path.find("/**"sv) != std::string_view::npos;

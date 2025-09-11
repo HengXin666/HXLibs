@@ -15,7 +15,7 @@ int main() {
                     .sendRes();
     });
     std::size_t n = 1;
-    server.asyncRun(1);
+    server.asyncRun<decltype(utils::operator""_ms<"100">())>(1);
     HttpClientPool cliPool{n};
     for (std::size_t i = 0; i < 3; ++i) {
         cliPool.get("http://0.0.0.0:28205/get")
@@ -34,9 +34,20 @@ int main() {
                     }
                     auto res = t.move();
                     log::hxLog.warning("res =>", res);
+                    []{
+                        [](int){
+                            // 测试 throw
+                        }([]() -> int {
+                            throw std::runtime_error{"test"};
+                        }());
+                    }();
                     return 123456;
                 })
                 .thenTry([](container::Try<int> t) {
+                    if (!t) [[unlikely]] {
+                        log::hxLog.error("err:", t.what());
+                        return -1;
+                    }
                     log::hxLog.error("sb t = ", t.move());
                     return 999;
                 });
