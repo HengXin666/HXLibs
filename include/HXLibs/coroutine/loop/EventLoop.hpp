@@ -288,10 +288,11 @@ BOOL GetQueuedCompletionStatusEx(
             _tasks.push_back(task->_self._previous);
         }
 
+        
         for (const auto& t : _tasks) {
             t.resume();
         }
-
+        
         _taskCnt._numSqesPending -= static_cast<std::size_t>(n);
         _tasks.clear();
     }

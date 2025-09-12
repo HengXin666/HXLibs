@@ -54,39 +54,28 @@
     public:
         using ConnectExType = BOOL (PASCAL*)(SOCKET, const sockaddr*, int, PVOID, DWORD, LPDWORD, LPOVERLAPPED);
 
-        static ConnectExType get() {
-            static ConnectExType ptr = []() -> ConnectExType {
-                GUID guidConnectEx = WSAID_CONNECTEX;
-                ConnectExType result = nullptr;
-                DWORD bytesReturned = 0;
+        static ConnectExType get(::SOCKET cliSocket) {
+            GUID guidConnectEx = WSAID_CONNECTEX;
+            ConnectExType result = nullptr;
+            DWORD bytesReturned = 0;
 
-                SOCKET tempSocket = ::WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
-                if (tempSocket == INVALID_SOCKET) {
-                    throw std::runtime_error("WSASocketW failed");
-                }
+            int res = ::WSAIoctl(
+                cliSocket,
+                SIO_GET_EXTENSION_FUNCTION_POINTER,
+                &guidConnectEx,
+                sizeof(guidConnectEx),
+                &result,
+                sizeof(result),
+                &bytesReturned,
+                nullptr,
+                nullptr
+            );
 
-                int res = ::WSAIoctl(
-                    tempSocket,
-                    SIO_GET_EXTENSION_FUNCTION_POINTER,
-                    &guidConnectEx,
-                    sizeof(guidConnectEx),
-                    &result,
-                    sizeof(result),
-                    &bytesReturned,
-                    nullptr,
-                    nullptr
-                );
+            if (res == SOCKET_ERROR || result == nullptr) {
+                throw std::runtime_error("WSAIoctl failed to get ConnectEx pointer");
+            }
 
-                ::closesocket(tempSocket);
-
-                if (res == SOCKET_ERROR || result == nullptr) {
-                    throw std::runtime_error("WSAIoctl failed to get ConnectEx pointer");
-                }
-
-                return result;
-            }();
-
-            return ptr;
+            return result;
         }
     };
 
@@ -110,7 +99,7 @@
          * @brief [[线程安全]] 初始化 InitWin32Api
          */
         inline static void ensure() {
-            static InitWin32Api _{};
+            thread_local static InitWin32Api _{};
         }
     };
 

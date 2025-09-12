@@ -469,7 +469,7 @@ private:
             bool isOkFd = true;
             try {
                 co_await req.sendHttpReq<Timeout>();
-            } catch (std::system_error const& e) {
+            } catch (std::system_error const&) {
                 // @todo win 都 💩 没有 throw system_error 怎么办?
                 // e: 大概率是 断开的管道
                 isOkFd = false;

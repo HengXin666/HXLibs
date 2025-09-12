@@ -109,5 +109,5 @@ TEST_CASE("测试普通请求") {
             pool.wsPool.erase(it);
         })
     ;
-    // serv.syncRun(1, 1500_ms); // 启动服务器
+    serv.syncRun(1, 1500_ms); // 启动服务器
 }

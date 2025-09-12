@@ -348,7 +348,7 @@ private:
             : _self{self}
             , _isCancel{false}
         {
-            ::memset(this, 0, sizeof(::OVERLAPPED)); // 必须初始化 OVERLAPPED
+            std::memset(static_cast<::OVERLAPPED*>(this), 0, sizeof(::OVERLAPPED));
         }
 
         _AioIocpData& operator=(_AioIocpData&&) noexcept = delete;
@@ -379,14 +379,15 @@ private:
 
     template <bool IsAioTask>
     void _associateHandle(::HANDLE h) & {
-        auto&& runingHandleRef = _taskCnt._runingHandle;
+        auto& runingHandleRef = _taskCnt._runingHandle;
         if constexpr (IsAioTask) {
             ++_taskCnt._numSqesPending;
         }
-        if (runingHandleRef.count(h))
+        if (runingHandleRef.count(h)) {
             return;
+        }
         if (!::CreateIoCompletionPort(
-            h, _iocpHandle, 0, 0) 
+            h, _iocpHandle, NULL, 0) 
             && ::GetLastError() != ERROR_INVALID_PARAMETER
         ) {
             throw std::runtime_error{std::to_string(::GetLastError())};
@@ -560,6 +561,7 @@ BOOL AcceptEx(
             static_cast<::OVERLAPPED*>(_data)
         );
         if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "AcceptEx ERROR: " + std::to_string(::GetLastError())};
         }
@@ -582,7 +584,7 @@ BOOL AcceptEx(
         [[maybe_unused]] int addrlen
     ) && {
         // ::io_uring_prep_connect(_sqe, fd, addr, addrlen);
-        associateHandle<false>(fd);
+        associateHandle(fd);
         
         // bind 是必须的, 即使是客户端
         ::sockaddr_in localAddr {};
@@ -596,7 +598,7 @@ BOOL AcceptEx(
 
         ::DWORD bytes = 0;
 
-        bool ok = platform::internal::ConnectExLoader::get()(
+        bool ok = platform::internal::ConnectExLoader::get(fd)(
             fd,
             addr,
             addrlen,
@@ -605,14 +607,14 @@ BOOL AcceptEx(
             &bytes,
             static_cast<::OVERLAPPED*>(_data)
         );
+        
         if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "ConnectEx ERROR: " + std::to_string(::GetLastError())};
         }
-        return [](AioTask&& task, ::SOCKET _fd) -> Task<::SOCKET> {
-            co_await task;
-            co_return _fd;
-        }(std::move(*this), fd);
+        co_await *this;
+        co_return fd;
     }
 
     /**
@@ -664,6 +666,7 @@ typedef struct _OVERLAPPED {
             static_cast<::OVERLAPPED*>(_data)
         );
         if (!ok && ::GetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "ReadFile ERROR: " + std::to_string(::GetLastError())};
         }
@@ -697,6 +700,7 @@ typedef struct _OVERLAPPED {
             static_cast<::OVERLAPPED*>(_data)
         );
         if (!ok && ::GetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "ReadFile ERROR: " + std::to_string(::GetLastError())};
         }
@@ -727,6 +731,7 @@ typedef struct _OVERLAPPED {
             static_cast<::OVERLAPPED*>(_data)
         );
         if (!ok && ::GetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "WriteFile ERROR: " + std::to_string(::GetLastError())};
         }
@@ -772,6 +777,7 @@ int WSARecv(
             nullptr
         );
         if (ok == SOCKET_ERROR && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "WSARecv ERROR: " + std::to_string(::WSAGetLastError())};
         }
@@ -817,6 +823,7 @@ int WSASend(
             nullptr
         );
         if (ok == SOCKET_ERROR && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
+            --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "WSASend ERROR: " + std::to_string(::WSAGetLastError())};
         }
