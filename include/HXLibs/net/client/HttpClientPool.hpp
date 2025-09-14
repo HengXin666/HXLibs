@@ -164,6 +164,13 @@ public:
         );
     }
 
+    /**
+     * @brief 断开连接
+     * @return container::FutureResult<> 
+     */
+    container::FutureResult<> close() {
+        return _cliPool.at(getIdxAndNext())->close();
+    }
 private:
     std::vector<std::unique_ptr<HttpClientType>> _cliPool;
     std::mutex _mtx;
