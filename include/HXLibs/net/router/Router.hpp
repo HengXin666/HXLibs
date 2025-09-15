@@ -114,6 +114,15 @@ public:
     }
 
 private:
+
+#if defined(__GNUC__) && !defined(__clang__)
+// gcc -Wunused-value, 导致无法进行 static_cast<void>(((co_await xxx) && ...))
+// (短路求值优化, 虽然一般也就 x ns 差距. 主要是心理作用)
+// why gcc warring: https://godbolt.org/z/a7jETeG64
+// but: https://godbolt.org/z/5q1nKTr3e is ok
+#pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
     /**
      * @brief 添加路由端点
      * @tparam Method 
@@ -141,25 +150,16 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    // gcc -Wunused-value, 导致无法进行 && ... (短路求值优化, 虽然一般也就 x ns 差距)
-                    // why gcc warring: https://godbolt.org/z/a7jETeG64
-                    // but: https://godbolt.org/z/5q1nKTr3e is ok
-                    {
-                        auto _ = ((
-                            co_await doBefore(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    {
-                        auto _ = ((
-                            co_await doAfter(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ) && ...));
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -179,22 +179,16 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     req._wildcarDataArr = wildcarArr;
-                    {
-                        auto _ = ((
-                            co_await doBefore(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    {
-                        auto _ = ((
-                            co_await doAfter(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ) && ...));
                 };
                 break;
             }
@@ -210,22 +204,16 @@ private:
                     auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
-                    {
-                        auto _ = ((
-                            co_await doBefore(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    {
-                        auto _ = ((
-                            co_await doAfter(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ) && ...));
                 };
                 break;
             }
@@ -251,22 +239,16 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
-                    {
-                        auto _ = ((
-                            co_await doBefore(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    {
-                        auto _ = ((
-                            co_await doAfter(interceptors, ok, req, res)
-                        ) && ...);
-                        static_cast<void>(_);
-                    }
+                    static_cast<void>(((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ) && ...));
                 };
                 break;
             }
@@ -278,6 +260,10 @@ private:
         );
         _routerTree.insert(buildLink, std::move(realEndpoint));
     }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     template <typename T>
     coroutine::Task<bool> doBefore(
@@ -337,4 +323,3 @@ private:
 };
 
 } // namespace HX::net
-
