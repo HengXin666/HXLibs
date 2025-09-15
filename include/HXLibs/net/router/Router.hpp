@@ -143,16 +143,23 @@ private:
                     bool ok = true;
                     // gcc -Wunused-value, 导致无法进行 && ... (短路求值优化, 虽然一般也就 x ns 差距)
                     // why gcc warring: https://godbolt.org/z/a7jETeG64
-                    ((
-                        co_await doBefore(interceptors, ok, req, res)
-                    ), ...);
+                    // but: https://godbolt.org/z/5q1nKTr3e is ok
+                    {
+                        auto _ = ((
+                            co_await doBefore(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    ((
-                        co_await doAfter(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doAfter(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -172,16 +179,22 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     req._wildcarDataArr = wildcarArr;
-                    ((
-                        co_await doBefore(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doBefore(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    ((
-                        co_await doAfter(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doAfter(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                 };
                 break;
             }
@@ -197,16 +210,22 @@ private:
                     auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
-                    ((
-                        co_await doBefore(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doBefore(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    ((
-                        co_await doAfter(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doAfter(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                 };
                 break;
             }
@@ -232,16 +251,22 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
-                    ((
-                        co_await doBefore(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doBefore(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    ((
-                        co_await doAfter(interceptors, ok, req, res)
-                    ), ...);
+                    {
+                        auto _ = ((
+                            co_await doAfter(interceptors, ok, req, res)
+                        ) && ...);
+                        static_cast<void>(_);
+                    }
                 };
                 break;
             }
