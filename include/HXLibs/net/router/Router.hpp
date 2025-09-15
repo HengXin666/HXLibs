@@ -141,12 +141,18 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
+                    // gcc -Wunused-value, 导致无法进行 && ... (短路求值优化, 虽然一般也就 x ns 差距)
+                    // why gcc warring: https://godbolt.org/z/a7jETeG64
+                    ((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ), ...);
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ), ...);
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -166,12 +172,16 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     req._wildcarDataArr = wildcarArr;
-                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ), ...);
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ), ...);
                 };
                 break;
             }
@@ -187,12 +197,16 @@ private:
                     auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
-                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ), ...);
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ), ...);
                 };
                 break;
             }
@@ -218,12 +232,16 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
-                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doBefore(interceptors, ok, req, res)
+                    ), ...);
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
+                    ((
+                        co_await doAfter(interceptors, ok, req, res)
+                    ), ...);
                 };
                 break;
             }
@@ -244,7 +262,7 @@ private:
         Response& res
     ) {
         if constexpr (requires {
-            std::convertible_to<
+            requires std::convertible_to<
                 coroutine::AwaiterReturnValue<decltype(interceptors.before(req, res))>,
                 bool
             >;
@@ -271,7 +289,7 @@ private:
         Response& res
     ) {
         if constexpr (requires {
-            std::convertible_to<
+            requires std::convertible_to<
                 coroutine::AwaiterReturnValue<decltype(interceptors.after(req, res))>,
                 bool
             >;
