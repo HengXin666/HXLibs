@@ -141,12 +141,12 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
-                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -166,12 +166,12 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     req._wildcarDataArr = wildcarArr;
-                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -187,12 +187,12 @@ private:
                     auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
-                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -218,12 +218,12 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
-                    static_cast<void>((doBefore(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doBefore(interceptors, ok, req, res) && ...));
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
-                    static_cast<void>((doAfter(interceptors, ok, req, res) && ...));
+                    static_cast<void>((co_await doAfter(interceptors, ok, req, res) && ...));
                 };
                 break;
             }
@@ -237,33 +237,47 @@ private:
     }
 
     template <typename T>
-    bool doBefore(
+    coroutine::Task<bool> doBefore(
         T& interceptors, 
         bool& ok, 
         Request& req, 
         Response& res
     ) {
         if constexpr (requires {
+            std::convertible_to<
+                coroutine::AwaiterReturnValue<decltype(interceptors.before(req, res))>,
+                bool
+            >;
+        }) {
+            ok = static_cast<bool>(co_await interceptors.before(req, res));
+        } else if constexpr (requires {
             { static_cast<bool>(interceptors.before(req, res)) } -> std::convertible_to<bool>;
         }) {
             ok = static_cast<bool>(interceptors.before(req, res));
         } else if constexpr (requires {
-            interceptors.before(req, res);
+            interceptors.before(req, res).operator co_await();
         }) {
             // 如果存在 before(req, res) 函数, 那么需要保证其返回值可以转化为 bool
             static_assert(!sizeof(T), "before() should return boolean");
         }
-        return ok;
+        co_return ok;
     }
 
     template <typename T>
-    bool doAfter(
+    coroutine::Task<bool> doAfter(
         T& interceptors, 
         bool& ok, 
         Request& req, 
         Response& res
     ) {
         if constexpr (requires {
+            std::convertible_to<
+                coroutine::AwaiterReturnValue<decltype(interceptors.after(req, res))>,
+                bool
+            >;
+        }) {
+            ok = static_cast<bool>(co_await interceptors.after(req, res));
+        } else if constexpr (requires {
             { static_cast<bool>(interceptors.after(req, res)) } -> std::convertible_to<bool>;
         }) {
             ok = static_cast<bool>(interceptors.after(req, res));
@@ -273,7 +287,7 @@ private:
             // 如果存在 after(req, res) 函数, 那么需要保证其返回值可以转化为 bool
             static_assert(!sizeof(T), "after() should return boolean");
         }
-        return ok;
+        co_return ok;
     }
 
     RouterTree _routerTree{};

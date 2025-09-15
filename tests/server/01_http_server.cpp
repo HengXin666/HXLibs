@@ -19,6 +19,18 @@ struct Test {
     }
 };
 
+struct CoTest {
+    coroutine::Task<int> before(Request&, Response&) {
+        CHECK(true);
+        co_return 1;
+    }
+
+    coroutine::Task<bool> after(Request&, Response&) {
+        CHECK(true);
+        co_return true;
+    }
+};
+
 TEST_CASE("测试普通请求") {
     HttpServer ser{"127.0.0.1", "28205",};
     ser.addEndpoint<GET, POST>("/", [](
@@ -30,7 +42,7 @@ TEST_CASE("测试普通请求") {
             Status::CODE_200, "<h1>Hello HXLibs</h1>")
                     .sendRes();
         co_return;
-    }, Test{})
+    }, Test{}, CoTest{})
         .addEndpoint<GET>("/savefile", [] ENDPOINT {
             // 端点中读写文件的示例
             using namespace std::string_view_literals;
