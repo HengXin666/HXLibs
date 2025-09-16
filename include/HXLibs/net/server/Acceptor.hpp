@@ -64,7 +64,6 @@ struct Acceptor {
                         // 我们牺牲一个 atomic_bool 的性能已经很让步了..., @todo 这甚至应该作为一个编译选项(?)
             }
         }
-        log::hxLog.debug("退出ing...", serverFd);
         co_await _eventLoop.makeAioTask().prepClose(serverFd);
         log::hxLog.debug("已退出...", serverFd);
     }

@@ -24,9 +24,6 @@
 #include <HXLibs/platform/LocalFdApi.hpp>
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 
-// debug
-#include <HXLibs/log/Log.hpp>
-
 #if defined(__linux__)
 
 namespace HX::coroutine {
@@ -394,10 +391,8 @@ private:
             h, _iocpHandle, NULL, 0)
             && ::GetLastError() != ERROR_INVALID_PARAMETER
         ) {
-            log::hxLog.error("sb:", std::to_string(::GetLastError()));
             throw std::runtime_error{std::to_string(::GetLastError())};
         }
-        log::hxLog.warning("add:", reinterpret_cast<::SOCKET>(h));
         runingHandleRef.insert(h);
     }
 
@@ -425,7 +420,6 @@ private:
         Task<> co() noexcept {
             co_await _timerTask;
             _self->_data->setCancel();
-            log::hxLog.warning("超时:", _self->_fd);
             switch (_self->_fd.index()) {
                 case 0: { // HANDLE
                     co_await std::move(*_self).prepClose(
@@ -614,7 +608,6 @@ BOOL AcceptEx(
             &bytes,
             static_cast<::OVERLAPPED*>(_data)
         );
-        log::hxLog.debug("connect:", fd);
         
         if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
             --_taskCnt._numSqesPending;
@@ -834,7 +827,6 @@ int WSASend(
         );
         if (ok == SOCKET_ERROR && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
             --_taskCnt._numSqesPending;
-            log::hxLog.error("WSASend ERROR: " + std::to_string(::WSAGetLastError()), "ok is:", ok);
             throw std::runtime_error{
                 "WSASend ERROR: " + std::to_string(::WSAGetLastError())};
         }
@@ -890,7 +882,6 @@ int WSASend(
             }
             // 超时了 ...
         } else {
-            log::hxLog.warning("del:", socket);
             runingHandleRef.erase(reinterpret_cast<::HANDLE>(socket));
         }
         // @!!! 这里只能是同步的...

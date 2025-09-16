@@ -141,6 +141,7 @@ public:
         co_await req.sendChunkedReq<Timeout>(path);
         Response res{io};
         if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+            co_await io.close();
             throw std::runtime_error{"Recv Timed Out"};
         }
         co_await io.close();
@@ -469,15 +470,19 @@ private:
             bool isOkFd = true;
             try {
                 co_await req.sendHttpReq<Timeout>();
-            } catch (std::system_error const&) {
-                // @todo win 都 💩 没有 throw system_error 怎么办?
-                // e: 大概率是 断开的管道
+            } catch (...) {
+                // e: 大概率是 断开的管道, 直接重连
                 isOkFd = false;
             }
             Response res{io};
             do {
-                if (isOkFd && co_await res.parserRes<Timeout>()) {
-                    break;
+                try {
+                    // 可能会抛异常...
+                    if (isOkFd && co_await res.parserRes<Timeout>()) {
+                        break;
+                    }
+                } catch (...) {
+                    ;
                 }
                 // 读取超时
                 if (_isAutoReconnect) [[likely]] {

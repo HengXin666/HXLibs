@@ -8,7 +8,11 @@ auto hx_init = []{
     try {
         auto cwd = std::filesystem::current_path();
         log::hxLog.debug("当前工作路径是:", cwd);
-        std::filesystem::current_path("../../../../static");
+        if (cwd.filename() == "build") { // cmake
+            std::filesystem::current_path("../static");
+        } else {
+            std::filesystem::current_path("../../../../static");
+        }
         log::hxLog.debug("切换到路径:", std::filesystem::current_path());
         log::hxLog.debug(std::this_thread::get_id());
     } catch (const std::filesystem::filesystem_error& e) {

@@ -41,7 +41,6 @@ auto hx_init = [] {
             std::filesystem::current_path("../../../../static");
         }
         log::hxLog.debug("切换到路径:", std::filesystem::current_path());
-        log::hxLog.debug(std::this_thread::get_id());
     } catch (const std::filesystem::filesystem_error& e) {
         log::hxLog.error("Error:", e.what());
     }
@@ -99,9 +98,10 @@ TEST_CASE("测试朴素get的自动重连") {
 TEST_CASE("测试get变长body的自动重连") {
     log::hxLog.warning("=== 测试get变长body的自动重连 ===");
     for (std::size_t _ = 0; _ < 5; ++_) {
-        log::hxLog.info("连接ing...(", _, ")");
-        log::hxLog.info("-->", client.get("http://127.0.0.1:28205/" 
-            + std::to_string((uint64_t)std::pow(5 - _, 10))).get().move().body);
+        auto url = "http://127.0.0.1:28205/" 
+            + std::to_string((uint64_t)std::pow(5 - _, 10));
+        log::hxLog.info("连接ing...(", _, ")->", url);
+        log::hxLog.info("-->", client.get(std::move(url)).get().move().body);
         std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }

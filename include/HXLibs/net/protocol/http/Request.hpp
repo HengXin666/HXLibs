@@ -368,6 +368,7 @@ public:
             }
             _recvBuf.addSize(static_cast<std::size_t>(recvN));
         }
+        co_await file.close();
     }
 
     // @todo 
