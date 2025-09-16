@@ -44,7 +44,6 @@ struct ConnectionHandler {
         IO io{fd, eventLoop};
         Request  req{io};
         Response res{io};
-
         try {
             for (;;) {
                 // 读
@@ -73,7 +72,7 @@ struct ConnectionHandler {
             }
         } catch (std::exception const& err) {
             // ps: 连接被对方重置 说明对方已经关闭连接, 而我还在等待读取, 这时候会异常, 可以忽视
-            log::hxLog.error("发生异常:", err.what());
+            log::hxLog.error("发生异常:", err.what(), "fd:", fd, "ioFd-hasInvalid:", io.hasInvalid());
         } catch (...) {
             log::hxLog.error("发生未知错误!");
         }

@@ -24,6 +24,9 @@
 #include <HXLibs/platform/LocalFdApi.hpp>
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 
+// debug
+#include <HXLibs/log/Log.hpp>
+
 #if defined(__linux__)
 
 namespace HX::coroutine {
@@ -345,10 +348,11 @@ private:
      */
     struct _AioIocpData : public ::OVERLAPPED {
         _AioIocpData(AioTask& self)
-            : _self{self}
+            : ::OVERLAPPED{}
+            , _self{self}
             , _isCancel{false}
         {
-            std::memset(static_cast<::OVERLAPPED*>(this), 0, sizeof(::OVERLAPPED));
+            // std::memset(static_cast<::OVERLAPPED*>(this), 0, sizeof(::OVERLAPPED));
         }
 
         _AioIocpData& operator=(_AioIocpData&&) noexcept = delete;
@@ -387,11 +391,13 @@ private:
             return;
         }
         if (!::CreateIoCompletionPort(
-            h, _iocpHandle, NULL, 0) 
+            h, _iocpHandle, NULL, 0)
             && ::GetLastError() != ERROR_INVALID_PARAMETER
         ) {
+            log::hxLog.error("sb:", std::to_string(::GetLastError()));
             throw std::runtime_error{std::to_string(::GetLastError())};
         }
+        log::hxLog.warning("add:", reinterpret_cast<::SOCKET>(h));
         runingHandleRef.insert(h);
     }
 
@@ -419,6 +425,7 @@ private:
         Task<> co() noexcept {
             co_await _timerTask;
             _self->_data->setCancel();
+            log::hxLog.warning("超时:", _self->_fd);
             switch (_self->_fd.index()) {
                 case 0: { // HANDLE
                     co_await std::move(*_self).prepClose(
@@ -598,7 +605,7 @@ BOOL AcceptEx(
 
         ::DWORD bytes = 0;
 
-        bool ok = platform::internal::ConnectExLoader::get(fd)(
+        bool ok = platform::internal::ConnectExLoader::get()(
             fd,
             addr,
             addrlen,
@@ -607,14 +614,17 @@ BOOL AcceptEx(
             &bytes,
             static_cast<::OVERLAPPED*>(_data)
         );
+        log::hxLog.debug("connect:", fd);
         
         if (!ok && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
             --_taskCnt._numSqesPending;
             throw std::runtime_error{
                 "ConnectEx ERROR: " + std::to_string(::GetLastError())};
         }
-        co_await *this;
-        co_return fd;
+        return [](AioTask&& task, ::SOCKET _fd) -> Task<::SOCKET> {
+            co_await task;
+            co_return _fd;
+        }(std::move(*this), fd);
     }
 
     /**
@@ -824,6 +834,7 @@ int WSASend(
         );
         if (ok == SOCKET_ERROR && ::WSAGetLastError() != ERROR_IO_PENDING) [[unlikely]] {
             --_taskCnt._numSqesPending;
+            log::hxLog.error("WSASend ERROR: " + std::to_string(::WSAGetLastError()), "ok is:", ok);
             throw std::runtime_error{
                 "WSASend ERROR: " + std::to_string(::WSAGetLastError())};
         }
@@ -879,6 +890,7 @@ int WSASend(
             }
             // 超时了 ...
         } else {
+            log::hxLog.warning("del:", socket);
             runingHandleRef.erase(reinterpret_cast<::HANDLE>(socket));
         }
         // @!!! 这里只能是同步的...

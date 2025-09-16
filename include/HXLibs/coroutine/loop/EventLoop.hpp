@@ -229,7 +229,7 @@ struct Iocp {
      * @return false 无任务
      */
     bool isRun() const {
-        return _taskCnt._numSqesPending || _taskCnt._runingHandle.size();
+        return _taskCnt._numSqesPending;
     }
 
     void run(std::optional<std::chrono::system_clock::duration> timeout) {

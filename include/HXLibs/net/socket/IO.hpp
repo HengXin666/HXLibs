@@ -68,6 +68,11 @@ public:
 
     IO& operator=(IO&&) noexcept = delete;
 
+    // debug
+    bool hasInvalid() const noexcept {
+        return _fd == kInvalidSocket;
+    }
+
     coroutine::Task<int> recv(std::span<char> buf) {
         co_return static_cast<int>(
             co_await _eventLoop.makeAioTask().prepRecv(_fd, buf, 0));

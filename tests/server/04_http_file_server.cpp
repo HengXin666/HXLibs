@@ -18,7 +18,7 @@ auto hx_init = []{
 }();
 
 int main() {
-    HttpServer server{"0.0.0.0", "28205"};
+    HttpServer server{"127.0.0.1", "28205"};
     server.addEndpoint<POST>("/saveFile", [] ENDPOINT {
         log::hxLog.info("save File");
         co_await req.saveToFile("../build/saveFile.html");
@@ -28,7 +28,7 @@ int main() {
     server.asyncRun(1);
 
     net::HttpClient cli{HttpClientOptions<decltype(utils::operator""_s<"60">())>{}};
-    cli.uploadChunked<POST>("http://0.0.0.0:28205/saveFile", "./index.html")
+    cli.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
         .thenTry([](container::Try<ResponseData> t) {
         if (!t) {
             log::hxLog.error(t.what());

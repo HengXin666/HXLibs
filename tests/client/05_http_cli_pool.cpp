@@ -6,7 +6,7 @@ using namespace net;
 using namespace container;
 
 int main() {
-    HttpServer server{"0.0.0.0", "28205"};
+    HttpServer server{"127.0.0.1", "28205"};
     server.addEndpoint<GET>("/get", [] ENDPOINT {
         co_await res.setStatusAndContent(Status::CODE_200, "ok")
                     .sendRes();
@@ -18,7 +18,7 @@ int main() {
     server.asyncRun<decltype(utils::operator""_ms<"100">())>(1);
     HttpClientPool cliPool{n};
     for (std::size_t i = 0; i < 3; ++i) {
-        cliPool.get("http://0.0.0.0:28205/get")
+        cliPool.get("http://127.0.0.1:28205/get")
             .thenTry([&](
                 auto t
             ) {
@@ -27,7 +27,7 @@ int main() {
                 }
                 log::hxLog.info("res =>", t.move());
                 return cliPool.post(
-                    "http://0.0.0.0:28205/post", "", HttpContentType::None
+                    "http://127.0.0.1:28205/post", "", HttpContentType::None
                 ).thenTry([](container::Try<ResponseData> t) {
                     if (!t) [[unlikely]] {
                         log::hxLog.error("err:", t.what());

@@ -350,9 +350,11 @@ struct FromJson {
             ++it;
         }
         // MSVC 没有迭代器隐私转换的重载, 应该使用 const char* 作为参数
-        auto [ptr, ec] = std::from_chars(&*left, &*it, t);
+        // 注意, 如果 it 是 end 迭代器
+        auto* endPtr = &*left + (it - left);
+        auto [ptr, ec] = std::from_chars(&*left, endPtr, t);
         // ptr 指向与模式不匹配的第一个字符; 当所有都匹配的时候: ptr == it
-        if (ec != std::errc() || ptr != &*it) [[unlikely]] { // 必需保证整个str都是数字
+        if (ec != std::errc() || ptr != endPtr) [[unlikely]] { // 必需保证整个str都是数字
             // 解析数字出错
             throw std::runtime_error{
                 "There was an error parsing the number: " + std::string{left, it}};

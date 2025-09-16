@@ -56,10 +56,12 @@ public:
         using namespace utils;;
         _isRun.store(false, std::memory_order_release);;
         while (_runNum) {
-            try {         
+            try {
+                // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
                 HttpClient cli{HttpClientOptions{.timeout = 1_s}};
                 cli.get(
-                    "http://" + _name + ":" + _port + "/", {{"Connection", "close"}}
+                    "http://" + (_name == "0.0.0.0" ? "127.0.0.1" : _name) + ":" + _port + "/",
+                    {{"Connection", "close"}}
                 ).get();
                 cli.close().wait();
             } catch (...) {

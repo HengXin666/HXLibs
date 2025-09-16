@@ -3,7 +3,7 @@
 using namespace HX;
 
 int main() {
-    net::HttpServer server{"0.0.0.0", "28205"};
+    net::HttpServer server{"127.0.0.1", "28205"};
     server.addEndpoint<net::POST>("/{id}", [] ENDPOINT {
         log::hxLog.info("id =", req.getPathParam(0));
         log::hxLog.debug(req.getHeaders());
@@ -12,9 +12,9 @@ int main() {
     });
     server.asyncRun(1);
     net::HttpClient cli;
-    cli.post("http://0.0.0.0:28205/123", "{}", 
+    cli.post("http://127.0.0.1:28205/123", "{}", 
             HX::net::HttpContentType::Json).wait();
-    cli.post("http://0.0.0.0:28205/2233", "{}", 
+    cli.post("http://127.0.0.1:28205/2233", "{}", 
             HX::net::HttpContentType::Json).wait();
     return 0;
 }
