@@ -776,7 +776,7 @@ public:
      */
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
-    static coroutine::Task<WebSocketClient> connect(std::string_view url, IO& io) {
+    static coroutine::Task<WebSocketClient> connect(std::string_view url, IO& io, HeaderHashMap headers = {}) {
         using namespace std::string_view_literals;
         // 发送 ws 升级协议
         Request req{io};
@@ -786,7 +786,8 @@ public:
            .addHeaders("Connection", "Upgrade")
            .addHeaders("Upgrade", "websocket")
            .addHeaders("Sec-WebSocket-Key", key)
-           .addHeaders("Sec-WebSocket-Version", "13");
+           .addHeaders("Sec-WebSocket-Version", "13")
+           .addHeaders(std::move(headers));
         co_await req.sendHttpReq<Timeout>();
         // 解析响应
         Response res{io};

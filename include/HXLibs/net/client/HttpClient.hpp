@@ -313,6 +313,7 @@ public:
      * @tparam Func 
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
+     * @param headers 请求头
      * @return container::FutureResult<container::Try<Res>>
      */
     template <
@@ -320,10 +321,16 @@ public:
         typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
-    container::FutureResult<container::Try<Res>> wsLoop(std::string url, Func&& func) {
+    container::FutureResult<container::Try<Res>> wsLoop(
+        std::string url,
+        Func&& func,
+        HeaderHashMap headers = {}
+    ) {
         return _pool.addTask([this, _url = std::move(url),
-                              _func = std::forward<Func>(func)]() mutable {
-            return coWsLoop(std::move(_url), std::forward<Func>(_func)).runSync();
+                              _func = std::forward<Func>(func), _headers = std::move(headers)]() mutable {
+            return coWsLoop(
+                std::move(_url), std::forward<Func>(_func), std::move(_headers)
+            ).runSync();
         });
     }
 
@@ -332,6 +339,7 @@ public:
      * @tparam Func 
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
+     * @param headers 请求头
      * @return coroutine::Task<container::Try<Res>> 
      */
     template <
@@ -339,7 +347,7 @@ public:
         typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
-    coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func) {
+    coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func, HeaderHashMap headers = {}) {
         container::Try<Res> res;
         auto taskObj = [&]() -> coroutine::Task<> {
             if (needConnect()) {
@@ -348,7 +356,9 @@ public:
             IO io{_cliFd, _eventLoop};
             container::Uninitialized<WebSocketClient> ws;
             try {
-                ws.set(co_await WebSocketFactory::connect<Timeout>(url, io));
+                ws.set(co_await WebSocketFactory::connect<Timeout>(
+                    url, io, std::move(headers)
+                ));
             } catch (...) {
                 res.setException(std::current_exception());
             }

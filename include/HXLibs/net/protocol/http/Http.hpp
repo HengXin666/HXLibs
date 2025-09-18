@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-#include <string>
+#include <array>
 #include <string_view>
 #include <unordered_map>
 
@@ -26,19 +26,54 @@ namespace HX::net {
 
 namespace internal {
 
-struct TransparentStringHash {
+// 将单个字符转为小写
+constexpr unsigned char asciiToLower(unsigned char c) noexcept {
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + 32) : c;
+}
+
+// 将单个字符转为小写(仅处理ASCII)
+inline unsigned char toLower(unsigned char c) noexcept {
+    static constexpr auto table = []() constexpr {
+        std::array<unsigned char, 256> table{};
+        for (std::size_t i = 0; i < 256; ++i) {
+            table[i] = asciiToLower(static_cast<unsigned char>(i));
+        }
+        return table;
+    }();
+    return table[static_cast<std::size_t>(c)];
+}
+
+// 忽略大小写的hash
+struct TransparentCaseInsensitiveHash {
     using is_transparent = void;
 
     std::size_t operator()(std::string_view sv) const noexcept {
-        return std::hash<std::string_view>{}(sv);
+        // FNV-1a或std::hash<string_view>都行, 这里FNV-1a性能较好
+        std::size_t hash = 1469598103934665603ULL;
+        for (char c : sv) {
+            hash ^= asciiToLower(static_cast<unsigned char>(c));
+            hash *= 1099511628211ULL;
+        }
+        return hash;
     }
 };
 
-struct TransparentStringEqual {
+// 忽略大小写比较
+struct TransparentCaseInsensitiveEqual {
     using is_transparent = void;
 
     bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
-        return lhs == rhs;
+        if (lhs.size() != rhs.size()) {
+            return false;
+        }
+        const unsigned char* p1 = reinterpret_cast<const unsigned char*>(lhs.data());
+        const unsigned char* p2 = reinterpret_cast<const unsigned char*>(rhs.data());
+        for (std::size_t i = 0; i < lhs.size(); ++i) {
+            if (toLower(p1[i]) != toLower(p2[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 };
 
@@ -98,8 +133,8 @@ inline constexpr std::string_view CONNECTION_SV         = "connection";
 using HeaderHashMap = std::unordered_map<
     std::string, 
     std::string, 
-    internal::TransparentStringHash, 
-    internal::TransparentStringEqual
+    internal::TransparentCaseInsensitiveHash, 
+    internal::TransparentCaseInsensitiveEqual
 >;
 
 /**
