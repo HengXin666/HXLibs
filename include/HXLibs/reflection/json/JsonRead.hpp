@@ -23,13 +23,12 @@
 #include <stdexcept>
 #include <variant>
 #include <string_view>
-#include <charconv>
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/container/CHashMap.hpp>
 #include <HXLibs/container/UninitializedNonVoidVariant.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
-#include <HXLibs/reflection/EnumName.hpp>
+#include <HXLibs/reflection/deserialization/Numer.hpp>
 
 namespace HX::reflection {
 
@@ -284,81 +283,14 @@ struct FromJson {
         requires(std::is_same_v<bool, T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
-        // 解析布尔
-        if (*it == '0' || *it == '1') {
-            t = *it++ - '0';
-        } else {
-            if (std::distance(it, end) < 4) [[unlikely]] {
-                throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
-            }
-            constexpr uint8_t Mask = static_cast<uint8_t>(~' '); // 大小写掩码
-
-            if ((*(it + 0) & Mask) == 'T'
-             && (*(it + 1) & Mask) == 'R'
-             && (*(it + 2) & Mask) == 'U'
-             && (*(it + 3) & Mask) == 'E'
-            ) {
-                t = true;
-                it += 4;
-                return;
-            }
-
-            if (std::distance(it, end) < 5) [[unlikely]] {
-                throw std::runtime_error{"The buffer zone ended prematurely, not as expected"};
-            }
-
-            if ((*(it + 0) & Mask) == 'F'
-             && (*(it + 1) & Mask) == 'A'
-             && (*(it + 2) & Mask) == 'L'
-             && (*(it + 3) & Mask) == 'S'
-             && (*(it + 4) & Mask) == 'E'
-            ) {
-                t = false;
-                it += 5;
-            }
-        }
+        Numer::fromNumer(t, it, end);
     }
 
     template <typename T, typename It>
         requires(!std::is_same_v<bool, T> && (std::is_integral_v<T> || std::is_floating_point_v<T>))
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
-        // 解析数字
-        auto left = it;
-        constexpr static auto IsNumChars = [] {
-            std::array<bool, 128> res{};
-            res['0'] = true;
-            res['1'] = true;
-            res['2'] = true;
-            res['3'] = true;
-            res['4'] = true;
-            res['5'] = true;
-            res['6'] = true;
-            res['7'] = true;
-            res['8'] = true;
-            res['9'] = true;
-            res['+'] = true;
-            res['-'] = true;
-            res['e'] = true;
-            res['E'] = true;
-            res['.'] = true;
-            return res;
-        }();
-        while (it != end) {
-            if (*it > 0 && !IsNumChars[static_cast<std::size_t>(*it)])
-                break;
-            ++it;
-        }
-        // MSVC 没有迭代器隐私转换的重载, 应该使用 const char* 作为参数
-        // 注意, 如果 it 是 end 迭代器
-        auto* endPtr = &*left + (it - left);
-        auto [ptr, ec] = std::from_chars(&*left, endPtr, t);
-        // ptr 指向与模式不匹配的第一个字符; 当所有都匹配的时候: ptr == it
-        if (ec != std::errc() || ptr != endPtr) [[unlikely]] { // 必需保证整个str都是数字
-            // 解析数字出错
-            throw std::runtime_error{
-                "There was an error parsing the number: " + std::string{left, it}};
-        }
+        Numer::fromNumer(t, it, end);
     }
 
     template <typename T, typename It>
@@ -367,24 +299,7 @@ struct FromJson {
         skipWhiteSpace(it, end);
         // 解析字符串
         verify<'"'>(it, end);
-        constexpr static auto IsEnumNameChar = [] {
-            std::array<bool, 128> res{};
-            for (std::size_t c = '0'; c <= '9'; ++c)
-                res[c] = true;
-            for (std::size_t c = 'a'; c <= 'z'; ++c)
-                res[c] = true;
-            for (std::size_t c = 'A'; c <= 'Z'; ++c)
-                res[c] = true;
-            res['_'] = true;
-            return res;
-        }();
-        auto begin = it;
-        while (it != end) {
-            if (*it > 0 && !IsEnumNameChar[static_cast<std::size_t>(*it)])
-                break;
-            ++it;
-        }
-        t = reflection::toEnum<T>(std::string_view{begin, it});
+        Numer::fromNumer(t, it, end);
         verify<'"'>(it, end);
     }
     

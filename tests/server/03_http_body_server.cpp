@@ -5,7 +5,7 @@ using namespace HX;
 int main() {
     net::HttpServer server{"127.0.0.1", "28205"};
     server.addEndpoint<net::POST>("/{id}", [] ENDPOINT {
-        log::hxLog.info("id =", req.getPathParam(0));
+        log::hxLog.info("id =", req.getPathParam(0).to<uint64_t>());
         log::hxLog.debug(req.getHeaders());
         co_await res.setStatusAndContent(net::Status::CODE_200, "ok")
                     .sendRes();

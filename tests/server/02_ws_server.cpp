@@ -88,7 +88,7 @@ TEST_CASE("测试普通请求") {
         })
         .addEndpoint<GET>("/ws_add_msg/{msg}", [&] ENDPOINT {
             // 群发内容
-            auto msg = req.getPathParam(0);
+            std::string_view msg = req.getPathParam(0);
             co_await pool.sendAll({msg.data(), msg.size()});
             co_await res.setResLine(HX::net::Status::CODE_200)
                         .sendRes();

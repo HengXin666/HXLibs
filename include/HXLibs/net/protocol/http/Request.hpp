@@ -30,8 +30,37 @@
 #include <HXLibs/utils/TimeNTTP.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
+#include <HXLibs/reflection/deserialization/Numer.hpp>
 
 namespace HX::net {
+
+/**
+ * @brief URL 参数
+ */
+struct PathParam {
+    PathParam(std::string_view sv)
+        : _pathParam{sv}
+    {}
+
+    PathParam& operator=(PathParam&&) noexcept = delete;
+
+    template <typename T>
+        requires (
+            std::is_integral_v<T> 
+            || std::is_floating_point_v<T> 
+            || std::is_enum_v<T>)
+    T to() const {
+        T t;
+        reflection::Numer::fromNumer(t, _pathParam.begin(), _pathParam.end());
+        return t;
+    }
+
+    operator std::string_view() const noexcept {
+        return _pathParam;
+    }
+private:
+    std::string_view _pathParam;
+};
 
 /**
  * @brief 请求类(Request)
@@ -437,7 +466,7 @@ public:
      * @note 调用前需要确保路径参数已正确初始化
      * @return std::string_view 
      */
-    std::string_view getPathParam(std::size_t index) const {
+    PathParam getPathParam(std::size_t index) const {
         if (_wildcarDataArr.empty()) [[unlikely]] {
             throw std::runtime_error("No path parameters available to parse.");
         }

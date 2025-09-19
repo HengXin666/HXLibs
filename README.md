@@ -60,7 +60,7 @@ int main() {
         co_await res.setStatusAndContent(
             Status::CODE_200,
             "<h1>Hello" 
-            + req.getPathParam(0) // 获取 {id} 路径参数
+            + req.getPathParam(0) // 获取 {id} 路径参数, 可以 req.getPathParam(0).to<uint64_t>() 快速转为数字/枚举哦~
             + "</h1>"
             + utils::DateTimeFormat::formatWithMilli()
         ).sendRes();
