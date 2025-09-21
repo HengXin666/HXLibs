@@ -283,10 +283,12 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> close() {
-        HXLIBS_CHECK_EVENT_LOOP(
-            co_await _eventLoop.makeAioTask().prepClose(_fd)
-        );
+        auto fd = _fd;
         _fd = kInvalidLocalFd;
+        // 如果这里抛出异常, 会导致 析构也抛出异常, 这个的异常不应该导致析构也异常!!!
+        HXLIBS_CHECK_EVENT_LOOP(
+            co_await _eventLoop.makeAioTask().prepClose(fd)
+        );
     }
 
     /**
