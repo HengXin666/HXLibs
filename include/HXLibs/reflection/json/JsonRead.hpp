@@ -28,6 +28,7 @@
 #include <HXLibs/container/CHashMap.hpp>
 #include <HXLibs/container/UninitializedNonVoidVariant.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
+#include <HXLibs/reflection/MemberPtr.hpp>
 #include <HXLibs/reflection/deserialization/Numer.hpp>
 
 namespace HX::reflection {
@@ -83,44 +84,6 @@ inline void encodeUtf8(OutputStream& os, unsigned codepoint) {
 }
 
 } // namespace cv
-
-template <std::size_t I, typename T>
-struct SetObjIdx {
-    using Type = T;
-    inline static constexpr std::size_t Idx = I;
-    constexpr SetObjIdx() = default;
-    constexpr SetObjIdx(std::size_t _offset)
-        : offset(_offset)
-    {}
-    std::size_t offset;
-};
-
-template <std::size_t... Idx, typename... Ts>
-constexpr auto makeVariantSetObjIdxs(std::index_sequence<Idx...>, std::tuple<Ts...>) {
-    return std::variant<SetObjIdx<Idx, meta::remove_cvref_t<Ts>>...>{};
-}
-
-template <typename T>
-constexpr auto makeNameToIdxVariantHashMap() {
-    constexpr auto N = membersCountVal<T>;
-    constexpr auto nameArr = getMembersNames<T>();
-    constexpr auto& t = getStaticObj<T>();
-    constexpr auto tp = reflection::internal::getObjTie(t);
-    using CHashMapValType = decltype(makeVariantSetObjIdxs(std::make_index_sequence<N>{}, tp));
-    return container::CHashMap<std::string_view, CHashMapValType, N>{
-        [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            return std::array<std::pair<std::string_view, CHashMapValType>, N>{{{
-                nameArr[Idx], CHashMapValType{
-                    SetObjIdx<Idx, meta::remove_cvref_t<decltype(std::get<Idx>(tp))>>{
-                        static_cast<std::size_t>(
-                            reinterpret_cast<std::byte*>(&std::get<Idx>(tp))
-                            - reinterpret_cast<std::byte const*>(&t)
-                     )}
-                }}...
-            }};
-        }(std::make_index_sequence<N>{})
-    };
-}
 
 /**
  * @brief 跳过空白字符
@@ -457,7 +420,7 @@ struct FromJson {
         
         constexpr std::size_t N = membersCountVal<T>;
         if constexpr (N > 0) {
-            static auto nameHash = makeNameToIdxVariantHashMap<T>();
+            static auto nameHash = reflection::makeNameToIdxVariantHashMap<T>();
             // 需要 name -> idx 映射
             while (it != end) {
                 auto key = findKey(it, end);
