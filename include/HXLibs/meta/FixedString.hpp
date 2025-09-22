@@ -41,8 +41,18 @@ struct FixedString {
 
     // 接收字面量拷贝到 data
     constexpr FixedString(const char(&s)[N]) {
-        for(std::size_t i = 0; i < N; ++i) 
+        for (std::size_t i = 0; i < N; ++i) 
             data[i] = s[i];
+    }
+
+    /// @warning 使用时候 sv 不应该包含 '\0'
+    constexpr FixedString(std::string_view sv) {
+        data[N - 1] = '\0';
+        for (std::size_t i = 0; i < sv.size(); ++i) 
+            data[i] = sv[i];
+        if (data[N - 1]) {
+            throw; // N 应该加1, 留存 '\0' 以确保某些时候的兼容性
+        }
     }
 
     // 长度不含终止符
