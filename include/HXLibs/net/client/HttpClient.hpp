@@ -94,7 +94,7 @@ public:
      * @return container::FutureResult<>
      */
     template <HttpMethod Method>
-    container::FutureResult<ResponseData> uploadChunked(
+    container::FutureResult<container::Try<ResponseData>> uploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
@@ -105,12 +105,12 @@ public:
                               _path = std::move(path),
                               _contentType = contentType,
                               _headers = std::move(headers)]() {
-            return _eventLoop.sync(coUploadChunked<Method>(
+            return coUploadChunked<Method>(
                 std::move(_url),
                 std::move(_path),
                 _contentType,
                 std::move(_headers)
-            ));
+            ).runSync();
         });
     }
 
@@ -124,28 +124,30 @@ public:
      * @return coroutine::Task<> 
      */
     template <HttpMethod Method>
-    coroutine::Task<ResponseData> coUploadChunked(
+    coroutine::Task<container::Try<ResponseData>> coUploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
-        if (needConnect()) {
-            co_await makeSocket(url);
-        }
-        IO io{_cliFd, _eventLoop};
-        Request req{io};
-        req.setReqLine<Method>(UrlParse::extractPath(url));
-        preprocessHeaders(url, contentType, req);
-        req.addHeaders(std::move(headers));
-        co_await req.sendChunkedReq<Timeout>(path);
-        Response res{io};
-        if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+        co_return _eventLoop.trySync([&]() -> coroutine::Task<ResponseData> {
+            if (needConnect()) {
+                co_await makeSocket(url);
+            }
+            IO io{_cliFd, _eventLoop};
+            Request req{io};
+            req.setReqLine<Method>(UrlParse::extractPath(url));
+            preprocessHeaders(url, contentType, req);
+            req.addHeaders(std::move(headers));
+            co_await req.sendChunkedReq<Timeout>(path);
+            Response res{io};
+            if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+                co_await io.close();
+                throw std::runtime_error{"Recv Timed Out"};
+            }
             co_await io.close();
-            throw std::runtime_error{"Recv Timed Out"};
-        }
-        co_await io.close();
-        co_return res.makeResponseData();
+            co_return res.makeResponseData();
+        }());
     }
 
     /**
