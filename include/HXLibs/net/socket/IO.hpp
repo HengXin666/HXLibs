@@ -266,7 +266,7 @@ public:
     ~IO() noexcept(false) {
         if (_fd != kInvalidSocket) [[unlikely]] {
             log::hxLog.error("IO 没有进行 close");
-            throw std::runtime_error{"!"};
+            throw std::runtime_error{"[IO]: no close!"};
         }
     }
 #endif // !NDEBUG

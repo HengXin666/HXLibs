@@ -135,18 +135,25 @@ public:
                 co_await makeSocket(url);
             }
             IO io{_cliFd, _eventLoop};
-            Request req{io};
-            req.setReqLine<Method>(UrlParse::extractPath(url));
-            preprocessHeaders(url, contentType, req);
-            req.addHeaders(std::move(headers));
-            co_await req.sendChunkedReq<Timeout>(path);
-            Response res{io};
-            if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+            container::Try<> err{};
+            try {
+                Request req{io};
+                req.setReqLine<Method>(UrlParse::extractPath(url));
+                preprocessHeaders(url, contentType, req);
+                req.addHeaders(std::move(headers));
+                co_await req.sendChunkedReq<Timeout>(path);
+                Response res{io};
+                if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+                    co_await io.close();
+                    throw std::runtime_error{"Recv Timed Out"};
+                }
                 co_await io.close();
-                throw std::runtime_error{"Recv Timed Out"};
+                co_return res.makeResponseData();
+            } catch (...) {
+                err.setException(std::current_exception());
             }
             co_await io.close();
-            co_return res.makeResponseData();
+            err.rethrow();
         }());
     }
 
