@@ -163,7 +163,7 @@ public:
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->uploadChunked(
+        return _cliPool.at(getIdxAndNext())->template uploadChunked<Method>(
             std::move(url), std::move(path),
             contentType, std::move(headers)
         );

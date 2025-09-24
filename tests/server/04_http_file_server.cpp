@@ -1,4 +1,5 @@
 #include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/client/HttpClientPool.hpp>
 
 using namespace HX;
 using namespace net;
@@ -38,6 +39,9 @@ int main() {
             log::hxLog.error(t.what());
         }
     }).wait();
+    net::HttpClientPool cliPool{2};
+    cliPool.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
+        .wait();
     
     log::hxLog.warning("===== end =====");
     return 0;
