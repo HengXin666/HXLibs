@@ -157,7 +157,7 @@ public:
      * @return container::FutureResult<>
      */
     template <HttpMethod Method>
-    container::FutureResult<ResponseData> uploadChunked(
+    container::FutureResult<container::Try<ResponseData>> uploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
