@@ -44,8 +44,8 @@
         enum class OpenMode : int {
             Read = O_RDONLY | kOpenModeDefaultFlags,                        // 只读模式 (r)
             Write = O_WRONLY | O_TRUNC | O_CREAT | kOpenModeDefaultFlags,   // 只写模式 (w)
-            ReadWrite = O_RDWR | O_CREAT | kOpenModeDefaultFlags,           // 读写模式 (a+)
-            Append = O_WRONLY | O_APPEND | O_CREAT | kOpenModeDefaultFlags, // 追加模式 (w+)
+            ReadWrite = O_RDWR | O_CREAT | kOpenModeDefaultFlags,           // 读写模式 (rw)
+            Append = O_WRONLY | O_APPEND | O_CREAT | kOpenModeDefaultFlags, // 追加模式 (a)
             Directory = O_RDONLY | O_DIRECTORY | kOpenModeDefaultFlags,     // 目录
         };
 

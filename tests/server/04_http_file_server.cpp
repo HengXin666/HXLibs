@@ -22,7 +22,11 @@ auto hx_init = []{
     return 0;
 }();
 
-int main() {
+
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
+
+TEST_CASE("一般性测试") {
     HttpServer server{"127.0.0.1", "28205"};
     server.addEndpoint<POST>("/saveFile", [] ENDPOINT {
         log::hxLog.info("save File");
@@ -31,7 +35,7 @@ int main() {
                     .sendRes();
     });
     server.asyncRun(1);
-
+    
     net::HttpClient cli{HttpClientOptions<decltype(utils::operator""_s<"60">())>{}};
     cli.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
         .thenTry([](container::Try<ResponseData> t) {
@@ -42,7 +46,25 @@ int main() {
     net::HttpClientPool cliPool{2};
     cliPool.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
         .wait();
-    
-    log::hxLog.warning("===== end =====");
-    return 0;
+    cliPool.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
+        .wait();
+}
+
+TEST_CASE("debug") {
+    HttpServer server{"127.0.0.1", "28205"};
+    server.addEndpoint<POST>("/saveFile", [] ENDPOINT {
+        log::hxLog.info("save File");
+        co_await req.saveToFile("../build/img.jpg");
+        co_await res.setStatusAndContent(Status::CODE_200, "ok")
+                    .sendRes();
+    }).addEndpoint<GET>("/getFile", [] ENDPOINT {
+        log::hxLog.info("get File");
+        co_await res.useRangeTransferFile(req.getRangeRequestView(), "../build/img.jpg");
+    });
+    server.asyncRun(2);
+
+    net::HttpClientPool cliPool{1};
+    auto res = cliPool.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./img/6.jpg");
+    CHECK(res.get().get().body == "ok");
+    CHECK(cliPool.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./img/6.jpg").get().get().body == "ok");
 }

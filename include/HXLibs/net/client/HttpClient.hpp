@@ -144,15 +144,14 @@ public:
                 co_await req.sendChunkedReq<Timeout>(path);
                 Response res{io};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
-                    co_await io.close();
                     throw std::runtime_error{"Recv Timed Out"};
                 }
-                co_await io.close();
+                io.reset();
                 co_return res.makeResponseData();
             } catch (...) {
                 err.setException(std::current_exception());
             }
-            co_await io.close();
+            io.reset();
             err.rethrow();
         }());
     }
