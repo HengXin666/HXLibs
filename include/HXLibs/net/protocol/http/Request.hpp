@@ -143,34 +143,42 @@ public:
 #endif // !NODEBUG
         utils::AsyncFile file{_io};
         co_await file.open(path, utils::OpenMode::Read);
-        _requestHeaders[std::string{TRANSFER_ENCODING_SV}] = "chunked"; // 分块编码请求头要求
-        // 开始发送分块编码
-        std::vector<char> buf, sendBuf;
-        buf.reserve(utils::FileUtils::kBufMaxSize);
-        sendBuf.reserve(16);
-        // 把 Line + Head 组装好, 然后直接发送
-        _buildLineAndHead(buf);
-        utils::StringUtil::append(buf, CRLF); // \r\n + \r\n
-        co_await _io.sendLinkTimeout<Timeout>(buf);
-        buf.resize(utils::FileUtils::kBufMaxSize);
-        // 读取文件
-        std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
-        _buildToChunkedEncoding<true>(size, sendBuf);
-        co_await _io.sendLinkTimeout<Timeout>(sendBuf);
-        co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
-        for (;;) {
-            if (!size) [[unlikely]] {
-                // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
-                _buildToChunkedEncoding<false, true>(0, sendBuf);
-                co_await _io.sendLinkTimeout<Timeout>(sendBuf);
-                break;
-            }
-            size = static_cast<std::size_t>(co_await file.read(buf));
-            _buildToChunkedEncoding(size, sendBuf);
+        container::Try<> err;
+        try {
+            _requestHeaders[std::string{TRANSFER_ENCODING_SV}] = "chunked"; // 分块编码请求头要求
+            // 开始发送分块编码
+            std::vector<char> buf, sendBuf;
+            buf.reserve(utils::FileUtils::kBufMaxSize);
+            sendBuf.reserve(16);
+            // 把 Line + Head 组装好, 然后直接发送
+            _buildLineAndHead(buf);
+            utils::StringUtil::append(buf, CRLF); // \r\n + \r\n
+            co_await _io.sendLinkTimeout<Timeout>(buf);
+            buf.resize(utils::FileUtils::kBufMaxSize);
+            // 读取文件
+            std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
+            _buildToChunkedEncoding<true>(size, sendBuf);
             co_await _io.sendLinkTimeout<Timeout>(sendBuf);
             co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+            for (;;) {
+                if (!size) [[unlikely]] {
+                    // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
+                    _buildToChunkedEncoding<false, true>(0, sendBuf);
+                    co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+                    break;
+                }
+                size = static_cast<std::size_t>(co_await file.read(buf));
+                _buildToChunkedEncoding(size, sendBuf);
+                co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+                co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+            }
+            co_await file.close();
+            co_return;
+        } catch (...) {
+            err.setException(std::current_exception());
         }
         co_await file.close();
+        err.rethrow();
     }
 
     /**
