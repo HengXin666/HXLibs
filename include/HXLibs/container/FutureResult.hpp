@@ -20,9 +20,11 @@
 
 #include <mutex>
 #include <condition_variable>
+#include <coroutine>
 
 #include <HXLibs/container/Uninitialized.hpp>
 #include <HXLibs/container/Try.hpp>
+#include <HXLibs/coroutine/loop/EventLoop.hpp>
 
 namespace HX::container {
 
@@ -37,6 +39,9 @@ bool constexpr IsFutureResultType = requires {
 
 template <typename T = void>
 class FutureResult {
+public:
+    using ArgTryType = Try<RemoveTryWarpType<T>>; // thenTry 的 Func 的传入参数类型
+private:
     struct _hx_Result {
         using _hx_DataType = Uninitialized<T>;
 
@@ -99,8 +104,39 @@ class FutureResult {
         std::condition_variable _cv;
         bool _isResed;
     };
+
+    struct _hx_Await {
+        _hx_Await(FutureResult&& self)
+            : _res{}
+            , _coroutine{}
+        {
+            auto* loop = self._coEventLoop.get();
+            std::move(self).thenTry([this, raii = loop->makeTheradTask(), _loop = loop](auto t) mutable {
+                _res.set(std::move(t));
+                _coroutine.resume(); // 执行完毕后, self 已经被销毁了.
+                raii.notify();
+                _loop->makeNopAioTask();
+            });
+        }
+
+        _hx_Await& operator=(_hx_Await&&) noexcept = delete;
+
+        constexpr bool await_ready() const noexcept { return false; }
+        constexpr void await_suspend(std::coroutine_handle<> coroutine) const noexcept {
+            _coroutine = coroutine;
+        }
+        constexpr auto await_resume() const {
+            auto t = _res.move();
+            if (!t) [[unlikely]] {
+                t.rethrow();
+            }
+            return t.move();
+        }
+    private:
+        mutable container::Uninitialized<FutureResult<T>::ArgTryType> _res;
+        mutable std::coroutine_handle<> _coroutine;
+    };
 public:
-    using ArgTryType = Try<RemoveTryWarpType<T>>; // thenTry 的 Func 的传入参数类型
     using FutureResultType = _hx_Result;
 
     FutureResult()
@@ -112,6 +148,18 @@ public:
 
     FutureResult(FutureResult&&) noexcept = default;
     FutureResult& operator=(FutureResult&&) noexcept = default;
+
+    // 挂载到协程上
+    FutureResult&& via(
+        coroutine::EventLoop& loop
+    ) && noexcept {
+        _coEventLoop.set(&loop);
+        return std::move(*this);
+    }
+
+    constexpr auto operator co_await() && noexcept {
+        return _hx_Await{std::move(*this)};
+    }
 
     NonVoidType<T> get() {
         wait();
@@ -159,11 +207,13 @@ private:
     // @todo 日后再设计 via, 目前仅依赖 ThreadPool; 这样就够了~
     friend struct ThreadPool;
     using ThreadPoolRef = struct ThreadPool*;
+    using EventLoopRef = struct HX::coroutine::EventLoop*;
 
     void via(ThreadPoolRef dispatch) {
         _dispatch.set(dispatch);
     }
 
+    Uninitialized<EventLoopRef> _coEventLoop;
     Uninitialized<ThreadPoolRef> _dispatch;
     std::shared_ptr<FutureResultType> const _res;
 };

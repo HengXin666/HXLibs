@@ -32,6 +32,7 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/task/AioTask.hpp>
 #include <HXLibs/coroutine/loop/TimerLoop.hpp>
+#include <HXLibs/coroutine/loop/ThreadLoop.hpp>
 #include <HXLibs/coroutine/concepts/Awaiter.hpp>
 #include <HXLibs/coroutine/awaiter/WhenAny.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
@@ -117,6 +118,19 @@ struct IoUring {
         return AioTask{getSqe()};
     }
 
+    /**
+     * @brief 投递一个空任务
+     */
+    void prepNop() {
+        auto* sqe = getSqe();
+        sqe->user_data = 0U;
+        ::io_uring_prep_nop(sqe);
+        if (::io_uring_submit(&_ring) < 0) [[unlikely]] {
+            // 环形队列已满
+            throw std::runtime_error{"io_uring_submit: queue is full"};
+        }
+    }
+
     bool isRun() const noexcept {
         return _numSqesPending;
     }
@@ -154,6 +168,9 @@ struct IoUring {
                 continue;
             }
             auto* task = reinterpret_cast<AioTask*>(cqe->user_data);
+            if (!task) [[unlikely]] {
+                continue; // 仅 prepNop
+            }
             task->_res = cqe->res;
             tasks.push_back(task->_previous);
         }
@@ -332,7 +349,10 @@ struct EventLoop {
     EventLoop() 
         : _eventDrive{}
         , _timerLoop{}
+        , _theradLoop{}
     {}
+
+    EventLoop& operator=(EventLoop&&) noexcept = delete;
 
     /**
      * @brief 启动协程, 协程内部如果挂起, 应该调用 run() 进入事件循环, 以恢复挂起.
@@ -399,7 +419,7 @@ struct EventLoop {
                 _eventDrive.run(timeout);
             } else if (timeout) {
                 std::this_thread::sleep_for(*timeout);
-            } else [[unlikely]] {
+            } else if (!_theradLoop.isRun()) [[unlikely]] {
                 break;
             }
         }
@@ -422,15 +442,31 @@ struct EventLoop {
     }
 
     /**
+     * @brief 创建异步线程任务 (仅控制权)
+     * @return decltype(auto) 
+     */
+    decltype(auto) makeTheradTask() {
+        return _theradLoop.makeThreadTask();
+    }
+
+    /**
      * @brief 获取事件循环的底层引擎
      * @return auto& 
      */
     auto& getEventDrive() {
         return _eventDrive;
     }
+
+    /**
+     * @brief 创建并提交一个空的异步任务到事件循环
+     */
+    void makeNopAioTask() {
+        _eventDrive.prepNop();
+    }
 private:
     internal::EventDrive _eventDrive;
     TimerLoop _timerLoop;
+    ThreadLoop _theradLoop;
 };
 
 } // namespace HX::coroutine

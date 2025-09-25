@@ -63,7 +63,7 @@ struct AioTask {
         AioTask* _task;
     };
 
-    AioAwaiter operator co_await() {
+    AioAwaiter operator co_await() noexcept {
         return {this};
     }
 

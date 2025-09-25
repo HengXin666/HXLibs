@@ -246,7 +246,7 @@ struct UninitializedNonVoidVariant {
         } (std::make_index_sequence<N>{});
     }
 
-    constexpr UninitializedNonVoidVariant(UninitializedNonVoidVariant&& that) 
+    constexpr UninitializedNonVoidVariant(UninitializedNonVoidVariant&& that) noexcept
         : UninitializedNonVoidVariant{}
     {
         if (that._idx == UninitializedNonVoidVariantNpos) [[unlikely]] {
@@ -356,7 +356,7 @@ struct UninitializedNonVoidVariant {
         return *this;
     }
 
-    constexpr UninitializedNonVoidVariant& operator=(UninitializedNonVoidVariant const& that) noexcept {
+    constexpr UninitializedNonVoidVariant& operator=(UninitializedNonVoidVariant const& that) {
         if (std::addressof(that) == this) {
             return *this;
         }
