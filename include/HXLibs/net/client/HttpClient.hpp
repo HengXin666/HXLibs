@@ -153,6 +153,7 @@ public:
             }
             io.reset();
             err.rethrow();
+            co_return {};
         }());
     }
 

@@ -222,6 +222,21 @@ public:
     }
 
     /**
+     * @brief 读取json并且序列化到结构体
+     * @tparam T 
+     * @return coroutine::Task<T> 
+     */
+    template <typename T>
+    coroutine::Task<T> recvJson() {
+        T obj;
+        reflection::fromJson(
+            obj,
+            (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content
+        );
+        return obj;
+    }
+
+    /**
      * @brief 读取内容
      * @tparam TimeoutIsError 超时是否就是错误
           = true  则会抛异常, 
