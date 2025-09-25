@@ -233,7 +233,7 @@ public:
             obj,
             (co_await recv<false, DefaultRDTimeout>(OpCode::Text)).content
         );
-        return obj;
+        co_return obj;
     }
 
     /**

@@ -1,5 +1,6 @@
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/net/protocol/websocket/WebSocket.hpp>
+#include <HXLibs/net/client/HttpClient.hpp>
 
 using namespace HX;
 using namespace net;
@@ -110,4 +111,33 @@ TEST_CASE("测试普通请求") {
         })
     ;
     // serv.syncRun(1, 1500_ms); // 启动服务器
+}
+
+TEST_CASE("测试断开") {
+    HttpServer serv{"127.0.0.1", "28205"};
+    serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
+        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        co_await ws.sendText("你好");
+        co_await ws.recvText();
+    });
+    serv.addEndpoint<WS>("/ws/err", [] ENDPOINT {
+        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        co_await ws.close();
+    });
+    serv.asyncRun(1);
+    HttpClient cli{};
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+        auto str = co_await ws.recvText();
+        log::hxLog.debug("str:", str);
+        co_await ws.close();
+    }).wait();
+    cli.wsLoop("ws://127.0.0.1:28205/ws/err", [](net::WebSocketClient ws) -> coroutine::Task<> {
+        auto str = co_await ws.recvText();
+        log::hxLog.debug("str:", str);
+    }).wait();
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+        auto str = co_await ws.recvText();
+        log::hxLog.debug("str:", str);
+        co_await ws.close();
+    }).wait();
 }
