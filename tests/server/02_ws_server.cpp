@@ -124,6 +124,9 @@ TEST_CASE("测试断开") {
         auto ws = co_await net::WebSocketFactory::accept(req, res);
         co_await ws.close();
     });
+    serv.addEndpoint<WS>("/ws/400", [] ENDPOINT {
+        co_await res.setStatusAndContent(Status::CODE_400, "请携带token").sendRes();
+    });
     serv.asyncRun(1);
     HttpClient cli{};
     cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
@@ -135,6 +138,19 @@ TEST_CASE("测试断开") {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
     }).wait();
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+        auto str = co_await ws.recvText();
+        log::hxLog.debug("str:", str);
+        co_await ws.close();
+    }).wait();
+    cli.wsLoop("ws://127.0.0.1:28205/ws/400", [](net::WebSocketClient ws) -> coroutine::Task<> {
+        auto str = co_await ws.recvText();
+        log::hxLog.debug("str:", str);
+    }).thenTry([](auto t) {
+        if (!t) {
+            log::hxLog.warning(t.what());
+        }
+    });
     cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);

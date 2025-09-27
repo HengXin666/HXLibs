@@ -151,7 +151,9 @@ public:
             } catch (...) {
                 err.setException(std::current_exception());
             }
-            io.reset();
+            // 断开连接
+            co_await io.close();
+            _cliFd = kInvalidSocket;
             err.rethrow();
             co_return {};
         }());

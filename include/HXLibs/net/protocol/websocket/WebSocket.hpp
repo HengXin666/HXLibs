@@ -809,6 +809,14 @@ public:
         if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
             throw std::runtime_error{"Timeout"};
         }
+        // 判断状态码
+        if (res.getStatusCode() != "101") [[unlikely]] {
+            using namespace std::string_literals;
+            std::string what{"Websocket Status Err: code = "};
+            what += res.getStatusCode();
+            what += ", body = ";
+            throw std::runtime_error{std::move(what) + res.getBody()};
+        }
         // 校验
         auto const& headMap = res.getHeaders();
         if (auto it = headMap.find("connection");

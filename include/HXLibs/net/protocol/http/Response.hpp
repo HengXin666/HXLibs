@@ -106,25 +106,25 @@ public:
 
     /**
      * @brief 获取协议版本
-     * @return std::string 
+     * @return std::string_view 
      */
-    std::string const& getProtocolVersion() const {
+    std::string_view getProtocolVersion() const {
         return _statusLine[ResponseLineDataType::ProtocolVersion];
     }
 
     /**
      * @brief 获取状态码
-     * @return std::string 
+     * @return std::string_view 
      */
-    std::string const& getStatusCode() const {
+    std::string_view getStatusCode() const {
         return _statusLine[ResponseLineDataType::StatusCode];
     }
 
     /**
      * @brief 获取状态信息
-     * @return std::string 
+     * @return std::string_view 
      */
-    std::string const& getStatusMessage() const {
+    std::string_view getStatusMessage() const {
         return _statusLine[ResponseLineDataType::StatusMessage];
     }
 
