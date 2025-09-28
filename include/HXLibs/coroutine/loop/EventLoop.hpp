@@ -314,6 +314,20 @@ BOOL GetQueuedCompletionStatusEx(
         _tasks.clear();
     }
 
+    void prepNop() {
+        AioTask task{_iocpHandle, _taskCnt};
+        ++_taskCnt._numSqesPending;
+        task._data->setCancel();
+        if (!::PostQueuedCompletionStatus(
+            _iocpHandle,
+            0,
+            0,
+            static_cast<::OVERLAPPED*>(task._data)
+        )) [[unlikely]] {
+            throw std::runtime_error{"PostQueuedCompletionStatus failed"};
+        }
+    }
+
     ~Iocp() noexcept {
         if (_iocpHandle) {
             ::CloseHandle(_iocpHandle);
