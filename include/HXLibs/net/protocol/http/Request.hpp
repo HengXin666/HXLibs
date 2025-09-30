@@ -230,6 +230,16 @@ public:
     }
 
     /**
+     * @brief 向请求头添加一些键值对
+     * @param heads 键值对
+     * @return Request& 
+     */
+    Request& addHeaders(HeaderHashMap const& heads) {
+        _requestHeaders.insert(heads.begin(), heads.end());
+        return *this;
+    }
+
+    /**
      * @brief 设置请求体信息
      * @tparam S 字符串类型
      * @param data 信息

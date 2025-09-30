@@ -237,7 +237,7 @@ public:
 
     /**
      * @brief 绑定新的 fd
-     * @warning 必须把之前的 fd 给 close 了
+     * @warning 内部会把之前的 fd 给 close 了
      * @param fd 
      */
     coroutine::Task<> bindNewFd(SocketFdType fd) noexcept {

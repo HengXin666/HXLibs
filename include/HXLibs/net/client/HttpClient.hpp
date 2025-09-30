@@ -57,7 +57,6 @@ public:
         , _cliFd{kInvalidSocket}
         , _pool{}
         , _host{}
-        , _headers{}
         , _isAutoReconnect{true}
     {
         // https://github.com/HengXin666/HXLibs/issues/14
@@ -136,11 +135,26 @@ public:
             }
             IO io{_cliFd, _eventLoop};
             container::Try<> err{};
+            Request req{io};
+            req.setReqLine<Method>(UrlParse::extractPath(url));
+            preprocessHeaders(url, contentType, req);
+            req.addHeaders(std::move(headers));
             try {
-                Request req{io};
-                req.setReqLine<Method>(UrlParse::extractPath(url));
-                preprocessHeaders(url, contentType, req);
-                req.addHeaders(std::move(headers));
+                co_await req.sendChunkedReq<Timeout>(path);
+                Response res{io};
+                if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+                    throw std::runtime_error{"Recv Timed Out"};
+                }
+                io.reset();
+                co_return res.makeResponseData();
+            } catch (...) {
+                ;
+            }
+            // 二次尝试
+            try {
+                co_await makeSocket(url);
+                co_await io.bindNewFd(_cliFd);
+                // 再次发送
                 co_await req.sendChunkedReq<Timeout>(path);
                 Response res{io};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
@@ -261,12 +275,16 @@ public:
         Str&& body = {},
         HttpContentType contentType = HttpContentType::None
     ) {
-        _headers = std::move(headers);
         co_return _eventLoop.trySync([&]() -> coroutine::Task<ResponseData> {
             if (needConnect()) {
                 co_await makeSocket(url);
             }
-            co_return co_await sendReq<Method>(std::move(url), std::move(body), contentType);
+            co_return co_await sendReq<Method>(
+                std::move(url),
+                std::move(body),
+                contentType,
+                std::move(headers)
+            );
         }());
     }
 
@@ -368,7 +386,7 @@ public:
             container::Uninitialized<WebSocketClient> ws;
             try {
                 ws.set(co_await WebSocketFactory::connect<Timeout>(
-                    url, io, std::move(headers)
+                    url, io, headers
                 ));
             } catch (...) {
                 res.setException(std::current_exception());
@@ -381,8 +399,8 @@ public:
                     // 绑定新的 fd
                     co_await io.bindNewFd(_cliFd);
                     try {
+                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, io, headers));
                         res.reset();
-                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, io));
                     } catch(...) {
                         res.setException(std::current_exception());
                     }
@@ -469,19 +487,21 @@ private:
      * @param url 请求 url
      * @param body 请求体
      * @param contentType 正文类型, 如 HTML / JSON / TEXT 等等
+     * @param headers 请求头
      * @return coroutine::Task<ResponseData> 
      */
     template <HttpMethod Method, meta::StringType Str = std::string_view>
     coroutine::Task<ResponseData> sendReq(
         std::string const& url,
         Str&& body = std::string_view{},
-        HttpContentType contentType = HttpContentType::None
+        HttpContentType contentType = HttpContentType::None,
+        HeaderHashMap headers = {}
     ) {
         IO io{_cliFd, _eventLoop};
         Request req{io};
         req.setReqLine<Method>(UrlParse::extractPath(url));
         preprocessHeaders(url, contentType, req);
-        req.addHeaders(std::move(_headers));
+        req.addHeaders(std::move(headers));
         if (body.size()) {
             // @todo 请求体还需要支持一些格式!
             req.setBody(std::forward<Str>(body));
@@ -562,9 +582,6 @@ private:
 
     // 上一次解析的 Host
     std::string _host;
-
-    // 请求头
-    HeaderHashMap _headers;
 
     // 是否自动重连
     bool _isAutoReconnect;

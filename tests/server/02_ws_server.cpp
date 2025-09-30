@@ -157,3 +157,26 @@ TEST_CASE("测试断开") {
         co_await ws.close();
     }).wait();
 }
+
+TEST_CASE("测试超时后再ws") {
+    HttpServer serv{"127.0.0.1", "28205"};
+    serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
+        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        co_await ws.sendText("你好");
+        co_await ws.recvText();
+    }).addEndpoint<GET>("/", [] ENDPOINT {
+        co_await res.setStatusAndContent(Status::CODE_200, "!").sendRes();
+    });
+    serv.asyncRun<decltype(utils::operator""_ms<"500">())>(1);
+    HttpClient cli;
+    auto res = cli.get("http://127.0.0.1:28205/").get();
+    log::hxLog.info("等待请求超时");
+    std::this_thread::sleep_for(decltype(utils::operator""_ms<"800">())::StdChronoVal);
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](WebSocketClient ws) -> coroutine::Task<> {
+        log::hxLog.info("读取到:", co_await ws.recvText());
+    }).thenTry([](auto t) {
+        if (!t) {
+            log::hxLog.error(t.what());
+        }
+    }).wait();
+}
