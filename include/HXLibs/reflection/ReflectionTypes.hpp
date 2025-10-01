@@ -59,7 +59,9 @@ constexpr bool HasOutReflection = internal::HasOutReflection<meta::remove_cvref_
  * @tparam T 
  */
 template <typename T>
-constexpr bool IsReflective = (std::is_aggregate_v<T> 
+constexpr bool IsReflective = (
+             std::is_class_v<T>
+             && std::is_aggregate_v<T> 
              && !std::is_same_v<T, std::monostate>
              && !meta::is_std_array_v<T>)
              || HasInsideReflection<T>

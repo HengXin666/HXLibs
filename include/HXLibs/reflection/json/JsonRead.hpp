@@ -153,7 +153,7 @@ void handleEscapeChar(Str& str, It&& it, It&& end) {
             cv::encodeUtf8(str, code_point); // 内部会移动 it
             return;
         }
-        default:  str +=  *it; break;
+        default: str += *it; break;
     }
     ++it; // 下一个字符
 }
@@ -243,14 +243,9 @@ auto& insertOrAssign(T& t, It&& it, It&& end) {
 
 struct FromJson {
     template <typename T, typename It>
-        requires(std::is_same_v<bool, T>)
-    static void fromJson(T& t, It&& it, It&& end) {
-        skipWhiteSpace(it, end);
-        Numer::fromNumer(t, it, end);
-    }
-
-    template <typename T, typename It>
-        requires(!std::is_same_v<bool, T> && (std::is_integral_v<T> || std::is_floating_point_v<T>))
+        requires(std::is_same_v<bool, T>
+              || std::is_integral_v<T>
+              || std::is_floating_point_v<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
         Numer::fromNumer(t, it, end);

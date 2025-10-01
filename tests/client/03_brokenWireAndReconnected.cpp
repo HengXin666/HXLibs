@@ -52,7 +52,7 @@ auto hx_init = [] {
         uint64_t id;
         reflection::fromJson(id, idStrView);
         std::string json;
-        reflection::toJson<true>(JsonVO<MusicVO>{
+        reflection::toJson(JsonVO<MusicVO>{
             0, "ok", MusicVO{
                 id,
                 "榊原ゆい - 刻司ル十二ノ盟約 (支配时间的十二盟约).flac",

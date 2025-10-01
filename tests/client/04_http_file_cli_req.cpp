@@ -29,7 +29,7 @@ auto hx_init = []{
     }
     server.addEndpoint<GET>("/", [] ENDPOINT {
         std::string json;
-        reflection::toJson<true>(req.getHeaders(), json);
+        reflection::toJson(req.getHeaders(), json);
         co_await res.setStatusAndContent(Status::CODE_200, json)
                     .sendRes();
     });

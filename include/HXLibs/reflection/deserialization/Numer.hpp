@@ -133,6 +133,11 @@ struct Numer {
         }
         t = reflection::toEnum<T>(std::string_view{begin, it});
     }
+
+    template <typename T>
+    static void fromNumer(T& t, std::string_view sv) {
+        fromNumer(t, sv.begin(), sv.end());
+    }
 };
 
 } // namespace HX::reflection

@@ -21,7 +21,7 @@ int main() {
     HttpServer server{"0.0.0.0", "28205"};
     server.addEndpoint<GET>("/get", [] ENDPOINT {
         std::string json;
-        reflection::toJson<true>(req.getHeaders(), json);
+        reflection::toJson(req.getHeaders(), json);
         co_await res.setStatusAndContent(Status::CODE_400, std::move(json))
                     .sendRes();
     });
