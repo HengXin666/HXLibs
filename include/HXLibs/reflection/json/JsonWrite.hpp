@@ -20,6 +20,7 @@
 
 #include <optional>
 #include <variant>
+#include <span>
 #include <format>
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
