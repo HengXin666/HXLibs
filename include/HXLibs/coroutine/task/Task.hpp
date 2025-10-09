@@ -89,7 +89,7 @@ struct [[nodiscard]] Task {
         }
     }
 
-    constexpr auto& getPromise() const noexcept {
+    constexpr auto getPromise() const noexcept {
         return _handle;
     }
 private:

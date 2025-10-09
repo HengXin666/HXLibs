@@ -40,6 +40,8 @@ namespace internal {
  */
 struct WhenAnyCtlBlock {
     std::coroutine_handle<> previous;
+    bool isBrack = false;
+    bool isInit = false;
 };
 
 struct WhenAnyPromise {
@@ -69,10 +71,11 @@ struct WhenAnyAwaiter {
         for (const auto& co : cos.subspan(0, cos.size() - 1)) {
             auto coH = static_cast<std::coroutine_handle<>>(co);
             coH.resume();
-            if (coH.done()) [[unlikely]] { // 存在调用者会这样调用, 但是显然不是期望的使用方式
+            if (ctlBlock.isBrack) [[unlikely]] { // 存在调用者会这样调用, 但是显然不是期望的使用方式
                 return coroutine;
             }
         }
+        ctlBlock.isInit = true;
         return static_cast<std::coroutine_handle<>>(cos.back());
     }
     constexpr void await_resume() const noexcept {}
@@ -102,7 +105,13 @@ Task<std::coroutine_handle<>, WhenAnyPromise> start(
     } else {
         static_assert(!sizeof(T), "The type is not Awaiter");
     }
-    co_return ctlBlock.previous;
+    if (ctlBlock.isInit) [[likely]] {
+        co_return ctlBlock.previous;
+    }
+    // 存在调用者会这样调用, 但是显然不是期望的使用方式
+    // 即 协程内部完全没有挂起 (co_await), 导致直接返回
+    ctlBlock.isBrack = true;
+    co_return std::noop_coroutine();
 }
 
 template <
@@ -137,5 +146,81 @@ template <AwaitableLike... Ts>
     );
 }
 
-} // namespace HX::coroutine
+namespace internal {
 
+template <AwaitableLike... Ts>
+struct [[nodiscard]] WheyWrap {
+private:
+    static constexpr auto makeWhenAny(std::tuple<Ts...>&& tp) noexcept {
+        return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
+            return whenAny(std::move(std::get<Idx>(tp))...);
+        } (std::make_index_sequence<sizeof...(Ts)>{});
+    }
+public:
+    struct WheyWrapAwaiter {
+        WheyWrapAwaiter(std::tuple<Ts...>&& tp)
+            : _whenAny{makeWhenAny(std::move(tp))}
+        {}
+        constexpr bool await_ready() const noexcept { return false; }
+        constexpr std::coroutine_handle<> await_suspend(std::coroutine_handle<> coroutine) const noexcept {
+            _whenAny.getPromise().promise()._previous = coroutine;  // 当 _whenAny 执行完, 恢复到 coroutine
+                                                                    // 原理同 ExitAwaiter
+            return _whenAny;
+        }
+        auto await_resume() const noexcept {
+            return _whenAny.getPromise().promise().result();
+        }
+        decltype(
+            WheyWrap<Ts...>::makeWhenAny(std::declval<std::tuple<Ts...>>())
+        ) _whenAny;
+    };
+
+    constexpr WheyWrap(Ts&&... ts) 
+        : _tp{std::move(ts)...}
+    {}
+    
+    [[nodiscard]] constexpr auto operator co_await() && noexcept {
+        return WheyWrapAwaiter{std::move(_tp)};
+    }
+private:
+    std::tuple<Ts...> _tp;
+
+    template <typename... Us, AwaitableLike U>
+    friend WheyWrap<Us..., U> operator||(WheyWrap<Us...>&& ts, U&& u) noexcept;
+
+    template <typename... Us, AwaitableLike U>
+    friend WheyWrap<Us..., U> operator||(U&& u, WheyWrap<Us...>&& ts) noexcept;
+
+    template <typename... Us, AwaitableLike... Es>
+    friend WheyWrap<Us..., Es...> operator||(WheyWrap<Us...>&& ts, WheyWrap<Es...>&& us) noexcept;
+};
+
+template <typename... Ts, AwaitableLike U>
+[[nodiscard]] WheyWrap<Ts..., U> operator||(WheyWrap<Ts...>&& ts, U&& u) noexcept {
+    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyWrap<Ts..., U> {
+        return {std::move(std::get<Idx>(ts._tp))..., std::move(u)};
+    } (std::make_index_sequence<sizeof...(Ts)>{});
+}
+
+template <typename... Ts, AwaitableLike U>
+[[nodiscard]] WheyWrap<Ts..., U> operator||(U&& u, WheyWrap<Ts...>&& ts) noexcept {
+    return std::move(ts) || std::move(u);
+}
+
+template <typename... Ts, AwaitableLike... Us>
+[[nodiscard]] WheyWrap<Ts..., Us...> operator||(WheyWrap<Ts...>&& ts, WheyWrap<Us...>&& us) noexcept {
+    return [&] <std::size_t... I, std::size_t... J> (
+        std::index_sequence<I...>, std::index_sequence<J...>
+    ) constexpr -> WheyWrap<Ts..., Us...> {
+        return {std::move(std::get<I>(ts._tp))..., std::move(std::get<J>(us._tp))...};
+    } (std::make_index_sequence<sizeof...(Ts)>{}, std::make_index_sequence<sizeof...(Us)>{});
+}
+
+} // namespace internal
+
+template <AwaitableLike T, AwaitableLike U>
+[[nodiscard]] internal::WheyWrap<T, U> operator||(T&& t, U&& u) {
+    return {std::move(t), std::move(u)};
+}
+
+} // namespace HX::coroutine
