@@ -25,15 +25,19 @@ TEST_CASE("whenAll") {
     };
 
     auto task = [&]() -> coroutine::Task<> {
+        // ! 菜逼 GCC, 乱报警告 maybe-uninitialized
+        // auto [a, b] = co_await 不行. 得 auto t = co_await; auto& [a, b] = t;
         {
             log::hxLog.debug("{");
-            auto [r1, r2] = co_await coroutine::whenAll(cTask01(), cTask02());
+            auto t = co_await coroutine::whenAll(cTask01(), cTask02());
+            auto& [r1, r2] = t;
             log::hxLog.debug("}", r1, r2);
         }
         {
             log::hxLog.debug("{");
-            auto [r1, r2, r3] = co_await (cTask01() && (cTask02() && cTask01()));
-            log::hxLog.debug("}", r1, r2);
+            auto t = co_await (cTask01() && (cTask02() && cTask01()));
+            auto& [r1, r2, r3] = t;
+            log::hxLog.debug("}", r1, r2, r3);
         }
         // 不支持熬~
         // {

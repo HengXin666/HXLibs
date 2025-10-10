@@ -102,7 +102,7 @@ template <
 >
 Task<Res> whenAll(std::index_sequence<Idx...>, Ts&&... ts) {
     // 1. 定义返回值
-    Res res;
+    Res res{};
 
     // 2. 记录总协程数量
     WhenAllCtlBlock block;
