@@ -365,9 +365,26 @@ coroutine::Task<> start(std::atomic_bool const& isRun) {
 auto res = co_await whenAny(协程_01(), 定时器());
 if (res.index() == 1)
     log::hxLog.debug("超时:");
+
+// 也可以使用运算符重载
+auto ans = co_await (协程_01() || 定时器());
 ```
 
-#### 3.2.4 协程调度器
+#### 3.2.4 WhenAll (Awaiter)
+
+它可以同时启动所有的协程, 并且等待所有执行完毕, 最终返回 `std::tuple<Ts...>` (其中 void 被表示为 NoVoid 类型)
+
+```cpp
+auto [r1, t2] = co_await whenAll(协程_01(), 协程_02());
+
+// 也可以使用运算符重载
+auto [a, b, c] = co_await (协程_01() && 协程_02() && 协程_03());
+```
+
+> [!TIP]
+> 暂时不支持 混合 `&&` 和 `||` 的调用: 如: `co_await ((协程_01() && 协程_02()) || 协程_03())`
+
+#### 3.2.5 协程调度器
 
 见 [EventLoop.hpp](include/HXLibs/coroutine/loop/EventLoop.hpp) (Linux基于`io_uring`实现, Win基于`IOCP`实现)
 

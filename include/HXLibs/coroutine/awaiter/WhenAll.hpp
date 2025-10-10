@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-06-09 23:09:27
+ * @Date: 2025-10-10 21:35:47
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,45 +18,36 @@
  * limitations under the License.
  */
 
-#include <utility>
 #include <span>
 
-#include <HXLibs/container/Uninitialized.hpp>
-#include <HXLibs/container/UninitializedNonVoidVariant.hpp>
-#include <HXLibs/coroutine/concepts/Awaiter.hpp>
 #include <HXLibs/coroutine/task/Task.hpp>
+#include <HXLibs/coroutine/concepts/Awaiter.hpp>
 
 namespace HX::coroutine {
-
-template <AwaitableLike... Ts>
-using WhenAnyReturnType = container::UninitializedNonVoidVariant<
-    AwaiterReturnValue<Ts>...
->;
 
 namespace internal {
 
 /**
- * @brief WhenAny 控制块
+ * @brief WhenAll 控制块
  */
-struct WhenAnyCtlBlock {
+struct WhenAllCtlBlock {
     std::coroutine_handle<> previous;
-    bool isBrack = false;
-    bool isInit = false;
+    std::size_t cnt;
 };
 
-struct WhenAnyPromise {
+struct WhenAllPromise {
     using InitStrategy = std::suspend_always;
     using DeleStrategy = PreviousAwaiter;
 
     InitStrategy initial_suspend() noexcept { return {}; }
     auto get_return_object() noexcept {
-        return std::coroutine_handle<WhenAnyPromise>::from_promise(*this);
+        return std::coroutine_handle<WhenAllPromise>::from_promise(*this);
     }
     DeleStrategy final_suspend() noexcept {
-        return {_mainCoroutine}; // 3) WhenAny 的核心, 协程终止时候, 都执行这个; 然后回到 whenAny 中!
+        return {_mainCoroutine};
     }
-    void return_value(std::coroutine_handle<> previous) noexcept {
-        _mainCoroutine = previous; // 2) 实际上就是 ctlBlock.previous; 即 whenAny 协程句柄
+    void return_value(std::coroutine_handle<> res) noexcept {
+        _mainCoroutine = res;
     }
     void unhandled_exception() noexcept {
         std::terminate();
@@ -64,84 +55,78 @@ struct WhenAnyPromise {
     std::coroutine_handle<> _mainCoroutine;
 };
 
-struct WhenAnyAwaiter {
+struct WhenAllAwaiter {
     constexpr bool await_ready() const noexcept { return false; }
     constexpr auto await_suspend(std::coroutine_handle<> coroutine) const noexcept {
-        ctlBlock.previous = coroutine; // 1) 此处记录了 whenAny 协程句柄
-        for (const auto& co : cos.subspan(0, cos.size() - 1)) {
-            auto coH = static_cast<std::coroutine_handle<>>(co);
-            coH.resume();
-            if (ctlBlock.isBrack) [[unlikely]] { // 存在调用者会这样调用, 但是显然不是期望的使用方式
-                return coroutine;
-            }
+        block.previous = coroutine;
+        for (auto const& co : cos.subspan(0, cos.size() - 1)) {
+            static_cast<std::coroutine_handle<>>(co).resume();
         }
-        ctlBlock.isInit = true;
         return static_cast<std::coroutine_handle<>>(cos.back());
     }
     constexpr void await_resume() const noexcept {}
 
-    std::span<Task<std::coroutine_handle<>, WhenAnyPromise> const> cos;
-    WhenAnyCtlBlock& ctlBlock;
+    std::span<Task<std::coroutine_handle<>, WhenAllPromise> const> cos;
+    WhenAllCtlBlock& block;
 };
 
 template <std::size_t Idx, AwaitableLike T, typename Res>
-Task<std::coroutine_handle<>, WhenAnyPromise> anyStart(
-    T&& t, Res& res, WhenAnyCtlBlock& ctlBlock
+Task<std::coroutine_handle<>, WhenAllPromise> allStrat(
+    T&& t, Res& res, WhenAllCtlBlock& ctlBlock
 ) {
     if constexpr (Awaiter<T>) {
         if constexpr (std::is_void_v<decltype(t.await_resume())>) {
             static_cast<void>(co_await t);
-            res.template emplace<Idx>();
         } else {
-            res.template emplace<Idx>(co_await t);
+            std::get<Idx>(res) = co_await t;
         }
     } else if constexpr (Awaitable<T>) {
         if constexpr (std::is_void_v<decltype(t.operator co_await().await_resume())>) {
             static_cast<void>(co_await t);
-            res.template emplace<Idx>();
         } else {
-            res.template emplace<Idx>(co_await t);
+            std::get<Idx>(res) = co_await t;
         }
     } else {
         static_assert(!sizeof(T), "The type is not Awaiter");
     }
-    if (ctlBlock.isInit) [[likely]] {
-        co_return ctlBlock.previous;
+    if (--ctlBlock.cnt) {
+        co_return std::noop_coroutine();
     }
-    // 存在调用者会这样调用, 但是显然不是期望的使用方式
-    // 即 协程内部完全没有挂起 (co_await), 导致直接返回
-    ctlBlock.isBrack = true;
-    co_return std::noop_coroutine();
+    co_return ctlBlock.previous; // 全部任务都完成了, 返回到 co_await WhenAllAwaiter{cos, block}; 处
 }
 
 template <
-    std::size_t... Idx, 
-    AwaitableLike... Ts, 
-    typename ResType = WhenAnyReturnType<Ts...>
+    std::size_t... Idx,
+    AwaitableLike... Ts,
+    typename Res = std::tuple<container::NonVoidType<AwaiterReturnValue<Ts>>...>
 >
-Task<ResType> whenAny(std::index_sequence<Idx...>, Ts&&... ts) {
-    // 1. 存储所有的返回值
-    ResType res;
+Task<Res> whenAll(std::index_sequence<Idx...>, Ts&&... ts) {
+    // 1. 定义返回值
+    Res res;
 
-    // 2. 启动所有协程
-    WhenAnyCtlBlock block;
-    std::array<Task<std::coroutine_handle<>, WhenAnyPromise>, sizeof...(Ts)> cos {
-        anyStart<Idx>(std::forward<Ts>(ts), res, block)...
+    // 2. 记录总协程数量
+    WhenAllCtlBlock block;
+    block.cnt = sizeof...(Ts);
+
+    // 3. 把每个协程外面再套一层协程
+    std::array<Task<std::coroutine_handle<>, WhenAllPromise>, sizeof...(Ts)> cos {
+        allStrat<Idx>(std::forward<Ts>(ts), res, block)...
     };
 
-    // 3. 等待其中一个 (挂起)
-    co_await WhenAnyAwaiter{cos, block};
-    
-    // 4. 通过返回值确定返回谁
+    // 4. 启动协程
+    co_await WhenAllAwaiter{cos, block};
+
+    // 5. 返回
     co_return res;
 }
+
 
 } // namespace internal
 
 template <AwaitableLike... Ts>
-[[nodiscard]] auto whenAny(Ts&&... ts) {
-    return internal::whenAny(
-        std::make_index_sequence<sizeof...(ts)>(), 
+auto whenAll(Ts&&... ts) {
+    return internal::whenAll(
+        std::make_index_sequence<sizeof...(Ts)>{},
         std::forward<Ts>(ts)...
     );
 }
@@ -149,11 +134,11 @@ template <AwaitableLike... Ts>
 namespace internal {
 
 template <AwaitableLike... Ts>
-struct [[nodiscard]] WheyAnyWrap {
+struct [[nodiscard]] WheyAllWrap {
 private:
     static constexpr auto makeWhenAll(std::tuple<Ts...>&& tp) noexcept {
         return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
-            return whenAny(std::move(std::get<Idx>(tp))...);
+            return whenAll(std::move(std::get<Idx>(tp))...);
         } (std::make_index_sequence<sizeof...(Ts)>{});
     }
 public:
@@ -163,7 +148,7 @@ public:
         {}
         constexpr bool await_ready() const noexcept { return false; }
         constexpr std::coroutine_handle<> await_suspend(std::coroutine_handle<> coroutine) const noexcept {
-            _whenAll.getPromise().promise()._previous = coroutine;  // 当 _whenAny 执行完, 恢复到 coroutine
+            _whenAll.getPromise().promise()._previous = coroutine;  // 当 _whenAll 执行完, 恢复到 coroutine
                                                                     // 原理同 ExitAwaiter
             return _whenAll;
         }
@@ -171,11 +156,11 @@ public:
             return _whenAll.getPromise().promise().result();
         }
         decltype(
-            WheyAnyWrap<Ts...>::makeWhenAll(std::declval<std::tuple<Ts...>>())
+            WheyAllWrap<Ts...>::makeWhenAll(std::declval<std::tuple<Ts...>>())
         ) _whenAll;
     };
 
-    constexpr WheyAnyWrap(Ts&&... ts) 
+    constexpr WheyAllWrap(Ts&&... ts) 
         : _tp{std::move(ts)...}
     {}
     
@@ -186,34 +171,34 @@ private:
     std::tuple<Ts...> _tp;
 
     template <typename... Us, AwaitableLike U>
-    friend constexpr WheyAnyWrap<Us..., U> operator||(WheyAnyWrap<Us...>&& ts, U&& u) noexcept;
+    friend constexpr WheyAllWrap<Us..., U> operator&&(WheyAllWrap<Us...>&& ts, U&& u) noexcept;
 
     template <typename... Us, AwaitableLike U>
-    friend constexpr WheyAnyWrap<U, Us...> operator||(U&& u, WheyAnyWrap<Us...>&& ts) noexcept;
+    friend constexpr WheyAllWrap<U, Us...> operator&&(U&& u, WheyAllWrap<Us...>&& ts) noexcept;
 
     template <typename... Us, AwaitableLike... Es>
-    friend constexpr WheyAnyWrap<Us..., Es...> operator||(WheyAnyWrap<Us...>&& ts, WheyAnyWrap<Es...>&& us) noexcept;
+    friend constexpr WheyAllWrap<Us..., Es...> operator&&(WheyAllWrap<Us...>&& ts, WheyAllWrap<Es...>&& us) noexcept;
 };
 
 template <typename... Ts, AwaitableLike U>
-[[nodiscard]] constexpr WheyAnyWrap<Ts..., U> operator||(WheyAnyWrap<Ts...>&& ts, U&& u) noexcept {
-    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAnyWrap<Ts..., U> {
+[[nodiscard]] constexpr WheyAllWrap<Ts..., U> operator&&(WheyAllWrap<Ts...>&& ts, U&& u) noexcept {
+    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAllWrap<Ts..., U> {
         return {std::move(std::get<Idx>(ts._tp))..., std::move(u)};
     } (std::make_index_sequence<sizeof...(Ts)>{});
 }
 
 template <typename... Ts, AwaitableLike U>
-[[nodiscard]] constexpr WheyAnyWrap<U, Ts...> operator||(U&& u, WheyAnyWrap<Ts...>&& ts) noexcept {
-    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAnyWrap<U, Ts...> {
+[[nodiscard]] constexpr WheyAllWrap<U, Ts...> operator&&(U&& u, WheyAllWrap<Ts...>&& ts) noexcept {
+    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAllWrap<U, Ts...> {
         return {std::move(u), std::move(std::get<Idx>(ts._tp))...};
     } (std::make_index_sequence<sizeof...(Ts)>{});
 }
 
 template <typename... Ts, AwaitableLike... Us>
-[[nodiscard]] constexpr WheyAnyWrap<Ts..., Us...> operator||(WheyAnyWrap<Ts...>&& ts, WheyAnyWrap<Us...>&& us) noexcept {
+[[nodiscard]] constexpr WheyAllWrap<Ts..., Us...> operator&&(WheyAllWrap<Ts...>&& ts, WheyAllWrap<Us...>&& us) noexcept {
     return [&] <std::size_t... I, std::size_t... J> (
         std::index_sequence<I...>, std::index_sequence<J...>
-    ) constexpr -> WheyAnyWrap<Ts..., Us...> {
+    ) constexpr -> WheyAllWrap<Ts..., Us...> {
         return {std::move(std::get<I>(ts._tp))..., std::move(std::get<J>(us._tp))...};
     } (std::make_index_sequence<sizeof...(Ts)>{}, std::make_index_sequence<sizeof...(Us)>{});
 }
@@ -221,7 +206,7 @@ template <typename... Ts, AwaitableLike... Us>
 } // namespace internal
 
 template <AwaitableLike T, AwaitableLike U>
-[[nodiscard]] constexpr internal::WheyAnyWrap<T, U> operator||(T&& t, U&& u) {
+[[nodiscard]] constexpr internal::WheyAllWrap<T, U> operator&&(T&& t, U&& u) {
     return {std::move(t), std::move(u)};
 }
 
