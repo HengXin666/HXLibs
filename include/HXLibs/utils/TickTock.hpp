@@ -59,6 +59,18 @@ public:
             }
         }
     }
+
+    template <typename Cb>
+    static constexpr auto forEach(std::size_t cnt, Cb&& cb) {
+        auto res = std::chrono::duration_cast<T>(T{}).count();
+        for (std::size_t i = 0; i < cnt; ++i) {
+            auto begin = std::chrono::steady_clock::now();
+            cb();
+            auto end = std::chrono::steady_clock::now();
+            res += std::chrono::duration_cast<T>(end - begin).count();
+        }
+        return res / static_cast<T::rep>(cnt);
+    }
 private:
     std::string _name;
     decltype(std::chrono::steady_clock::now()) _beginTime;

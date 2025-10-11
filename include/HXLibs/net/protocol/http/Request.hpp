@@ -28,6 +28,7 @@
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
+#include <HXLibs/utils/NumericBaseConverter.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 #include <HXLibs/reflection/deserialization/Numer.hpp>

@@ -13,7 +13,7 @@ TEST_CASE("测试朴素同步读写文件接口测试") {
     {
         utils::AsyncFile file{loop};
         loop.sync(file.open("./01_file.test"));
-        std::string data(114514, 'H');
+        std::string data(1 << 20, 'H');
         loop.sync(file.write(data));
         file.syncClose();
     }
@@ -36,17 +36,18 @@ TEST_CASE("测试朴素同步读写文件接口测试") {
 TEST_CASE("性能对比测试") {
     coroutine::EventLoop loop{};
     std::string res01, res02;
-    {
-        utils::TickTock<> _{"协程的同步"};
+    auto coCnt = utils::TickTock<>::forEach(1000, [&] {
         utils::AsyncFile file{loop};
         loop.sync(file.open("./01_file.test"));
         res01 = file.syncReadAll();
         file.syncClose();
-    }
-    {
-        utils::TickTock<> _{"同步"};
+    });
+    log::hxLog.info("协程的同步:", coCnt);
+    auto syncCnt = utils::TickTock<>::forEach(1000, [&] {
         res02 = utils::FileUtils::getFileContent("./01_file.test");
-    }
+    });
+    log::hxLog.info("系统调用:", syncCnt);
+    log::hxLog.warning("差距:", syncCnt / coCnt, "倍");
     CHECK(res01.size() == res02.size());
     bool isEq = res01 == res02;
     CHECK(isEq);

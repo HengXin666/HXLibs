@@ -29,11 +29,7 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 
-#include <HXLibs/log/Log.hpp> // debug
-
-/**
- * @brief @todo !!!本类需要大重构!!!
- */
+// #include <HXLibs/log/Log.hpp> // debug
 
 namespace HX::utils {
 
@@ -116,6 +112,7 @@ public:
     AsyncFile(coroutine::EventLoop& eventLoop)
         : _eventLoop{eventLoop}
         , _offset{}
+        , _fileSize{}
         , _fd{kInvalidLocalFd}
     {}
 
@@ -167,6 +164,7 @@ public:
 #else
         #error "Unsupported platform"
 #endif
+        _fileSize = FileUtils::getFileSize(path);
     }
 
     /**
@@ -217,15 +215,46 @@ public:
         co_return len;
     }
 
+#if 0
+    // 实际测试下面代码性能不如朴素的写法.
+    // 下面算法比基准快 ~8.2 倍
+    // 而朴素写法比基准快 ~8.8 倍
+    coroutine::Task<std::string> readAll() {
+        std::string res;
+        res.reserve(_fileSize);
+        std::array<std::vector<char>, 2> bufArr;
+        bufArr[0].resize(FileUtils::kBufMaxSize);
+        bool idx = 0;
+        int maeLen = 0;
+        for (;;) {
+            auto [len, _] = co_await coroutine::whenAll(read(bufArr[idx]), [&]() -> coroutine::Task<> {
+                idx ^= 1;
+                if (bufArr[1].empty()) [[unlikely]] {
+                    bufArr[1].resize(FileUtils::kBufMaxSize);
+                    co_return;
+                }
+                res += std::string_view{bufArr[idx].data(), static_cast<std::size_t>(maeLen)};
+                co_return;
+            }());
+            if (!len) {
+                break;
+            }
+            maeLen = len;
+        }
+        co_return res;
+    }
+#else
     coroutine::Task<std::string> readAll() {
         std::string res;
         std::vector<char> buf;
+        res.reserve(_fileSize);
         buf.resize(FileUtils::kBufMaxSize);
         for (int len = 0; (len = co_await read(buf)); ) {
             res += std::string_view{buf.data(), static_cast<std::size_t>(len)};
         }
         co_return res;
     }
+#endif
 
     /**
      * @brief 同步读取文件内容到 buf
@@ -321,6 +350,7 @@ public:
 private:
     coroutine::EventLoop& _eventLoop;
     uint64_t _offset;
+    std::uintmax_t _fileSize;
     LocalFdType _fd;
 };
 
