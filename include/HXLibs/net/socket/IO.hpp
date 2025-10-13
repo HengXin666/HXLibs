@@ -20,7 +20,9 @@
 
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
+#include <HXLibs/container/ArrayBuf.hpp>
 #include <HXLibs/net/socket/SocketFd.hpp>
+#include <HXLibs/net/protocol/https/Https.hpp>
 #include <HXLibs/exception/ExceptionMode.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
 
@@ -36,9 +38,9 @@ namespace internal {
 
 template <typename Timeout>
     requires(utils::HasTimeNTTP<Timeout>)
-auto* getTimePtr() noexcept {
+auto const* getTimePtr() noexcept {
     // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
-    static auto to = coroutine::durationToKernelTimespec(
+    constexpr static auto to = coroutine::durationToKernelTimespec(
         Timeout::StdChronoVal
     );
     return &to;
@@ -117,11 +119,16 @@ public:
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >> recvLinkTimeout(std::span<char> buf) {
-        co_return co_await coroutine::AioTask::linkTimeout(
+        auto res = co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(
                 internal::getTimePtr<Timeout>(), 0)
         );
+        if (res.index() == 0) [[likely]] {
+            _ssl.feedNetworkData({buf, get<0, exception::ExceptionMode::Nothrow>(res)});
+            get<0>(res) = _ssl.readAppData(buf);
+        }
+        co_return res;
     }
 #elif defined(_WIN32)
     template <typename Timeout>
@@ -271,10 +278,46 @@ public:
     }
 #endif // !NDEBUG
 
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<> initSsl(bool isServer) {
+        isServer ? _ssl.setAccept() : _ssl.setConnect();
+        container::ArrayBuf<char, 1024> _sslRecvBuf;
+        do {
+            auto res = co_await coroutine::AioTask::linkTimeout(
+                _eventLoop.makeAioTask().prepRecv(
+                    _fd, {
+                        _sslRecvBuf.data(), _sslRecvBuf.max_size()
+                    }, 0),
+                _eventLoop.makeAioTask().prepLinkTimeout(
+                    internal::getTimePtr<Timeout>(), 0)
+            );
+            if (res.index() == 1) [[unlikely]] {
+                throw std::runtime_error{"is Timeout"}; // 超时了
+            }
+            _ssl.feedNetworkData({_sslRecvBuf.data(), get<0, exception::ExceptionMode::Nothrow>(res)});
+        } while (_ssl.driveHandshake());
+        
+        co_return;
+    }
+
 private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;
+    SslHandshake _ssl;
 };
+
+/*
+    Https 时候解析流向
+
+    1) 建立tcp连接 -> fd => IO
+    2) 进行 https 握手
+        - 全部读取 -> buf -> _ssl (netBio) -> _ssl (sslBio)
+        - while (!握手ok())
+        - _ssl (sslBio) -> _ssl (netBio) -> 全部读取 -> buf -> 全部写入
+    3) 等待并解析请求
+        - 实际上同理了~
+*/
 
 } // namespace HX::net
 

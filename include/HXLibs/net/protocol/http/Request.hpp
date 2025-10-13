@@ -592,6 +592,7 @@ private:
 
     friend class Router;
     friend class WebSocketFactory;
+    friend struct ConnectionHandler;
 
     template <typename Timeout, typename Proxy>
         requires(utils::HasTimeNTTP<Timeout>)

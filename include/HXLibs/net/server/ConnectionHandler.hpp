@@ -42,6 +42,7 @@ struct ConnectionHandler {
     ) {
         using namespace std::string_view_literals;
         IO io{fd, eventLoop};
+        co_await io.initSsl<Timeout>(true);
         Request  req{io};
         Response res{io};
         try {
