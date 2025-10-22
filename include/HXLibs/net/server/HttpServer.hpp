@@ -120,13 +120,17 @@ public:
      * @param threadNum 线程数
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
-    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+    template <
+        typename Timeout = decltype(utils::operator""_s<"30">()),
+        typename Init = decltype([]{})
+    >
         requires(utils::HasTimeNTTP<Timeout>)
     void syncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
+        Init&& init = Init{},
         Timeout timeout = {}
     ) {
-        asyncRun(threadNum, timeout);
+        asyncRun(threadNum, std::forward<Init>(init), timeout);
         _threads.clear();
     }
 
@@ -137,21 +141,27 @@ public:
      * @param threadNum 线程数
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
-    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+    template <
+        typename Timeout = decltype(utils::operator""_s<"30">()),
+        typename Init = decltype([]{})
+    >
         requires(utils::HasTimeNTTP<Timeout>)
     void asyncRun(
         std::size_t threadNum = std::thread::hardware_concurrency(),
+        Init&& init = Init{},
         Timeout = {}
     ) {
         if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
         for (std::size_t i = 0; i < threadNum; ++i) {
-            _threads.emplace_back([this] {
-                _sync<Timeout>();
+            _threads.emplace_back([this, init] {
+                _sync<Timeout>(init);
             });
         }
-        log::hxLog.info("====== HXServer start: \033[33m\033]8;;http://" 
+        log::hxLog.info("====== HXServer start: \033[33m\033]8;;http"
+            + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
+            + "://"
             + _name 
             + ":" 
             + _port 
@@ -167,10 +177,11 @@ public:
     }
 
 private:
-    template <typename Timeout>
+    template <typename Timeout, typename Init>
         requires(utils::HasTimeNTTP<Timeout>)
-    void _sync() {
+    void _sync(Init&& init) {
         try {
+            init();
             coroutine::EventLoop _eventLoop;
             AddressResolver addr;
             auto entry = addr.resolve(_name, _port);

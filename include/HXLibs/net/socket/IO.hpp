@@ -38,9 +38,9 @@ namespace internal {
 
 template <typename Timeout>
     requires(utils::HasTimeNTTP<Timeout>)
-auto const* getTimePtr() noexcept {
+auto* getTimePtr() noexcept {
     // 为了对外接口统一, 并且尽可能的减小调用次数, 故模板 多实例 特化静态成员, 达到 @cache 的效果
-    constexpr static auto to = coroutine::durationToKernelTimespec(
+    static auto to = coroutine::durationToKernelTimespec(
         Timeout::StdChronoVal
     );
     return &to;
@@ -54,21 +54,21 @@ auto const* getTimePtr() noexcept {
  * @brief Socket IO 接口, 仅提供写入和读取等操作, 不会进行任何解析和再封装
  * @note 如果需要进行读写解析, 可以看 Res / Req 的接口
  */
-class IO {
+class HttpIO {
 public:
     inline constexpr static std::size_t kBufMaxSize = 1 << 14; // 16kb
 
-    IO(coroutine::EventLoop& eventLoop)
+    HttpIO(coroutine::EventLoop& eventLoop)
         : _fd{kInvalidSocket}
         , _eventLoop{eventLoop}
     {}
 
-    IO(SocketFdType fd, coroutine::EventLoop& eventLoop)
+    HttpIO(SocketFdType fd, coroutine::EventLoop& eventLoop)
         : _fd{fd}
         , _eventLoop{eventLoop}
     {}
 
-    IO& operator=(IO&&) noexcept = delete;
+    HttpIO& operator=(HttpIO&&) noexcept = delete;
 
     coroutine::Task<int> recv(std::span<char> buf) {
         co_return static_cast<int>(
@@ -119,16 +119,11 @@ public:
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >> recvLinkTimeout(std::span<char> buf) {
-        auto res = co_await coroutine::AioTask::linkTimeout(
+        co_return co_await coroutine::AioTask::linkTimeout(
             _eventLoop.makeAioTask().prepRecv(_fd, buf, 0),
             _eventLoop.makeAioTask().prepLinkTimeout(
                 internal::getTimePtr<Timeout>(), 0)
         );
-        if (res.index() == 0) [[likely]] {
-            _ssl.feedNetworkData({buf, get<0, exception::ExceptionMode::Nothrow>(res)});
-            get<0>(res) = _ssl.readAppData(buf);
-        }
-        co_return res;
     }
 #elif defined(_WIN32)
     template <typename Timeout>
@@ -268,43 +263,18 @@ public:
     }
 
 #ifdef NDEBUG
-    ~IO() noexcept = default;
+    ~HttpIO() noexcept = default;
 #else
-    ~IO() noexcept(false) {
+    ~HttpIO() noexcept(false) {
         if (_fd != kInvalidSocket) [[unlikely]] {
             log::hxLog.error("IO 没有进行 close");
             throw std::runtime_error{"[IO]: no close!"};
         }
     }
 #endif // !NDEBUG
-
-    template <typename Timeout>
-        requires(utils::HasTimeNTTP<Timeout>)
-    coroutine::Task<> initSsl(bool isServer) {
-        isServer ? _ssl.setAccept() : _ssl.setConnect();
-        container::ArrayBuf<char, 1024> _sslRecvBuf;
-        do {
-            auto res = co_await coroutine::AioTask::linkTimeout(
-                _eventLoop.makeAioTask().prepRecv(
-                    _fd, {
-                        _sslRecvBuf.data(), _sslRecvBuf.max_size()
-                    }, 0),
-                _eventLoop.makeAioTask().prepLinkTimeout(
-                    internal::getTimePtr<Timeout>(), 0)
-            );
-            if (res.index() == 1) [[unlikely]] {
-                throw std::runtime_error{"is Timeout"}; // 超时了
-            }
-            _ssl.feedNetworkData({_sslRecvBuf.data(), get<0, exception::ExceptionMode::Nothrow>(res)});
-        } while (_ssl.driveHandshake());
-        
-        co_return;
-    }
-
 private:
     SocketFdType _fd;
     coroutine::EventLoop& _eventLoop;
-    SslHandshake _ssl;
 };
 
 /*
@@ -318,6 +288,79 @@ private:
     3) 等待并解析请求
         - 实际上同理了~
 */
+
+class HttpsIO : public HttpIO {
+    using Base = HttpIO;
+public:
+    using Base::Base;
+
+    /**
+     * @brief 写入数据, 内部保证完全写入
+     * @param buf 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> fullySend(std::span<char const> buf) {
+        _ssl.writeAppData(buf);
+        co_await Base::fullySend(_ssl.takeNetworkData());
+    }
+
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<coroutine::WhenAnyReturnType<
+        coroutine::AioTask,
+        decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
+    >> recvLinkTimeout(std::span<char> buf) {
+        auto res = co_await Base::recvLinkTimeout<Timeout>(buf);
+        if (res.index() == 0) [[likely]] {
+            _ssl.feedNetworkData({
+                buf.data(),
+                static_cast<std::size_t>(get<0, exception::ExceptionMode::Nothrow>(res))
+            });
+            get<0>(res) = _ssl.readAppData(buf);
+        }
+        co_return res;
+    }
+
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<> initSsl(bool isServer) {
+        isServer ? _ssl.setAccept() : _ssl.setConnect();
+        container::ArrayBuf<char, 1024> _sslRecvBuf;
+        for (;;) {
+            // 尝试推进握手
+            bool done = _ssl.driveHandshake();
+
+            // 取出要发给对方的密文
+            auto out = _ssl.takeNetworkData();
+            if (!out.empty()) {
+                co_await Base::sendLinkTimeout<Timeout>({out.data(), out.size()});
+            }
+
+            if (done) {
+                break;
+            }
+
+            // 收取来自对方的密文
+            auto res = co_await Base::recvLinkTimeout<Timeout>({
+                _sslRecvBuf.data(), _sslRecvBuf.max_size()
+            });
+
+            if (res.index() == 1) [[unlikely]] {
+                throw std::runtime_error{"is Timeout"};
+            }
+
+            // 喂入网络数据
+            _ssl.feedNetworkData({
+                _sslRecvBuf.data(),
+                static_cast<std::size_t>(get<0, exception::ExceptionMode::Nothrow>(res))
+            });
+        }
+    }
+private:
+    SslHandshake _ssl;
+};
+
+using IO = HttpsIO;
 
 } // namespace HX::net
 

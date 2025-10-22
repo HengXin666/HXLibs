@@ -34,7 +34,9 @@ public:
     SslHandshake()
         : _ssl{SSL_new(Context::getContext().getSslCtx())}
     {
-        if (!_ssl) throw std::runtime_error("SSL_new failed");
+        if (!_ssl) {
+            throw std::runtime_error("SSL_new failed");
+        }
 
         BIO* sslBio = nullptr;
         BIO* netBio = nullptr;
@@ -55,8 +57,10 @@ public:
     }
 
     ~SslHandshake() {
-        if (_ssl) SSL_free(_ssl);
-        if (_netBio) BIO_free(_netBio);
+        if (_ssl)
+            SSL_free(_ssl);
+        if (_netBio)
+            BIO_free(_netBio);
     }
 
     // 外层提供网络密文
@@ -80,6 +84,17 @@ public:
         }
     }
 
+    // 应用层写入明文, 产生密文
+    void writeAppData(std::span<char const> buf) {
+        int res = SSL_write(_ssl, buf.data(), static_cast<int>(buf.size()));
+        if (res <= 0) {
+            int err = SSL_get_error(_ssl, res);
+            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) [[unlikely]] {
+                throw std::runtime_error("SSL_write failed");
+            }
+        }
+    }
+
     // 取出要发送的密文
     std::vector<char> takeNetworkData() {
         std::vector<char> out;
@@ -87,8 +102,9 @@ public:
         if (pending > 0) {
             out.resize(static_cast<std::size_t>(pending));
             int n = BIO_read(_netBio, out.data(), pending);
-            if (n <= 0)
+            if (n <= 0) {
                 throw std::runtime_error("BIO_read failed");
+            }
         }
         return out;
     }
