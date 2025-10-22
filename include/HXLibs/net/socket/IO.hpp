@@ -76,9 +76,7 @@ public:
     }
 
     coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
-        co_return static_cast<int>(
-            co_await _eventLoop.makeAioTask().prepRecv(
-                _fd, buf.subspan(0, n), 0));
+        co_return co_await recv(buf.subspan(0, n));
     }
 
     /**
@@ -277,6 +275,7 @@ private:
     coroutine::EventLoop& _eventLoop;
 };
 
+#ifdef HXLIBS_ENABLE_SSL
 /*
     Https 时候解析流向
 
@@ -294,6 +293,50 @@ class HttpsIO : public HttpIO {
 public:
     using Base::Base;
 
+    coroutine::Task<int> recv(std::span<char> buf) {
+        auto size = co_await Base::recv(buf);
+        _ssl.feedNetworkData({
+            buf.data(),
+            static_cast<std::size_t>(size)
+        });
+        co_return _ssl.readAppData(buf);
+    }
+
+    coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
+        co_return co_await recv(buf.subspan(0, n));
+    }
+
+    /**
+     * @brief 完全读取
+     * @param buf 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> fullyRecv(std::span<char> buf) {
+        while (!buf.empty()) {
+            auto sent = static_cast<std::size_t>(
+                HXLIBS_CHECK_EVENT_LOOP(
+                    co_await recv(buf)
+                )
+            );
+            buf = buf.subspan(sent);
+        }
+    }
+
+    /**
+     * @brief 直接将二进制写入到类型T中, 注意需要区分大小端
+     * @warning 默认是网络序(大端), 如果需要使用, 注意转换
+     * @tparam T 
+     * @return coroutine::Task<T> 
+     */
+    template <typename T>
+    coroutine::Task<T> recvStruct() {
+        T res;
+        co_await fullyRecv(std::span<char>{
+            reinterpret_cast<char*>(&res), sizeof(T)
+        });
+        co_return res;
+    }
+
     /**
      * @brief 写入数据, 内部保证完全写入
      * @param buf 
@@ -302,6 +345,16 @@ public:
     coroutine::Task<> fullySend(std::span<char const> buf) {
         _ssl.writeAppData(buf);
         co_await Base::fullySend(_ssl.takeNetworkData());
+    }
+
+    /**
+     * @brief 写入数据, 内部保证完全写入
+     * @param buf 
+     * @param n 
+     * @return coroutine::Task<> 
+     */
+    coroutine::Task<> fullySend(std::span<char const> buf, std::size_t n) {
+        co_await fullySend(buf.subspan(0, n));
     }
 
     template <typename Timeout>
@@ -319,6 +372,17 @@ public:
             get<0>(res) = _ssl.readAppData(buf);
         }
         co_return res;
+    }
+
+    /**
+     * @brief 完整的写入数据, 内部保证写入完成; 如果超时则抛出异常
+     * @tparam Timeout 
+     */
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<> sendLinkTimeout(std::span<char const> buf) {
+        _ssl.writeAppData(buf);
+        co_await Base::sendLinkTimeout<Timeout>(_ssl.takeNetworkData());
     }
 
     template <typename Timeout>
@@ -360,7 +424,9 @@ private:
     SslHandshake _ssl;
 };
 
-using IO = HttpsIO;
+    using IO = HttpsIO;
+#else
+    using IO = HttpIO;
+#endif // HXLIBS_ENABLE_SSL
 
 } // namespace HX::net
-

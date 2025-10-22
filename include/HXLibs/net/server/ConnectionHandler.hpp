@@ -43,43 +43,45 @@ struct ConnectionHandler {
         using namespace std::string_view_literals;
         IO io{fd, eventLoop};
         try {
+#if HXLIBS_ENABLE_SSL
             co_await io.initSsl<Timeout>(true);
-        } catch (std::exception const& err) {
-            log::hxLog.error(err.what()); // 
-        }
-        Request req{io};
-        Response res{io};
-        try {
-            for (;;) {
-                // 读
-                if (!co_await req.parserReq<Timeout>()) [[unlikely]] {
-                    break;
+#endif // HXLIBS_ENABLE_SSL
+            Request req{io};
+            Response res{io};
+            try {
+                for (;;) {
+                    // 读
+                    if (!co_await req.parserReq<Timeout>()) [[unlikely]] {
+                        break;
+                    }
+                    // 路由
+                    co_await router.getEndpoint(
+                        req.getReqType(), 
+                        req.getReqPath()
+                    )(req, res);
+                    
+                    // 只要不是明确写 close 的, 我就复用连接 (keep-alive)
+                    if (auto it = req.getHeaders().find(CONNECTION_SV);
+                        (it != req.getHeaders().end() && it->second == "close"sv)
+                        || !isRun.load(std::memory_order_acquire)
+                    ) [[unlikely]] {
+                        break;
+                    }
+    
+                    // 写 (由端点内部完成)
+    
+                    // 清空
+                    co_await req.clear();
+                    res.clear();
                 }
-                // 路由
-                co_await router.getEndpoint(
-                    req.getReqType(), 
-                    req.getReqPath()
-                )(req, res);
-                
-                // 只要不是明确写 close 的, 我就复用连接 (keep-alive)
-                if (auto it = req.getHeaders().find(CONNECTION_SV);
-                    (it != req.getHeaders().end() && it->second == "close"sv)
-                    || !isRun.load(std::memory_order_acquire)
-                ) [[unlikely]] {
-                    break;
-                }
-
-                // 写 (由端点内部完成)
-
-                // 清空
-                co_await req.clear();
-                res.clear();
+            } catch (std::exception const& err) {
+                // ps: 连接被对方重置 说明对方已经关闭连接, 而我还在等待读取, 这时候会异常, 可以忽视
+                log::hxLog.error("发生异常:", err.what());
+            } catch (...) {
+                log::hxLog.error("发生未知错误!");
             }
         } catch (std::exception const& err) {
-            // ps: 连接被对方重置 说明对方已经关闭连接, 而我还在等待读取, 这时候会异常, 可以忽视
-            log::hxLog.error("发生异常:", err.what());
-        } catch (...) {
-            log::hxLog.error("发生未知错误!");
+            log::hxLog.warning("已经开启Https, 不支持普通Http请求");
         }
         log::hxLog.debug("连接已断开");
 

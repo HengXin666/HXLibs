@@ -18,6 +18,8 @@
  * limitations under the License.
  */
 
+#ifdef HXLIBS_ENABLE_SSL
+
 #include <stdexcept>
 #include <span>
 #include <vector>
@@ -128,3 +130,5 @@ private:
 };
 
 } // namespace HX::net
+
+#endif // HXLIBS_ENABLE_SSL
