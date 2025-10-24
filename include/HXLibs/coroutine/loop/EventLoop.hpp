@@ -386,7 +386,7 @@ struct EventLoop {
      * @param mainTask 
      * @return Res 协程返回值
      */
-    template <CoroutineObject T, typename Res = AwaiterReturnValue<T>>
+    template <CoroutineObject T, typename Res = AwaiterReturnType<T>>
     Res sync(T&& mainTask) {
         auto t = trySync(std::forward<T>(mainTask));
         if (!t) [[unlikely]] {
@@ -397,7 +397,7 @@ struct EventLoop {
         }
     }
 
-    template <CoroutineObject T, typename Res = AwaiterReturnValue<T>>
+    template <CoroutineObject T, typename Res = AwaiterReturnType<T>>
     container::Try<Res> trySync(T&& mainTask) {
         if (_eventDrive.isRun()) [[unlikely]] {
             // 如果触发下面, 极有可能先前进行了协程挂起而没有恢复, 或者当前为协程语义环境

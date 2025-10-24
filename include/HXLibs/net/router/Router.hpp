@@ -274,7 +274,7 @@ private:
     ) {
         if constexpr (requires {
             requires std::convertible_to<
-                coroutine::AwaiterReturnValue<decltype(interceptors.before(req, res))>,
+                coroutine::AwaiterReturnType<decltype(interceptors.before(req, res))>,
                 bool
             >;
         }) {
@@ -301,7 +301,7 @@ private:
     ) {
         if constexpr (requires {
             requires std::convertible_to<
-                coroutine::AwaiterReturnValue<decltype(interceptors.after(req, res))>,
+                coroutine::AwaiterReturnType<decltype(interceptors.after(req, res))>,
                 bool
             >;
         }) {

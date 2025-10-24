@@ -347,7 +347,7 @@ public:
      */
     template <
         typename Func, 
-        typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
+        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
     container::FutureResult<container::Try<Res>> wsLoop(
@@ -373,7 +373,7 @@ public:
      */
     template <
         typename Func, 
-        typename Res = coroutine::AwaiterReturnValue<std::invoke_result_t<Func, WebSocketClient>>
+        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
     coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func, HeaderHashMap headers = {}) {

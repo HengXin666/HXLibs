@@ -30,7 +30,7 @@ namespace HX::coroutine {
 
 template <AwaitableLike... Ts>
 using WhenAnyReturnType = container::UninitializedNonVoidVariant<
-    AwaiterReturnValue<Ts>...
+    AwaiterReturnType<Ts>...
 >;
 
 namespace internal {

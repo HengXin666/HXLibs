@@ -98,7 +98,7 @@ Task<std::coroutine_handle<>, WhenAllPromise> allStrat(
 template <
     std::size_t... Idx,
     AwaitableLike... Ts,
-    typename Res = std::tuple<container::NonVoidType<AwaiterReturnValue<Ts>>...>
+    typename Res = std::tuple<container::NonVoidType<AwaiterReturnType<Ts>>...>
 >
 Task<Res> whenAll(std::index_sequence<Idx...>, Ts&&... ts) {
     // 1. 定义返回值

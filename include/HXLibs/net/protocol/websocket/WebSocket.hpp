@@ -421,7 +421,7 @@ private:
             if (size >= buf.size()) {
                 Res res;
                 res.template emplace<0>(static_cast<
-                    coroutine::AwaiterReturnValue<coroutine::AioTask>
+                    coroutine::AwaiterReturnType<coroutine::AioTask>
                 >(buf.size()));
                 co_return res;
             }

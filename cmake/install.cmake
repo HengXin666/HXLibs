@@ -13,9 +13,6 @@ if (CLIENT_ADDRESS_LOGGING)
     target_compile_definitions(HXLibs INTERFACE CLIENT_ADDRESS_LOGGING)
 endif()
 
-# 此处导入, 其内部会自动链接上 HXLibs
-include(cmake/includeLib.cmake)
-
 # 安装头文件
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     DESTINATION include

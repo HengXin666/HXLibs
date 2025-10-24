@@ -47,6 +47,13 @@ int main() {
         co_await res.useChunkedEncodingTransferFile("static/bigFile/HXLibs.html");
     });
 
+    // echo
+    serv.addEndpoint<GET>("/echo/**", [] ENDPOINT {
+        co_return  co_await res.setStatusAndContent(
+            Status::CODE_200, req.getUniversalWildcardPath()
+        ).sendRes();
+    });
+
     serv.syncRun(std::thread::hardware_concurrency(), []{
         HX::net::Context::getContext().initServerSSL({
             "certs/cert.pem",

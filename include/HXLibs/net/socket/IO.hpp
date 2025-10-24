@@ -294,12 +294,17 @@ public:
     using Base::Base;
 
     coroutine::Task<int> recv(std::span<char> buf) {
-        auto size = co_await Base::recv(buf);
-        _ssl.feedNetworkData({
-            buf.data(),
-            static_cast<std::size_t>(size)
-        });
-        co_return _ssl.readAppData(buf);
+        // @todo
+        int res = 0;
+        do {        
+            auto size = co_await Base::recv(buf);
+            _ssl.feedNetworkData({
+                buf.data(),
+                static_cast<std::size_t>(size)
+            });
+            res = _ssl.readAppData(buf);
+        } while (res < 0);
+        co_return res;
     }
 
     coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
@@ -344,6 +349,7 @@ public:
      */
     coroutine::Task<> fullySend(std::span<char const> buf) {
         _ssl.writeAppData(buf);
+        log::hxLog.warning("send:", buf.size());
         co_await Base::fullySend(_ssl.takeNetworkData());
     }
 
@@ -363,13 +369,27 @@ public:
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >> recvLinkTimeout(std::span<char> buf) {
-        auto res = co_await Base::recvLinkTimeout<Timeout>(buf);
-        if (res.index() == 0) [[likely]] {
-            _ssl.feedNetworkData({
-                buf.data(),
-                static_cast<std::size_t>(get<0, exception::ExceptionMode::Nothrow>(res))
-            });
-            get<0>(res) = _ssl.readAppData(buf);
+        coroutine::AwaiterReturnType<decltype(Base::recvLinkTimeout<Timeout>(buf))> res;
+        res.template emplace<0>(0);
+        while (res.index() == 0) [[likely]] {
+            auto& ans = get<0, exception::ExceptionMode::Nothrow>(res);
+            if (ans > 0) {
+                // 解密
+                _ssl.feedNetworkData({
+                    buf.data(),
+                    static_cast<std::size_t>(ans)
+                });
+            }
+            log::hxLog.info(ans);
+            // 获取明文
+            ans = _ssl.readAppData(buf);
+            if (ans >= 0) {
+                log::hxLog.error("=== return ===");
+                co_return res;
+            }
+            log::hxLog.warning("try recv");
+            // 继续尝试读取密文
+            res = co_await Base::recvLinkTimeout<Timeout>(buf);
         }
         co_return res;
     }

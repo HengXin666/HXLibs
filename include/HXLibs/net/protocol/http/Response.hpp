@@ -174,7 +174,7 @@ public:
      * @param content
      * @return Response& 可链式调用
      */
-    Response& setStatusAndContent(Status status, std::string const& content) {
+    Response& setStatusAndContent(Status status, std::string_view content) {
         setResLine(status).setContentType(TEXT).setBody(content);
         return *this;
     }

@@ -1,0 +1,28 @@
+if (HXLIBS_IS_IMPORTED_BY_FIND_PACKAGE)
+    message("HXLibs is imported by find_package")
+    set(hxlibs_target_name "HXLibs::HXLibs")
+else()
+    if(NOT CMAKE_PROJECT_NAME STREQUAL "HXLibs")
+        message("HXLibs is imported by fetchContent or add_subdirectory")
+    endif()
+    set(hxlibs_target_name "HXLibs")
+endif()
+
+# 导入第三方库 liburing
+if(LINUX)
+    include(cmake/includeLib/FindUring.cmake)
+endif()
+
+# OpenSSL
+option(HXLIBS_ENABLE_SSL "Enable ssl support" OFF)
+message(STATUS "HXLIBS_ENABLE_SSL: ${HXLIBS_ENABLE_SSL}")
+if(HXLIBS_ENABLE_SSL)
+    find_package(OpenSSL REQUIRED)
+    if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")
+        add_compile_definitions("HXLIBS_ENABLE_SSL")
+        link_libraries(OpenSSL::SSL OpenSSL::Crypto)
+    else()
+        target_compile_definitions(${hxlibs_target_name} INTERFACE "HXLIBS_ENABLE_SSL")
+        target_link_libraries(${hxlibs_target_name} INTERFACE OpenSSL::SSL OpenSSL::Crypto)
+    endif()
+endif()

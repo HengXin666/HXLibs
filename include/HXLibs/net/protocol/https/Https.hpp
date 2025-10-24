@@ -67,22 +67,22 @@ public:
 
     // 外层提供网络密文
     void feedNetworkData(std::span<const char> data) {
-        if (BIO_write(_netBio, data.data(), (int)data.size()) <= 0) [[unlikely]] {
+        if (BIO_write(_netBio, data.data(), static_cast<int>(data.size())) <= 0) [[unlikely]] {
             throw std::runtime_error("BIO_write failed");
         }
     }
 
     // 从SSL读取明文应用数据
     int readAppData(std::span<char> buf) {
-        int n = SSL_read(_ssl, buf.data(), (int)buf.size());
+        int n = SSL_read(_ssl, buf.data(), static_cast<int>(buf.size()));
         if (n > 0) {
             return n;
         } else {
             int err = SSL_get_error(_ssl, n);
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
-                return 0; // 等待更多密文
+                return -1; // 等待更多密文
             else
-                throw std::runtime_error("SSL_read failed");
+                throw std::runtime_error("SSL_read failed:" + std::to_string(err));
         }
     }
 

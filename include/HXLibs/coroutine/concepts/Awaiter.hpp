@@ -44,7 +44,7 @@ concept CoroutineObject = requires(T&& t) {
 };
 
 template <AwaitableLike T>
-using AwaiterReturnValue = decltype([](auto&& t) {
+using AwaiterReturnType = decltype([](auto&& t) {
     if constexpr (Awaiter<decltype(t)>) {
         return t.await_resume();
     } else if constexpr (Awaitable<decltype(t)>) {
