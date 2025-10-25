@@ -25,6 +25,8 @@
 
 #include <HXLibs/exception/SslException.hpp>
 
+#include <HXLibs/log/Log.hpp> // debug
+
 #ifdef __GNUC__
 #define HOT_FUNCTION [[gnu::hot]]
 #else
@@ -188,6 +190,8 @@ public:
     }
 
     SSL_CTX* getSslCtx() const {
+        // 发现问题!, 客户端的崩溃是潜在的跨线程调用导致的...
+        log::hxLog.debug("get getSslCtx:", _sslCtx);
         return _sslCtx;
     }
 private:

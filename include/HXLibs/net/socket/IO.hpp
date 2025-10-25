@@ -298,11 +298,11 @@ public:
         int res = 0;
         do {        
             auto size = co_await Base::recv(buf);
-            _ssl.feedNetworkData({
+            _ssl.writeCiphertext({
                 buf.data(),
                 static_cast<std::size_t>(size)
             });
-            res = _ssl.readAppData(buf);
+            res = _ssl.readPlaintext(buf);
         } while (res < 0);
         co_return res;
     }
@@ -348,9 +348,10 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> fullySend(std::span<char const> buf) {
-        _ssl.writeAppData(buf);
-        log::hxLog.warning("send:", buf.size());
-        co_await Base::fullySend(_ssl.takeNetworkData());
+        // 似乎发送也不完整!
+        _ssl.writePlaintext(buf);
+        // log::hxLog.warning("send:", buf.size());
+        co_await Base::fullySend(_ssl.readCiphertext());
     }
 
     /**
@@ -375,19 +376,19 @@ public:
             auto& ans = get<0, exception::ExceptionMode::Nothrow>(res);
             if (ans > 0) {
                 // 解密
-                _ssl.feedNetworkData({
+                _ssl.writeCiphertext({
                     buf.data(),
                     static_cast<std::size_t>(ans)
                 });
             }
-            log::hxLog.info(ans);
+            // log::hxLog.info(ans);
             // 获取明文
-            ans = _ssl.readAppData(buf);
+            ans = _ssl.readPlaintext(buf);
             if (ans >= 0) {
-                log::hxLog.error("=== return ===");
+                // log::hxLog.error("=== return ===");
                 co_return res;
             }
-            log::hxLog.warning("try recv");
+            // log::hxLog.warning("try recv");
             // 继续尝试读取密文
             res = co_await Base::recvLinkTimeout<Timeout>(buf);
         }
@@ -401,8 +402,8 @@ public:
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> sendLinkTimeout(std::span<char const> buf) {
-        _ssl.writeAppData(buf);
-        co_await Base::sendLinkTimeout<Timeout>(_ssl.takeNetworkData());
+        _ssl.writePlaintext(buf);
+        co_await Base::sendLinkTimeout<Timeout>(_ssl.readCiphertext());
     }
 
     template <typename Timeout>
@@ -415,11 +416,12 @@ public:
             bool done = _ssl.driveHandshake();
 
             // 取出要发给对方的密文
-            auto out = _ssl.takeNetworkData();
+            auto out = _ssl.readCiphertext();
             if (!out.empty()) {
-                co_await Base::sendLinkTimeout<Timeout>({out.data(), out.size()});
+                co_await Base::sendLinkTimeout<Timeout>(out);
             }
 
+            // 握手完成
             if (done) {
                 break;
             }
@@ -434,7 +436,7 @@ public:
             }
 
             // 喂入网络数据
-            _ssl.feedNetworkData({
+            _ssl.writeCiphertext({
                 _sslRecvBuf.data(),
                 static_cast<std::size_t>(get<0, exception::ExceptionMode::Nothrow>(res))
             });

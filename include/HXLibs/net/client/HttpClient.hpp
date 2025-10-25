@@ -429,6 +429,23 @@ public:
         co_return res;
     }
 
+#ifdef HXLIBS_ENABLE_SSL
+    auto initSsl() {
+        Context::getContext().initClientSSL({
+            {},
+            {},
+            SSL_VERIFY_NONE
+        });
+        return _pool.addTask([] {
+            Context::getContext().initClientSSL({
+                {},
+                {},
+                SSL_VERIFY_NONE
+            });
+        });
+    }
+#endif // !HXLIBS_ENABLE_SSL
+
     HttpClient& operator=(HttpClient&&) noexcept = delete;
 
     ~HttpClient() noexcept {
@@ -460,14 +477,20 @@ private:
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
+                // 初始化代理
+                IO io{_cliFd, _eventLoop};
                 if (_options.proxy.get().size()) {
-                    // 初始化代理
-                    IO io{_cliFd, _eventLoop};
                     Proxy proxy{io};
                     co_await proxy.connect(_options.proxy.get(), url);
-                    io.reset();
                 }
-                // 初始化连接 (如 Https 握手)
+#ifdef HXLIBS_ENABLE_SSL
+                log::hxLog.warning("握手开始 {");
+
+                // 初始化连接 (Https 握手)
+                co_await io.initSsl<Timeout>(false);
+#endif // !HXLIBS_ENABLE_SSL
+                log::hxLog.warning("} // 握手完成");
+                io.reset();
                 co_return;
             } catch (...) {
                 log::hxLog.error("连接失败");

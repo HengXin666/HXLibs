@@ -49,15 +49,25 @@ int main() {
 
     // echo
     serv.addEndpoint<GET>("/echo/**", [] ENDPOINT {
-        co_return  co_await res.setStatusAndContent(
+        log::hxLog.info("in echo: size =", req.getUniversalWildcardPath().size());
+        co_return co_await res.setStatusAndContent(
             Status::CODE_200, req.getUniversalWildcardPath()
         ).sendRes();
     });
 
-    serv.syncRun(std::thread::hardware_concurrency(), []{
+    serv.syncRun(1, []{
         HX::net::Context::getContext().initServerSSL({
             "certs/cert.pem",
             "certs/key.pem"
         });
     });
+
+    using namespace std::chrono;
+    std::this_thread::sleep_for(10ms);
+
+    HttpClient client;
+    client.initSsl().wait();
+    log::hxLog.info("get -> ", client.get("https://127.0.0.1:28205/").get().get());
+
+    std::this_thread::sleep_for(3s);
 }
