@@ -133,19 +133,17 @@ public:
             if (needConnect()) {
                 co_await makeSocket(url);
             }
-            IO io{_cliFd, _eventLoop};
             container::Try<> err{};
-            Request req{io};
+            Request req{_io.get()};
             req.setReqLine<Method>(UrlParse::extractPath(url));
             preprocessHeaders(url, contentType, req);
             req.addHeaders(std::move(headers));
             try {
                 co_await req.sendChunkedReq<Timeout>(path);
-                Response res{io};
+                Response res{_io.get()};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
-                io.reset();
                 co_return res.makeResponseData();
             } catch (...) {
                 ;
@@ -153,20 +151,19 @@ public:
             // 二次尝试
             try {
                 co_await makeSocket(url);
-                co_await io.bindNewFd(_cliFd);
+                co_await _io.get().bindNewFd(_cliFd);
                 // 再次发送
                 co_await req.sendChunkedReq<Timeout>(path);
-                Response res{io};
+                Response res{_io.get()};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
-                io.reset();
                 co_return res.makeResponseData();
             } catch (...) {
                 err.setException(std::current_exception());
             }
             // 断开连接
-            co_await io.close();
+            co_await _io.get().close();
             _cliFd = kInvalidSocket;
             err.rethrow();
             co_return {};
@@ -332,7 +329,7 @@ public:
             if (_cliFd == kInvalidSocket) {
                 co_return;
             }
-            co_await _eventLoop.makeAioTask().prepClose(_cliFd);
+            co_await _io.get().close();
             _cliFd = kInvalidSocket;
         }());
     }
@@ -382,11 +379,10 @@ public:
             if (needConnect()) {
                 co_await makeSocket(url);
             }
-            IO io{_cliFd, _eventLoop};
             container::Uninitialized<WebSocketClient> ws;
             try {
                 ws.set(co_await WebSocketFactory::connect<Timeout>(
-                    url, io, headers
+                    url, _io, headers
                 ));
             } catch (...) {
                 res.setException(std::current_exception());
@@ -397,9 +393,9 @@ public:
                     // 重新建立连接
                     co_await makeSocket(url);
                     // 绑定新的 fd
-                    co_await io.bindNewFd(_cliFd);
+                    co_await _io.get().bindNewFd(_cliFd);
                     try {
-                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, io, headers));
+                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, _io, headers));
                         res.reset();
                     } catch(...) {
                         res.setException(std::current_exception());
@@ -420,7 +416,7 @@ public:
                 }
             }
             // 断开连接
-            co_await io.close();
+            co_await _io.get().close();
             _cliFd = kInvalidSocket;
         };
         auto taskMain = taskObj();
@@ -466,20 +462,19 @@ private:
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
+                _io.set(_cliFd, _eventLoop);
                 // 初始化代理
-                IO io{_cliFd, _eventLoop};
                 if (_options.proxy.get().size()) {
-                    Proxy proxy{io};
+                    Proxy proxy{_io.get()};
                     co_await proxy.connect(_options.proxy.get(), url);
                 }
 #ifdef HXLIBS_ENABLE_SSL
                 log::hxLog.warning("握手开始 {");
 
                 // 初始化连接 (Https 握手)
-                co_await io.initSsl<Timeout>(false);
+                co_await _io.get().initSsl<Timeout>(false);
 #endif // !HXLIBS_ENABLE_SSL
                 log::hxLog.warning("} // 握手完成");
-                io.reset();
                 co_return;
             } catch (...) {
                 log::hxLog.error("连接失败");
@@ -509,8 +504,7 @@ private:
         HttpContentType contentType = HttpContentType::None,
         HeaderHashMap headers = {}
     ) {
-        IO io{_cliFd, _eventLoop};
-        Request req{io};
+        Request req{_io.get()};
         req.setReqLine<Method>(UrlParse::extractPath(url));
         preprocessHeaders(url, contentType, req);
         req.addHeaders(std::move(headers));
@@ -527,7 +521,7 @@ private:
                 // e: 大概率是 断开的管道, 直接重连
                 isOkFd = false;
             }
-            Response res{io};
+            Response res{_io.get()};
             do {
                 try {
                     // 可能会抛异常...
@@ -542,7 +536,7 @@ private:
                     // 重新建立连接
                     co_await makeSocket(url);
                     // 绑定新的 fd
-                    co_await io.bindNewFd(_cliFd);
+                    co_await _io.get().bindNewFd(_cliFd);
                     // 重新发送一次请求
                     co_await req.sendHttpReq<Timeout>();
                     // 再次解析请求
@@ -552,7 +546,6 @@ private:
                 }
                 [[unlikely]] throw std::runtime_error{"Send Timed Out"};
             } while (false);
-            io.reset();
             co_return res.makeResponseData();
         } catch (...) {
             exceptionPtr = std::current_exception();
@@ -560,7 +553,7 @@ private:
         
         log::hxLog.error("解析出错"); // debug
 
-        co_await io.close();
+        co_await _io.get().close();
         _cliFd = kInvalidSocket;
         std::rethrow_exception(exceptionPtr);
     }
@@ -591,6 +584,7 @@ private:
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
+    container::Uninitialized<IO> _io;
 
     // 上一次解析的 Host
     std::string _host;

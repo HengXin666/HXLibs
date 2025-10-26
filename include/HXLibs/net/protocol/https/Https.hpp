@@ -79,14 +79,13 @@ private:
 
         if (isServer) {
             // 服务器端需要设置验证模式, 要求客户端提供证书
-            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
-            SSL_CTX_set_verify_depth(sslCtx, 4);
+            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
         } else {
             // 客户端可以设置验证服务器证书
             SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
-            SSL_CTX_set_verify_depth(sslCtx, 4);
         }
-
+        
+        SSL_CTX_set_verify_depth(sslCtx, 4);
         SSL_CTX_set_default_verify_paths(sslCtx);
 
         if (!config.certFile.empty() && !config.keyFile.empty()) {
