@@ -430,19 +430,8 @@ public:
     }
 
 #ifdef HXLIBS_ENABLE_SSL
-    auto initSsl() {
-        Context::getContext().initClientSSL({
-            {},
-            {},
-            SSL_VERIFY_NONE
-        });
-        return _pool.addTask([] {
-            Context::getContext().initClientSSL({
-                {},
-                {},
-                SSL_VERIFY_NONE
-            });
-        });
+    auto initSsl(SslConfig config) {
+        SslContext::get().init(std::move(config), false);
     }
 #endif // !HXLIBS_ENABLE_SSL
 

@@ -55,19 +55,22 @@ int main() {
         ).sendRes();
     });
 
-    serv.syncRun(1, []{
-        HX::net::Context::getContext().initServerSSL({
-            "certs/cert.pem",
-            "certs/key.pem"
-        });
-    });
+    // serv.asyncRun(1, []{
+    //     HX::net::SslContext::get().init({
+    //         "certs/cert.pem",
+    //         "certs/key.pem"
+    //     }, true);
+    // });
 
     using namespace std::chrono;
-    std::this_thread::sleep_for(10ms);
+    // std::this_thread::sleep_for(10ms);
 
     HttpClient client;
-    client.initSsl().wait();
-    log::hxLog.info("get -> ", client.get("https://127.0.0.1:28205/").get().get());
+    client.initSsl({
+        "certs/cert.pem",
+        "certs/key.pem"
+    });
+    log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
 
     std::this_thread::sleep_for(3s);
 }

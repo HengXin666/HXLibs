@@ -27,16 +27,99 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#include <HXLibs/net/protocol/https/Context.hpp>
+#include <HXLibs/exception/SslException.hpp>
 
 #include <HXLibs/log/Log.hpp>
 
 namespace HX::net {
 
-class SslHandshake {
+struct SslConfig {
+    std::string certFile;   // 证书路径
+    std::string keyFile;    // 私钥路径
+};
+
+struct SslContext {
+    enum class SslType {
+        Server,
+        Client
+    };
+
+    static auto& get() noexcept {
+        static SslContext ctx;
+        return ctx;
+    }
+
+    void init(SslConfig config, bool isServer) {
+        auto& ctx = isServer ? _sslSerCtx : _sslCliCtx;
+        if (!ctx) {
+            ctx = makeSslCtx(std::move(config), isServer);
+        }
+        _isServer = isServer;
+    }
+
+    operator SSL_CTX*() {
+        if (!_isServer) [[unlikely]] {
+            // 应该调用 ssl init
+            throw std::runtime_error{"The SSL initialization should be called"};
+        }
+        return *_isServer ? _sslSerCtx : _sslCliCtx;
+    }
+private:
+    SSL_CTX* _sslSerCtx{nullptr};
+    SSL_CTX* _sslCliCtx{nullptr};
+    std::optional<bool> _isServer;
+
+    static SSL_CTX* makeSslCtx(const SslConfig& config, bool isServer) {
+        OPENSSL_init_ssl(0, nullptr);
+
+        SSL_CTX* sslCtx = SSL_CTX_new(isServer ? TLS_server_method() : TLS_client_method());
+        if (!sslCtx) {
+            throw exception::SslException{"SSL_CTX_new(Failed)"};
+        }
+
+        if (isServer) {
+            // 服务器端需要设置验证模式, 要求客户端提供证书
+            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+            SSL_CTX_set_verify_depth(sslCtx, 4);
+        } else {
+            // 客户端可以设置验证服务器证书
+            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
+            SSL_CTX_set_verify_depth(sslCtx, 4);
+        }
+
+        SSL_CTX_set_default_verify_paths(sslCtx);
+
+        if (!config.certFile.empty() && !config.keyFile.empty()) {
+            if (SSL_CTX_use_certificate_file(sslCtx, config.certFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
+                throw exception::SslException{"Client certificate load(Failed)"};
+            }
+            if (SSL_CTX_use_PrivateKey_file(sslCtx, config.keyFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
+                throw exception::SslException{"Client private key load(Failed)"};
+            }
+            if (!SSL_CTX_check_private_key(sslCtx)) {
+                throw exception::SslException{"Client certificate/key mismatch"};
+            }
+        }
+
+        return sslCtx;
+    }
+
+    SslContext() = default;
+    SslContext& operator=(SslContext&&) = delete;
+    ~SslContext() noexcept {
+        if (_sslSerCtx) {
+            SSL_CTX_free(_sslSerCtx);
+        }
+        if (_sslCliCtx) {
+            SSL_CTX_free(_sslCliCtx);
+        }
+    }
+};
+
+class SslBio {
 public:
-    SslHandshake()
-        : _ssl{SSL_new(Context::getContext().getSslCtx())}
+    SslBio()
+        : _ssl{SSL_new(SslContext::get())}
     {
         if (!_ssl) {
             throw std::runtime_error("SSL_new failed");
@@ -64,17 +147,14 @@ public:
         SSL_set_connect_state(_ssl);
     }
 
-    SslHandshake& operator=(SslHandshake&&) = delete;
+    SslBio& operator=(SslBio&&) = delete;
 
-    ~SslHandshake() {
+    ~SslBio() {
         if (_ssl) {
-            SSL_free(_ssl);  // 这会自动释放 _sslBio
-            _ssl = nullptr;
-            _sslBio = nullptr;  // 设置为 nullptr, 因为已经被 SSL_free 释放
+            SSL_free(_ssl); // 这会自动释放 _sslBio
         }
         if (_netBio) {
             BIO_free(_netBio);
-            _netBio = nullptr;
         }
     }
 
@@ -193,9 +273,9 @@ public:
     }
 
 private:
-    SSL* _ssl{nullptr};
-    BIO* _sslBio{nullptr};
-    BIO* _netBio{nullptr};
+    SSL* _ssl{nullptr};         // SSL会话对象, 负责加密解密操作
+    BIO* _sslBio{nullptr};      // SSL BIO, 处理SSL协议层数据
+    BIO* _netBio{nullptr};      // 网络 BIO, 处理原始网络数据传输
 };
 
 } // namespace HX::net

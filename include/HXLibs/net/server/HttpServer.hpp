@@ -154,9 +154,10 @@ public:
         if (!_threads.empty()) [[unlikely]] {
             throw std::runtime_error{"The server is already running"};
         }
+        init();
         for (std::size_t i = 0; i < threadNum; ++i) {
-            _threads.emplace_back([this, init] {
-                _sync<Timeout>(init);
+            _threads.emplace_back([this] {
+                _sync<Timeout>();
             });
         }
         log::hxLog.info("====== HXServer start: \033[33m\033]8;;http"
@@ -165,7 +166,9 @@ public:
             + _name 
             + ":" 
             + _port 
-            + "/\033\\http://"
+            + "/\033\\http"
+            + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
+            + "://"
             + _name
             + ":"
             + _port
@@ -177,11 +180,10 @@ public:
     }
 
 private:
-    template <typename Timeout, typename Init>
+    template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
-    void _sync(Init&& init) {
+    void _sync() {
         try {
-            init();
             coroutine::EventLoop _eventLoop;
             AddressResolver addr;
             auto entry = addr.resolve(_name, _port);

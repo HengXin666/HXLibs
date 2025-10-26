@@ -443,7 +443,7 @@ public:
         }
     }
 private:
-    SslHandshake _ssl;
+    SslBio _ssl;
 };
 
     using IO = HttpsIO;
