@@ -77,6 +77,25 @@ int main() {
         co_await res.useChunkedEncodingTransferFile("./build/size.txt");
     });
 
+    // ws
+    serv.addEndpoint<WS>("/ws", [] ENDPOINT {
+        auto ws = co_await WebSocketFactory::accept(req, res);
+        struct JsonDataVo {
+            std::string msg;
+            int code;
+        };
+        JsonDataVo const vo{"Hello 客户端, 我只能通信3次!", 200};
+        co_await ws.sendJson(vo);
+        for (int i = 0; i < 3; ++i) {
+            auto res = co_await ws.recvText();
+            log::hxLog.info(res);
+            co_await ws.sendText("Hello! " + res);
+        }
+        co_await ws.close();
+        log::hxLog.info("断开ws");
+        co_return ;
+    });
+
     serv.syncRun(1,[]{
 #ifdef HXLIBS_ENABLE_SSL
         HX::net::SslContext::get().init({

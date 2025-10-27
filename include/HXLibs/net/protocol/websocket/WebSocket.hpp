@@ -753,7 +753,8 @@ public:
             throw std::runtime_error{"Failed to create a websocket connection"};
         }
         if (auto it = headMap.find("connection");
-            it == headMap.end() || it->second != "Upgrade"
+            // 可能是 "keep-alive, Upgrade" 这种情况
+            it == headMap.end() || it->second.find("Upgrade") == std::string::npos
         ) [[unlikely]] {
             co_await res.setResLine(Status::CODE_416)
                         .sendRes();
