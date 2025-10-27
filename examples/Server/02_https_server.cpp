@@ -1,4 +1,3 @@
-#define HXLIBS_ENABLE_SSL 1
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/log/Log.hpp>
 
@@ -19,6 +18,7 @@ auto hx_init = []{
 
 int main() {
     using namespace net;
+    using namespace std::string_view_literals;
     HttpServer serv{"127.0.0.1", "28205"};
     
     // 站点`/`, 纯连接, 测试 返回头, 以及 返回 Hello World!
@@ -55,11 +55,35 @@ int main() {
         ).sendRes();
     });
 
-    serv.syncRun(1, []{
+    // size
+    serv.addEndpoint<GET>("/test/{size}", [] ENDPOINT {
+        std::string buf;
+        buf.resize(req.getPathParam(0).to<std::size_t>(), '!');
+        co_return co_await res.setStatusAndContent(
+            Status::CODE_200, buf
+        ).sendRes();
+    });
+
+    // 分块编码 size
+    serv.addEndpoint<GET>("/test2/{size}", [] ENDPOINT {
+        std::string buf;
+        buf.resize(req.getPathParam(0).to<std::size_t>(), '!');
+        buf += '\n';
+        buf += req.getPathParam(0);
+        utils::AsyncFile file{req.getIO()};
+        co_await file.open("./build/size.txt", utils::OpenMode::Write);
+        co_await file.write(buf);
+        co_await file.close();
+        co_await res.useChunkedEncodingTransferFile("./build/size.txt");
+    });
+
+    serv.syncRun(1,[]{
+#ifdef HXLIBS_ENABLE_SSL
         HX::net::SslContext::get().init({
             "certs/cert.pem",
             "certs/key.pem"
         }, true);
+#endif // !HXLIBS_ENABLE_SSL
     });
 
     // using namespace std::chrono;

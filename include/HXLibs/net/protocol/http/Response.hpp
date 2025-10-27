@@ -211,24 +211,37 @@ public:
             std::vector<char> buf(utils::FileUtils::kBufMaxSize);
             // 读取文件
             std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
-            _buildToChunkedEncoding<true>(size);   // 朴素的版本: len\r\n
-            co_await _io.fullySend(_sendBuf);      // 发送
-            co_await _io.fullySend({buf.data(), size});           // 发送文件
+            /*
+                len\r\n
+                内容片段
+            */
+            _buildToChunkedEncoding<true>(size);        // 朴素的版本: len\r\n
+            co_await _io.fullySend(_sendBuf);           // 发送
+            co_await _io.fullySend({buf.data(), size}); // 发送文件
             for (;;) {
+                size = static_cast<std::size_t>(co_await file.read(buf));
                 if (!size) [[unlikely]] {
+                    /*
+                        \r\n
+                        0\r\n
+                        \r\n
+                    */
                     // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
                     _buildToChunkedEncoding<false, true>(0); // 发送完成的版本: \r\n0\r\n\r\n
                     co_await _io.fullySend(_sendBuf);
                     break;
                 }
-                size = static_cast<std::size_t>(co_await file.read(buf));
+                /*
+                    \r\n
+                    len\r\n
+                    内容片段
+                */
                 _buildToChunkedEncoding(size);         // 补充上次的头版本: \r\nlen\r\n
                 co_await _io.fullySend(_sendBuf);      // 发送
                 co_await _io.fullySend({buf.data(), size});           // 发送文件
             }
         } catch (...) {
-            // _io.send 会抛异常
-            ;
+            ; // _io.send 会抛异常
         }
         co_await file.close();
     }

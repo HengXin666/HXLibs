@@ -28,6 +28,7 @@
 #include <openssl/err.h>
 
 #include <HXLibs/exception/SslException.hpp>
+#include <HXLibs/utils/FileUtils.hpp>
 
 #include <HXLibs/log/Log.hpp>
 
@@ -84,7 +85,7 @@ private:
             // 客户端可以设置验证服务器证书
             SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
         }
-        
+
         SSL_CTX_set_verify_depth(sslCtx, 4);
         SSL_CTX_set_default_verify_paths(sslCtx);
 
@@ -124,8 +125,14 @@ public:
             throw std::runtime_error("SSL_new failed");
         }
 
+        // SSL_set_mode(_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+        // SSL_set_mode(_ssl, SSL_MODE_RELEASE_BUFFERS);
+
         // 创建 BIO 对
-        if (!BIO_new_bio_pair(&_sslBio, 0, &_netBio, 0)) {
+        if (!BIO_new_bio_pair(
+            &_sslBio, utils::FileUtils::kBufMaxSize + 2048,
+            &_netBio, utils::FileUtils::kBufMaxSize + 2048
+        )) {
             SSL_free(_ssl);  // 清理已分配的 SSL
             throw std::runtime_error("BIO_new_bio_pair failed");
         }

@@ -30,6 +30,8 @@
     #include <HXLibs/log/Log.hpp>
 #endif // !NDEBUG
 
+#include <HXLibs/reflection/json/JsonWrite.hpp> // debug
+
 namespace HX::net {
 
 namespace internal {
@@ -350,7 +352,6 @@ public:
     coroutine::Task<> fullySend(std::span<char const> buf) {
         // 似乎发送也不完整!
         _ssl.writePlaintext(buf);
-        // log::hxLog.warning("send:", buf.size());
         co_await Base::fullySend(_ssl.readCiphertext());
     }
 
