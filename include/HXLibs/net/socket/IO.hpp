@@ -296,17 +296,24 @@ public:
     using Base::Base;
 
     coroutine::Task<int> recv(std::span<char> buf) {
-        // @todo
         int res = 0;
-        do {        
-            auto size = co_await Base::recv(buf);
-            _ssl.writeCiphertext({
-                buf.data(),
-                static_cast<std::size_t>(size)
-            });
+        for (;;) {
+            if (res > 0) {
+                // 解密
+                _ssl.writeCiphertext({
+                    buf.data(),
+                    static_cast<std::size_t>(res)
+                });
+            }
+            // 获取明文
             res = _ssl.readPlaintext(buf);
-        } while (res < 0);
-        co_return res;
+            if (res >= 0) {
+                co_return res;
+            }
+            // 继续尝试读取密文
+            res = co_await Base::recv(buf);
+        }
+        [[unlikely]] co_return res;
     }
 
     coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
