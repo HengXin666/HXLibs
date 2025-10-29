@@ -30,8 +30,6 @@
     #include <HXLibs/log/Log.hpp>
 #endif // !NDEBUG
 
-#include <HXLibs/reflection/json/JsonWrite.hpp> // debug
-
 namespace HX::net {
 
 namespace internal {
@@ -295,18 +293,22 @@ class HttpsIO : public HttpIO {
 public:
     using Base::Base;
 
+    void initSslBio(SslContext::SslType type) {
+        _ssl.set(type);
+    }
+
     coroutine::Task<int> recv(std::span<char> buf) {
         int res = 0;
         for (;;) {
             if (res > 0) {
                 // 解密
-                _ssl.writeCiphertext({
+                _ssl.get().writeCiphertext({
                     buf.data(),
                     static_cast<std::size_t>(res)
                 });
             }
             // 获取明文
-            res = _ssl.readPlaintext(buf);
+            res = _ssl.get().readPlaintext(buf);
             if (res >= 0) {
                 co_return res;
             }
@@ -358,8 +360,8 @@ public:
      */
     coroutine::Task<> fullySend(std::span<char const> buf) {
         // 似乎发送也不完整!
-        _ssl.writePlaintext(buf);
-        co_await Base::fullySend(_ssl.readCiphertext());
+        _ssl.get().writePlaintext(buf);
+        co_await Base::fullySend(_ssl.get().readCiphertext());
     }
 
     /**
@@ -384,19 +386,16 @@ public:
             auto& ans = get<0, exception::ExceptionMode::Nothrow>(res);
             if (ans > 0) {
                 // 解密
-                _ssl.writeCiphertext({
+                _ssl.get().writeCiphertext({
                     buf.data(),
                     static_cast<std::size_t>(ans)
                 });
             }
-            // log::hxLog.info(ans);
             // 获取明文
-            ans = _ssl.readPlaintext(buf);
+            ans = _ssl.get().readPlaintext(buf);
             if (ans >= 0) {
-                // log::hxLog.error("=== return ===");
                 co_return res;
             }
-            // log::hxLog.warning("try recv");
             // 继续尝试读取密文
             res = co_await Base::recvLinkTimeout<Timeout>(buf);
         }
@@ -410,21 +409,21 @@ public:
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> sendLinkTimeout(std::span<char const> buf) {
-        _ssl.writePlaintext(buf);
-        co_await Base::sendLinkTimeout<Timeout>(_ssl.readCiphertext());
+        _ssl.get().writePlaintext(buf);
+        co_await Base::sendLinkTimeout<Timeout>(_ssl.get().readCiphertext());
     }
 
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> initSsl(bool isServer) {
-        isServer ? _ssl.setAccept() : _ssl.setConnect();
+        isServer ? _ssl.get().setAccept() : _ssl.get().setConnect();
         container::ArrayBuf<char, 1024> _sslRecvBuf;
         for (;;) {
             // 尝试推进握手
-            bool done = _ssl.driveHandshake();
+            bool done = _ssl.get().driveHandshake();
 
             // 取出要发给对方的密文
-            auto out = _ssl.readCiphertext();
+            auto out = _ssl.get().readCiphertext();
             if (!out.empty()) {
                 co_await Base::sendLinkTimeout<Timeout>(out);
             }
@@ -444,14 +443,14 @@ public:
             }
 
             // 喂入网络数据
-            _ssl.writeCiphertext({
+            _ssl.get().writeCiphertext({
                 _sslRecvBuf.data(),
                 static_cast<std::size_t>(get<0, exception::ExceptionMode::Nothrow>(res))
             });
         }
     }
 private:
-    SslBio _ssl;
+    container::Uninitialized<SslBio> _ssl;
 };
 
     using IO = HttpsIO;

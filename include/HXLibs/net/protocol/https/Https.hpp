@@ -30,8 +30,6 @@
 #include <HXLibs/exception/SslException.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 
-#include <HXLibs/log/Log.hpp>
-
 namespace HX::net {
 
 enum class SslVerifyOption {
@@ -62,25 +60,26 @@ struct SslContext {
         return ctx;
     }
 
-    void init(SslConfig config, bool isServer) {
-        auto& ctx = isServer ? _sslSerCtx : _sslCliCtx;
+    template <SslType Type = SslType::Server>
+    constexpr void init(SslConfig config) {
+        auto& ctx = Type == SslType::Server ? _sslSerCtx : _sslCliCtx;
         if (!ctx) {
-            ctx = makeSslCtx(std::move(config), isServer);
+            ctx = makeSslCtx(std::move(config), Type == SslType::Server);
         }
-        _isServer = isServer;
     }
 
-    operator SSL_CTX*() {
-        if (!_isServer) [[unlikely]] {
-            // 应该调用 ssl init
-            throw std::runtime_error{"The SSL initialization should be called"};
+    // 可能为 nullptr, 因此必须保证先调用了 init
+    template <SslType Type>
+    constexpr SSL_CTX* getCtx() noexcept {
+        if constexpr (Type == SslType::Server) {
+            return _sslSerCtx;
+        } else {
+            return _sslCliCtx;
         }
-        return *_isServer ? _sslSerCtx : _sslCliCtx;
     }
 private:
     SSL_CTX* _sslSerCtx{nullptr};
     SSL_CTX* _sslCliCtx{nullptr};
-    std::optional<bool> _isServer;
 
     static SSL_CTX* makeSslCtx(const SslConfig& config, bool isServer) {
         OPENSSL_init_ssl(0, nullptr);
@@ -118,6 +117,7 @@ private:
 
     SslContext() = default;
     SslContext& operator=(SslContext&&) = delete;
+    
     ~SslContext() noexcept {
         if (_sslSerCtx) {
             SSL_CTX_free(_sslSerCtx);
@@ -130,8 +130,12 @@ private:
 
 class SslBio {
 public:
-    SslBio()
-        : _ssl{SSL_new(SslContext::get())}
+    SslBio(SslContext::SslType type)
+        : _ssl{
+            SSL_new(type == SslContext::SslType::Server 
+                ? SslContext::get().getCtx<SslContext::SslType::Server>()
+                : SslContext::get().getCtx<SslContext::SslType::Client>()
+            )}
     {
         if (!_ssl) {
             throw std::runtime_error("SSL_new failed");
@@ -209,36 +213,44 @@ public:
      */
     int readPlaintext(std::span<char> buf) {
         int n = SSL_read(_ssl, buf.data(), static_cast<int>(buf.size()));
-        if (n > 0) {
+        if (n > 0) [[likely]] {
             return n;
-        } else {
-            int err = SSL_get_error(_ssl, n);
-            switch (err) {
-                case SSL_ERROR_WANT_READ:
-                case SSL_ERROR_WANT_WRITE:
-                    return -1; // 等待更多数据
-                case SSL_ERROR_ZERO_RETURN:
-                    return 0; // SSL连接正常关闭
-                case SSL_ERROR_SYSCALL:
-                    {
-                        // 检查底层错误
-                        auto sys_err = ERR_get_error();
-                        if (sys_err == 0) {
-                            if (n == 0) {
-                                log::hxLog.warning("SSL 连接意外关闭");
-                                return 0;
-                            }
-                            throw std::runtime_error("SSL 系统调用错误, 没有错误代码");
-                        } else {
-                            throw std::runtime_error("SSL 系统调用错误: " +
-                                std::string(ERR_error_string(sys_err, nullptr)));
-                        }
-                    }
-                default:
-                    throw std::runtime_error("SSL_read failed, error: " + std::to_string(err) +
-                        ", reason: " + std::string(ERR_error_string(ERR_get_error(), nullptr)));
-            }
         }
+        int err = SSL_get_error(_ssl, n);
+#if 0
+        switch (err) {
+            case SSL_ERROR_WANT_READ:
+            case SSL_ERROR_WANT_WRITE:
+                return -1; // 等待更多数据
+            case SSL_ERROR_ZERO_RETURN:
+                return 0; // SSL连接正常关闭
+            case SSL_ERROR_SYSCALL:
+                {
+                    // 检查底层错误
+                    auto sys_err = ERR_get_error();
+                    if (sys_err == 0) {
+                        if (n == 0) {
+                            return 0;
+                        }
+                        throw std::runtime_error("SSL 系统调用错误, 没有错误代码");
+                    } else {
+                        throw std::runtime_error("SSL 系统调用错误: " +
+                            std::string(ERR_error_string(sys_err, nullptr)));
+                    }
+                }
+            default:
+                throw std::runtime_error("SSL_read failed, error: " + std::to_string(err) +
+                    ", reason: " + std::string(ERR_error_string(ERR_get_error(), nullptr)));
+        }
+#else
+        if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) [[unlikely]] {
+            if (err == SSL_ERROR_ZERO_RETURN) [[likely]] {
+                return 0; // SSL连接正常关闭
+            }
+            throw std::runtime_error("SSL_write failed");
+        }
+        return -1; // 等待更多数据
+#endif
     }
 
     /**
@@ -246,11 +258,11 @@ public:
      * @param buf 明文
      */
     void writePlaintext(std::span<char const> buf) {
-        if (!isInitFinished()) {
+        if (!isInitFinished()) [[unlikely]] {
             throw std::runtime_error("Cannot write plaintext before handshake finished");
         }
         int res = SSL_write(_ssl, buf.data(), static_cast<int>(buf.size()));
-        if (res <= 0) {
+        if (res <= 0) [[unlikely]] {
             int err = SSL_get_error(_ssl, res);
             if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) [[unlikely]] {
                 throw std::runtime_error("SSL_write failed");
@@ -278,7 +290,7 @@ public:
     // 驱动握手状态机, true 为握手成功
     bool driveHandshake() {
         int res = SSL_do_handshake(_ssl);
-        if (res == 1) {
+        if (res == 1) [[likely]] {
             return true;
         }
         int err = SSL_get_error(_ssl, res);

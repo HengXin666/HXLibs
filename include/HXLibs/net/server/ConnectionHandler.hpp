@@ -44,6 +44,7 @@ struct ConnectionHandler {
         IO io{fd, eventLoop};
         try {
 #if HXLIBS_ENABLE_SSL
+            io.initSslBio(SslContext::SslType::Server);
             co_await io.initSsl<Timeout>(true);
 #endif // HXLIBS_ENABLE_SSL
             Request req{io};

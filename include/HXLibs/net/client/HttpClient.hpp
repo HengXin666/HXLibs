@@ -382,7 +382,7 @@ public:
             container::Uninitialized<WebSocketClient> ws;
             try {
                 ws.set(co_await WebSocketFactory::connect<Timeout>(
-                    url, _io, headers
+                    url, _io.get(), headers
                 ));
             } catch (...) {
                 res.setException(std::current_exception());
@@ -395,7 +395,7 @@ public:
                     // 绑定新的 fd
                     co_await _io.get().bindNewFd(_cliFd);
                     try {
-                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, _io, headers));
+                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, _io.get(), headers));
                         res.reset();
                     } catch(...) {
                         res.setException(std::current_exception());
@@ -427,7 +427,7 @@ public:
 
 #ifdef HXLIBS_ENABLE_SSL
     auto initSsl(SslConfig config) {
-        SslContext::get().init(std::move(config), false);
+        SslContext::get().init<SslContext::SslType::Client>(std::move(config));
     }
 #endif // !HXLIBS_ENABLE_SSL
 
@@ -457,24 +457,22 @@ private:
             ));
             try {
                 auto sockaddr = entry.getAddress();
-                _io.set(_cliFd, _eventLoop);
                 co_await _eventLoop.makeAioTask().prepConnect(
                     _cliFd,
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
+                _io.set(_cliFd, _eventLoop);
+#ifdef HXLIBS_ENABLE_SSL
+                _io.get().initSslBio(SslContext::SslType::Client);
+                // 初始化连接 (Https 握手)
+                co_await _io.get().initSsl<Timeout>(false);
+#endif // !HXLIBS_ENABLE_SSL=
                 // 初始化代理
                 if (_options.proxy.get().size()) {
                     Proxy proxy{_io.get()};
                     co_await proxy.connect(_options.proxy.get(), url);
                 }
-#ifdef HXLIBS_ENABLE_SSL
-                log::hxLog.warning("握手开始 {");
-
-                // 初始化连接 (Https 握手)
-                co_await _io.get().initSsl<Timeout>(false);
-#endif // !HXLIBS_ENABLE_SSL
-                log::hxLog.warning("} // 握手完成");
                 co_return;
             } catch (...) {
                 log::hxLog.error("连接失败");
