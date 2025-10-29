@@ -34,9 +34,21 @@
 
 namespace HX::net {
 
+enum class SslVerifyOption {
+    // 不验证
+    None = SSL_VERIFY_NONE,
+    // 客户端启用证书验证
+    ClientPeer = SSL_VERIFY_PEER,
+    // 服务端启用证书验证, 且必须验证
+    ServerPeer = SSL_VERIFY_PEER
+               | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+               | SSL_VERIFY_CLIENT_ONCE,
+};
+
 struct SslConfig {
-    std::string certFile;   // 证书路径
-    std::string keyFile;    // 私钥路径
+    SslVerifyOption verifyOption = SslVerifyOption::None;   // 校验选项
+    std::string certFile{};                                 // 证书路径
+    std::string keyFile{};                                  // 私钥路径
 };
 
 struct SslContext {
@@ -80,10 +92,10 @@ private:
 
         if (isServer) {
             // 服务器端需要设置验证模式, 要求客户端提供证书
-            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
+            SSL_CTX_set_verify(sslCtx, static_cast<int>(config.verifyOption), nullptr);
         } else {
             // 客户端可以设置验证服务器证书
-            SSL_CTX_set_verify(sslCtx, SSL_VERIFY_PEER, nullptr);
+            SSL_CTX_set_verify(sslCtx, static_cast<int>(config.verifyOption), nullptr);
         }
 
         SSL_CTX_set_verify_depth(sslCtx, 4);
@@ -124,9 +136,6 @@ public:
         if (!_ssl) {
             throw std::runtime_error("SSL_new failed");
         }
-
-        // SSL_set_mode(_ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
-        // SSL_set_mode(_ssl, SSL_MODE_RELEASE_BUFFERS);
 
         // 创建 BIO 对
         if (!BIO_new_bio_pair(

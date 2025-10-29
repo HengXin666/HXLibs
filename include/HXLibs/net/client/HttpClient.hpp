@@ -457,12 +457,12 @@ private:
             ));
             try {
                 auto sockaddr = entry.getAddress();
+                _io.set(_cliFd, _eventLoop);
                 co_await _eventLoop.makeAioTask().prepConnect(
                     _cliFd,
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
-                _io.set(_cliFd, _eventLoop);
                 // 初始化代理
                 if (_options.proxy.get().size()) {
                     Proxy proxy{_io.get()};

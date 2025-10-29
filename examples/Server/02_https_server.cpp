@@ -96,25 +96,25 @@ int main() {
         co_return ;
     });
 
-    serv.syncRun(1,[]{
+    serv.asyncRun(1,[]{
 #ifdef HXLIBS_ENABLE_SSL
         HX::net::SslContext::get().init({
-            "certs/cert.pem",
-            "certs/key.pem"
+            SslVerifyOption::None,
+            "certs/server.crt",
+            "certs/server.key"
         }, true);
 #endif // !HXLIBS_ENABLE_SSL
     });
 
-    // using namespace std::chrono;
-    // std::this_thread::sleep_for(10ms);
+    using namespace std::chrono;
+    std::this_thread::sleep_for(10ms);
 
-    // HttpClient client;
-    // client.initSsl({
-    //     "certs/cert.pem",
-    //     "certs/key.pem"
-    // });
-    // // log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
-    // log::hxLog.info("get -> ", client.get("https://127.0.0.1:28205/").get().get());
+    HttpClient client;
+    client.initSsl({
+        .verifyOption = SslVerifyOption::None
+    });
+    // log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
+    log::hxLog.info("get -> ", client.get("https://127.0.0.1:28205/").get().get());
 
-    // std::this_thread::sleep_for(3s);
+    std::this_thread::sleep_for(3s);
 }
