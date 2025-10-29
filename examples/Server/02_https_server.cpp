@@ -109,29 +109,38 @@ int main() {
     using namespace std::chrono;
     std::this_thread::sleep_for(1s);
 
-    HttpClient client;
+    HttpClient client{HttpClientOptions{
+        {"socks5h://127.0.0.1:2334"}
+    }};
+#ifdef HXLIBS_ENABLE_SSL
     client.initSsl({
         .verifyOption = SslVerifyOption::None
     });
-    // log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
+#endif // !HXLIBS_ENABLE_SSL
+    log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
 
-    for (auto i = 0; i < 1; ++i) {
-        // auto res
-        //     = client.get("https://127.0.0.1:28205/", {{"Connection", "close"}}).get();
-        // if (res) {
-        //     log::hxLog.info("get -> ", res.get());
-        // } else {
-        //     log::hxLog.error("cli Err:", res.what());
-        // }
+    // for (auto i = 0; i < 5; ++i) {
+    //     auto res
+    //         = client.get(
+    //             "https://127.0.0.1:28205/",
+    //             {{"Connection", "close"}}
+    //         ).get();
+    //     if (res) {
+    //         log::hxLog.info("get -> ", res.get());
+    //     } else {
+    //         log::hxLog.error("cli Err:", res.what());
+    //     }
 
-        client.wsLoop("wss://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
-            log::hxLog.info("ws recv:", co_await ws.recvText());
-            co_await ws.sendText("我是张三! awa");
-            log::hxLog.info("ws recv:", co_await ws.recvText());
-            co_await ws.close();
-            co_return;
-        }).wait();
-    }
+    //     std::this_thread::sleep_for(500ms);
 
-    std::this_thread::sleep_for(1s);
+    //     client.wsLoop("wss://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+    //         log::hxLog.info("ws recv:", co_await ws.recvText());
+    //         co_await ws.sendText("我是张三! awa");
+    //         log::hxLog.info("ws recv:", co_await ws.recvText());
+    //         co_await ws.close();
+    //         co_return;
+    //     }).wait();
+    // }
+
+    // 存在问题: https下, 代理的使用
 }

@@ -201,6 +201,7 @@ public:
      * @note 之后应该调用 `readPlaintext` 获取明文
      */
     void writeCiphertext(std::span<const char> cipher) {
+        // 注意! cipher.size() 应该 >= 0
         if (BIO_write(_netBio, cipher.data(), static_cast<int>(cipher.size())) <= 0) [[unlikely]] {
             throw std::runtime_error("BIO_write failed");
         }

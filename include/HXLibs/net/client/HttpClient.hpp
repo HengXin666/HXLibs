@@ -463,16 +463,18 @@ private:
                     sockaddr._addrlen
                 );
                 _io.set(_cliFd, _eventLoop);
-#ifdef HXLIBS_ENABLE_SSL
-                _io.get().initSslBio(SslContext::SslType::Client);
-                // 初始化连接 (Https 握手)
-                co_await _io.get().initSsl<Timeout>(false);
-#endif // !HXLIBS_ENABLE_SSL=
                 // 初始化代理
                 if (_options.proxy.get().size()) {
                     Proxy proxy{_io.get()};
                     co_await proxy.connect(_options.proxy.get(), url);
                 }
+#ifdef HXLIBS_ENABLE_SSL
+                if constexpr (std::is_same_v<GetIOType<Proxy>, HttpsIO>) {
+                    _io.get().initSslBio(SslContext::SslType::Client);
+                    // 初始化连接 (Https 握手)
+                    co_await _io.get().template initSsl<Timeout>(false);
+                }
+#endif // !HXLIBS_ENABLE_SSL
                 co_return;
             } catch (...) {
                 log::hxLog.error("连接失败");
@@ -544,6 +546,12 @@ private:
                 }
                 [[unlikely]] throw std::runtime_error{"Send Timed Out"};
             } while (false);
+            if (auto it = req.getHeaders().find("Connection");
+                it != req.getHeaders().end() && it->second == "close"
+            ) {
+                co_await _io.get().close();
+                _cliFd = kInvalidSocket;
+            }
             co_return res.makeResponseData();
         } catch (...) {
             exceptionPtr = std::current_exception();
@@ -582,7 +590,7 @@ private:
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
-    container::Uninitialized<IO> _io;
+    container::Uninitialized<GetIOType<Proxy>> _io;
 
     // 上一次解析的 Host
     std::string _host;
@@ -591,6 +599,6 @@ private:
     bool _isAutoReconnect;
 };
 
-HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), Socks5Proxy>;
+HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
 
 } // namespace HX::net

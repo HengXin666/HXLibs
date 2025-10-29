@@ -359,7 +359,6 @@ public:
      * @return coroutine::Task<> 
      */
     coroutine::Task<> fullySend(std::span<char const> buf) {
-        // 似乎发送也不完整!
         _ssl.get().writePlaintext(buf);
         co_await Base::fullySend(_ssl.get().readCiphertext());
     }
@@ -439,7 +438,12 @@ public:
             });
 
             if (res.index() == 1) [[unlikely]] {
-                throw std::runtime_error{"is Timeout"};
+                throw std::runtime_error{"recv timeout"};
+            }
+
+            if (auto size = get<0, exception::ExceptionMode::Nothrow>(res); size <= 0) [[unlikely]] {
+                HXLIBS_CHECK_EVENT_LOOP(size);
+                throw std::runtime_error{"socket close"};
             }
 
             // 喂入网络数据

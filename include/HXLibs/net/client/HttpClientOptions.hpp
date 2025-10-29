@@ -32,18 +32,18 @@ struct ProxyType {
     using Type = T;
     std::string url = {};
 
-    operator std::string() const noexcept {
+    operator std::string const&() const noexcept {
         return url;
     }
 
-    std::string get() const noexcept {
+    std::string const& get() const noexcept {
         return *this;
     }
 };
 
 template <
     typename Timeout = decltype(utils::operator""_ms<"5000">()),
-    typename Proxy = Socks5Proxy
+    typename Proxy = NoneProxy
 >
     requires(utils::HasTimeNTTP<Timeout>)
 struct HttpClientOptions {

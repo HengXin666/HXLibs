@@ -210,7 +210,6 @@ public:
         int flags
     ) && {
         ::io_uring_prep_recv(_sqe, fd, buf.data(), buf.size(), flags);
-        // printf("recv %p\n", (void *)this);
         return std::move(*this);
     }
 
