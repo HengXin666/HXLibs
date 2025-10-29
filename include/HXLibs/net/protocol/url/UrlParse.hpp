@@ -24,7 +24,8 @@
 #include <cstdint>
 #include <regex>
 #include <stdexcept>
-#include <unordered_map>
+
+#include <HXLibs/container/CHashMap.hpp>
 
 namespace HX::net {
 
@@ -154,24 +155,26 @@ struct UrlParse {
      */
     static uint16_t getProtocolPort(std::string_view protocol) {
         // 协议和端口号的映射
-        static const std::unordered_map<std::string_view, uint16_t> protocolPorts = {
-            {"http", 80},
-            {"https", 443},
-            {"ftp", 21},
-            {"ftps", 990},
-            {"sftp", 22},
-            {"smtp", 25},
-            {"pop3", 110},
-            {"imap", 143},
-            {"ldap", 389},
-            {"ldaps", 636},
-            {"telnet", 23},
-            {"ssh", 22},
-            {"dns", 53},
-            {"dhcp", 67},
-            {"ws", 80},
-            {"wss", 443}
-        };
+        using KVPair = std::pair<std::string_view, uint16_t>;
+        static constexpr container::CHashMap protocolPorts 
+            = container::makeCHashMap(
+                KVPair{"http", 80},
+                KVPair{"https", 443},
+                KVPair{"ftp", 21},
+                KVPair{"ftps", 990},
+                KVPair{"sftp", 22},
+                KVPair{"smtp", 25},
+                KVPair{"pop3", 110},
+                KVPair{"imap", 143},
+                KVPair{"ldap", 389},
+                KVPair{"ldaps", 636},
+                KVPair{"telnet", 23},
+                KVPair{"ssh", 22},
+                KVPair{"dns", 53},
+                KVPair{"dhcp", 67},
+                KVPair{"ws", 80},
+                KVPair{"wss", 443}
+            );
         if (auto it = protocolPorts.find(protocol);
             it != protocolPorts.end()
         ) {

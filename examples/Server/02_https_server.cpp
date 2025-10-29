@@ -1,5 +1,7 @@
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/log/Log.hpp>
+#include <HXLibs/net/protocol/proxy/Socks5Proxy.hpp>
+#include <HXLibs/net/protocol/proxy/HttpProxy.hpp>
 
 using namespace HX;
 
@@ -110,14 +112,14 @@ int main() {
     std::this_thread::sleep_for(1s);
 
     HttpClient client{HttpClientOptions{
-        {"socks5h://127.0.0.1:2334"}
+        ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
     }};
 #ifdef HXLIBS_ENABLE_SSL
     client.initSsl({
         .verifyOption = SslVerifyOption::None
     });
 #endif // !HXLIBS_ENABLE_SSL
-    log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
+    log::hxLog.info("get -> ", client.get("http://8.135.10.183:10106/").get().get());
 
     // for (auto i = 0; i < 5; ++i) {
     //     auto res

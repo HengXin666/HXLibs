@@ -683,8 +683,10 @@ private:
                         return IO::kBufMaxSize;
                     }
                     if (_statusLine.size() > 3) {
+                        auto& msg = _statusLine[ResponseLineDataType::StatusMessage];
                         for (std::size_t i = 3; i < _statusLine.size(); ++i) {
-                            _statusLine[ResponseLineDataType::StatusMessage] += std::move(_statusLine[i]);
+                            msg += ' ';
+                            msg += std::move(_statusLine[i]);
                         }
                         _statusLine.resize(3);
                     }

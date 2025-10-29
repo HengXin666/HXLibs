@@ -45,7 +45,15 @@ namespace HX::net {
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
 class HttpClient {
+    using IOType = GetIOType<Proxy>;
 public:
+
+#ifdef HXLIBS_ENABLE_SSL
+    // 开启 Https 模式, 则禁止使用代理, 因为代理使用明文 (Http)
+    static_assert(std::is_same_v<Proxy, NoneProxy>,
+        "Enable HTTPS mode to prohibit the use of proxies");
+#endif // !HXLIBS_ENABLE_SSL
+
     /**
      * @brief 构造一个 HTTP 客户端
      * @param options 选项
@@ -463,13 +471,15 @@ private:
                     sockaddr._addrlen
                 );
                 _io.set(_cliFd, _eventLoop);
-                // 初始化代理
-                if (_options.proxy.get().size()) {
-                    Proxy proxy{_io.get()};
-                    co_await proxy.connect(_options.proxy.get(), url);
+                if constexpr (!std::is_same_v<Proxy, NoneProxy>) {
+                    // 初始化代理
+                    if (_options.proxy.get().size()) {
+                        Proxy proxy{_io.get()};
+                        co_await proxy.connect(_options.proxy.get(), url);
+                    }
                 }
 #ifdef HXLIBS_ENABLE_SSL
-                if constexpr (std::is_same_v<GetIOType<Proxy>, HttpsIO>) {
+                if constexpr (std::is_same_v<IOType, HttpsIO>) {
                     _io.get().initSslBio(SslContext::SslType::Client);
                     // 初始化连接 (Https 握手)
                     co_await _io.get().template initSsl<Timeout>(false);
@@ -590,7 +600,7 @@ private:
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
-    container::Uninitialized<GetIOType<Proxy>> _io;
+    container::Uninitialized<IOType> _io;
 
     // 上一次解析的 Host
     std::string _host;

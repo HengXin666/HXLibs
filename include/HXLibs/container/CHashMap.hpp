@@ -144,5 +144,42 @@ private:
     }
 };
 
-} // namespace HX::container
+/**
+ * @brief 工厂函数, 主要目的是为了让编译器负责计算 大小N
+ * @code {.C++}
+ * using KVPair = std::pair<std::string_view, uint16_t>;
+ * static constexpr container::CHashMap hashMap = container::makeCHashMap(
+ *     KVPair{"http", 80},   // 请在此处指定类型
+ *     KVPair{"https", 443}, // 每一个都要指定
+ *     KVPair{"ws", 80},
+ *     KVPair{"wss", 443}
+ * );
+ * @endcode
+ * 
+ * @tparam Key 
+ * @tparam Hasher 
+ * @tparam KeyEqual 
+ * @tparam Val 
+ * @tparam Keys 
+ * @tparam Vals 
+ */
+template <typename Key, 
+          typename Hasher = meta::Hash<Key>,
+          typename KeyEqual = std::equal_to<Key>,
+          typename Val, typename... Keys, typename... Vals>
+    requires (std::disjunction_v<std::is_same<Key, Keys>...>
+           && std::disjunction_v<std::is_same<Val, Vals>...>)
+constexpr auto makeCHashMap(
+    std::pair<Key, Val> p,
+    std::pair<Keys, Vals>... ps
+) -> CHashMap<Key, Val, sizeof...(ps) + 1, Hasher, KeyEqual> {
+    return {
+        std::array<std::pair<Key, Val>, sizeof...(ps) + 1>{
+            std::move(p), std::move(ps)...
+        },
+        Hasher{},
+        KeyEqual{}
+    };
+}
 
+} // namespace HX::container

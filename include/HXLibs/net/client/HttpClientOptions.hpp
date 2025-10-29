@@ -30,7 +30,21 @@ template <typename T>
     requires(std::is_same_v<T, typename T::ProxyBase::Type>)
 struct ProxyType {
     using Type = T;
-    std::string url = {};
+    std::string url{};
+
+    operator std::string const&() const noexcept {
+        return url;
+    }
+
+    std::string const& get() const noexcept {
+        return *this;
+    }
+};
+
+template <>
+struct ProxyType<NoneProxy> {
+    using Type = NoneProxy;
+    inline static constexpr std::string url{};
 
     operator std::string const&() const noexcept {
         return url;

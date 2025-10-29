@@ -16,7 +16,7 @@ project(HXLibs
 include(cmake/install.cmake)
 
 # 是否开启 HTTPS
-set(HXLIBS_ENABLE_SSL ON)
+# set(HXLIBS_ENABLE_SSL ON)
 
 if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")
     # 如果没有定义CMAKE_BUILD_TYPE, 则设置为Release
