@@ -29,11 +29,10 @@ class HttpProxy : public Proxy<HttpProxy> {
 public:
     using ProxyBase = Proxy<HttpProxy>;
     using ProxyBase::ProxyBase;
-    using IOType = HttpIO;
 
     coroutine::Task<> connect(std::string_view url, std::string_view targetUrl) {
         UrlInfoExtractor parser(targetUrl);
-        Request req{_io};
+        HttpRequest<HttpIO> req{_io};
         
         if (parser.getService() == "https") {
             req.setReqLine<HttpMethod::CONNECT>(
@@ -53,7 +52,7 @@ public:
         using namespace HX::utils;
         co_await req.sendHttpReq<decltype(3_s)>();
 
-        Response res{_io};
+        HttpResponse<HttpIO> res{_io};
         if (!co_await res.parserRes<decltype(3_s)>()) {
             throw std::runtime_error{"Response parser error"};
         }

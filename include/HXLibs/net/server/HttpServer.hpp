@@ -73,7 +73,7 @@ public:
                     + "/",
                     {{"Connection", "close"}}
                 ).get();
-                cli.close().wait();
+                cli.close();
             } catch (...) {
                 ;
             }

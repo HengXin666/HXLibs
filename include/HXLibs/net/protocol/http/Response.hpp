@@ -48,9 +48,10 @@ struct ResponseData {
 /**
  * @brief 响应类(Response)
  */
-class Response {
+template <typename IOType>
+class HttpResponse {
 public:
-    explicit Response(IO& io)
+    explicit HttpResponse(IOType& io)
         : _recvBuf()
         , _statusLine()
         , _responseHeaders()
@@ -74,7 +75,7 @@ public:
         return *this;
     }
 #else
-    Response& operator=(Response&&) noexcept = delete;
+    HttpResponse& operator=(HttpResponse&&) noexcept = delete;
 #endif
     // ===== ↓客户端使用↓ =====
     /**
@@ -86,7 +87,7 @@ public:
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserRes() {
         for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes(), IO::kBufMaxSize)) {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
             );
@@ -174,7 +175,7 @@ public:
      * @param content
      * @return Response& 可链式调用
      */
-    Response& setStatusAndContent(Status status, std::string_view content) {
+    HttpResponse& setStatusAndContent(Status status, std::string_view content) {
         setResLine(status).setContentType(TEXT).setBody(content);
         return *this;
     }
@@ -241,7 +242,7 @@ public:
                 co_await _io.fullySend({buf.data(), size});           // 发送文件
             }
         } catch (...) {
-            ; // _io.send 会抛异常
+            ; // _io.template send 会抛异常
         }
         co_await file.close();
     }
@@ -426,7 +427,7 @@ public:
                             remaining -= size;
                         }
                     } catch (...) {
-                        // _io.send 会抛异常
+                        // _io.template send 会抛异常
                         ;
                     }
                     co_await file.close();
@@ -457,7 +458,7 @@ public:
                     remaining -= size;
                 }
             } catch (...) {
-                // _io.send 会抛异常
+                // _io.template send 会抛异常
                 ;
             }
             co_await file.close();
@@ -477,7 +478,7 @@ public:
      * @param describe 状态码描述: 如果为`""`则会使用该状态码对应默认的描述
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setResLine(Status statusCode, std::string_view describe = "") {
+    HttpResponse& setResLine(Status statusCode, std::string_view describe = "") {
         using namespace std::string_view_literals;
         _statusLine.clear();
         _statusLine.resize(3);
@@ -498,7 +499,7 @@ public:
      * @return [this&] 可以链式调用
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
-    Response& setContentType(HttpContentType type) {
+    HttpResponse& setContentType(HttpContentType type) {
         using namespace std::string_literals;
         _responseHeaders["Content-Type"] = getContentTypeStrView(type);
         return *this;
@@ -515,7 +516,7 @@ public:
         requires (requires (S&& data, std::string s) {
             s += std::forward<S>(data);
         })
-    Response& setBody(S&& data) noexcept {
+    HttpResponse& setBody(S&& data) noexcept {
         _body.clear();
         _body += std::forward<S>(data);
         return *this;
@@ -529,7 +530,7 @@ public:
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
     template <typename Str>
-    Response& addHeader(const std::string& key, Str&& val) {
+    HttpResponse& addHeader(const std::string& key, Str&& val) {
         _responseHeaders[key] = std::forward<Str>(val);
         return *this;
     }
@@ -579,7 +580,7 @@ private:
 
     std::vector<char> _sendBuf;                     // 用于发送数据的缓冲区
     std::optional<std::size_t> _remainingBodyLen;   // 仍需读取的请求体长度
-    IO& _io;
+    IOType& _io;
     bool _completeResponseHeader = false;           //是否解析完成响应头
 
     friend class WebSocketFactory;
@@ -792,5 +793,7 @@ private:
         return 0; // 解析完毕
     }
 };
+
+using Response = HttpResponse<IO>;
 
 } // namespace HX::net

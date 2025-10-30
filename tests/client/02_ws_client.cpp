@@ -56,10 +56,9 @@ int main() {
             co_await ws.sendText(std::to_string(i));
         co_return co_await ws.close();
     });
-    serv.asyncRun(1, 1500_ms);
+    serv.asyncRun(1, []{}, 1500_ms);
     
     // 等待服务器启动
-    std::this_thread::sleep_for(1s);
     coMain().runSync();
 
     log::hxLog.warning("====== 测试同步 ======");

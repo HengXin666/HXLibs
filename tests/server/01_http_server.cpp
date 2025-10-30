@@ -61,7 +61,7 @@ TEST_CASE("测试普通请求") {
                     .sendRes();
             co_await file.close();
         });
-    ser.asyncRun(1, 1500_ms); // 启动服务器
+    ser.asyncRun(1, []{}, 1500_ms); // 启动服务器
     std::this_thread::sleep_for((1500_ms).toChrono());
     {
         HttpClient cli;

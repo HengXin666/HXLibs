@@ -49,18 +49,10 @@ class NoneProxy : public Proxy<NoneProxy> {
 public:
     using ProxyBase = Proxy<NoneProxy>;
     using ProxyBase::ProxyBase;
-    using IOType = IO;
 
     coroutine::Task<> connect(std::string_view, std::string_view) noexcept {
         co_return;
     }
 };
-
-/**
- * @brief 获取代理协议使用的 IO 类型
- * @tparam T 
- */
-template <typename T>
-using GetIOType = typename T::IOType;
 
 } // namespace HX::net

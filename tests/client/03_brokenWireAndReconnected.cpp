@@ -75,7 +75,7 @@ auto hx_init = [] {
     }).addEndpoint<GET>("/ass", [] ENDPOINT {
         co_await res.useRangeTransferFile(req.getRangeRequestView(), "./ass/2.ass");
     });
-    server.asyncRun(2, 100_ms);
+    server.asyncRun(2, []{}, 100_ms);
     return 0;
 }();
 #endif

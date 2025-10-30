@@ -65,7 +65,7 @@ inline constexpr std::string toByteString(const std::wstring& input) {
                     + ((static_cast<char32_t>(high_surrogate) - 0xD800) * 0x400
                     + (static_cast<char32_t>(low_surrogate) - 0xDC00));
             } else {
-                codepoint = high_surrogate;
+                codepoint = static_cast<char32_t>(high_surrogate);
             }
         } else { // 处理UTF-32 (Linux/macOS环境)
             codepoint = static_cast<char32_t>(input[i]);

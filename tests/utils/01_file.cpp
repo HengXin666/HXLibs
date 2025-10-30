@@ -36,14 +36,14 @@ TEST_CASE("测试朴素同步读写文件接口测试") {
 TEST_CASE("性能对比测试") {
     coroutine::EventLoop loop{};
     std::string res01, res02;
-    auto coCnt = utils::TickTock<>::forEach(1000, [&] {
+    auto coCnt = utils::TickTock<>::forEach(100, [&] {
         utils::AsyncFile file{loop};
         loop.sync(file.open("./01_file.test"));
         res01 = file.syncReadAll();
         file.syncClose();
     });
     log::hxLog.info("协程的同步:", coCnt);
-    auto syncCnt = utils::TickTock<>::forEach(1000, [&] {
+    auto syncCnt = utils::TickTock<>::forEach(100, [&] {
         res02 = utils::FileUtils::getFileContent("./01_file.test");
     });
     log::hxLog.info("系统调用:", syncCnt);

@@ -182,6 +182,6 @@ private:
     std::uint64_t _index;
 };
 
-HttpClientPool(std::size_t size) -> HttpClientPool<decltype(utils::operator""_ms<"5000">()), Socks5Proxy>;
+HttpClientPool(std::size_t size) -> HttpClientPool<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
 
 } // namespace HX::net

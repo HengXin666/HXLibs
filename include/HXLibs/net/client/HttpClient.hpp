@@ -45,14 +45,13 @@ namespace HX::net {
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
 class HttpClient {
-    using IOType = GetIOType<Proxy>;
 public:
 
-#ifdef HXLIBS_ENABLE_SSL
-    // 开启 Https 模式, 则禁止使用代理, 因为代理使用明文 (Http)
-    static_assert(std::is_same_v<Proxy, NoneProxy>,
-        "Enable HTTPS mode to prohibit the use of proxies");
-#endif // !HXLIBS_ENABLE_SSL
+// #ifdef HXLIBS_ENABLE_SSL
+//     // 开启 Https 模式, 则禁止使用代理, 因为代理使用明文 (Http)
+//     static_assert(std::is_same_v<Proxy, NoneProxy>,
+//         "Enable HTTPS mode to prohibit the use of proxies");
+// #endif // !HXLIBS_ENABLE_SSL
 
     /**
      * @brief 构造一个 HTTP 客户端
@@ -148,7 +147,7 @@ public:
             req.addHeaders(std::move(headers));
             try {
                 co_await req.sendChunkedReq<Timeout>(path);
-                Response res{_io.get()};
+                HttpResponse res{_io.get()};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
@@ -162,7 +161,7 @@ public:
                 co_await _io.get().bindNewFd(_cliFd);
                 // 再次发送
                 co_await req.sendChunkedReq<Timeout>(path);
-                Response res{_io.get()};
+                HttpResponse res{_io.get()};
                 if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
@@ -321,10 +320,8 @@ public:
      * @brief 断开连接
      * @return container::FutureResult<> 
      */
-    container::FutureResult<> close() {
-        return _pool.addTask([this] {
-            coClose().runSync();
-        });
+    void close() noexcept {
+        _eventLoop.trySync(coClose());
     }
 
     /**
@@ -332,14 +329,13 @@ public:
      * @tparam NowOsType 
      * @return coroutine::Task<> 
      */
-    coroutine::Task<container::Try<>> coClose() {
-        co_return _eventLoop.trySync([this]() -> coroutine::Task<> {
-            if (_cliFd == kInvalidSocket) {
-                co_return;
-            }
-            co_await _io.get().close();
-            _cliFd = kInvalidSocket;
-        }());
+    coroutine::Task<> coClose() noexcept {
+        if (_cliFd == kInvalidSocket) {
+            _io.get().reset();
+            co_return;
+        }
+        co_await _io.get().close();
+        _cliFd = kInvalidSocket;
     }
 
     /**
@@ -442,7 +438,7 @@ public:
     HttpClient& operator=(HttpClient&&) noexcept = delete;
 
     ~HttpClient() noexcept {
-        close().wait();
+        close();
     }
 private:
     /**
@@ -479,11 +475,9 @@ private:
                     }
                 }
 #ifdef HXLIBS_ENABLE_SSL
-                if constexpr (std::is_same_v<IOType, HttpsIO>) {
-                    _io.get().initSslBio(SslContext::SslType::Client);
-                    // 初始化连接 (Https 握手)
-                    co_await _io.get().template initSsl<Timeout>(false);
-                }
+                _io.get().initSslBio(SslContext::SslType::Client);
+                // 初始化连接 (Https 握手)
+                co_await _io.get().template initSsl<Timeout>(false);
 #endif // !HXLIBS_ENABLE_SSL
                 co_return;
             } catch (...) {
@@ -600,7 +594,7 @@ private:
     coroutine::EventLoop _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
-    container::Uninitialized<IOType> _io;
+    container::Uninitialized<IO> _io;
 
     // 上一次解析的 Host
     std::string _host;

@@ -27,7 +27,6 @@ class Socks5Proxy : public Proxy<Socks5Proxy> {
 public:
     using ProxyBase = Proxy<Socks5Proxy>;
     using ProxyBase::ProxyBase;
-    using IOType = HttpIO;
 
     coroutine::Task<> connect(std::string_view url, std::string_view targetUrl) {
         auto user = UrlParse::extractUser(url);

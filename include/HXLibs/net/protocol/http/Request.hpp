@@ -66,9 +66,10 @@ private:
 /**
  * @brief 请求类(Request)
  */
-class Request {
+template <typename IOType>
+class HttpRequest {
 public:
-    explicit Request(IO& io) 
+    explicit HttpRequest(IOType& io) 
         : _recvBuf()
         , _requestLine()
         , _requestHeaders()
@@ -86,7 +87,7 @@ public:
     Request(Request&&) = default;
     Request& operator=(Request&&) = default;
 #else
-    Request& operator=(Request&&) noexcept = delete;
+    HttpRequest& operator=(HttpRequest&&) noexcept = delete;
 #endif
 
     // ===== ↓客户端使用↓ =====
@@ -112,15 +113,15 @@ public:
         _buildLineAndHead(buf);
         if (_body.empty()) {
             utils::StringUtil::append(buf, CRLF);
-            co_await _io.sendLinkTimeout<Timeout>(buf);
+            co_await _io.template sendLinkTimeout<Timeout>(buf);
         } else {
             // 请求体
             utils::StringUtil::append(buf, CONTENT_LENGTH_SV);
             utils::StringUtil::append(buf, HEADER_SEPARATOR_SV);
             utils::StringUtil::append(buf, std::to_string(_body.size()));
             utils::StringUtil::append(buf, HEADER_END_SV);
-            co_await _io.sendLinkTimeout<Timeout>(buf);
-            co_await _io.sendLinkTimeout<Timeout>(_body);
+            co_await _io.template sendLinkTimeout<Timeout>(buf);
+            co_await _io.template sendLinkTimeout<Timeout>(_body);
         }
         co_return;
     }
@@ -154,24 +155,24 @@ public:
             // 把 Line + Head 组装好, 然后直接发送
             _buildLineAndHead(buf);
             utils::StringUtil::append(buf, CRLF); // \r\n + \r\n
-            co_await _io.sendLinkTimeout<Timeout>(buf);
+            co_await _io.template sendLinkTimeout<Timeout>(buf);
             buf.resize(utils::FileUtils::kBufMaxSize);
             // 读取文件
             std::size_t size = static_cast<std::size_t>(co_await file.read(buf));
             _buildToChunkedEncoding<true>(size, sendBuf);
-            co_await _io.sendLinkTimeout<Timeout>(sendBuf);
-            co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+            co_await _io.template sendLinkTimeout<Timeout>(sendBuf);
+            co_await _io.template sendLinkTimeout<Timeout>({buf.data(), size});
             for (;;) {
                 if (!size) [[unlikely]] {
                     // 需要使用 长度为 0 的分块, 来标记当前内容实体传输结束
                     _buildToChunkedEncoding<false, true>(0, sendBuf);
-                    co_await _io.sendLinkTimeout<Timeout>(sendBuf);
+                    co_await _io.template sendLinkTimeout<Timeout>(sendBuf);
                     break;
                 }
                 size = static_cast<std::size_t>(co_await file.read(buf));
                 _buildToChunkedEncoding(size, sendBuf);
-                co_await _io.sendLinkTimeout<Timeout>(sendBuf);
-                co_await _io.sendLinkTimeout<Timeout>({buf.data(), size});
+                co_await _io.template sendLinkTimeout<Timeout>(sendBuf);
+                co_await _io.template sendLinkTimeout<Timeout>({buf.data(), size});
             }
             co_await file.close();
             co_return;
@@ -189,7 +190,7 @@ public:
      * @warning 不需要手动写`/r`或`/n`以及尾部的`/r/n`
      */
     template <HttpMethod Method>
-    Request& setReqLine(std::string_view path) {
+    HttpRequest& setReqLine(std::string_view path) {
         using namespace std::string_literals;
         _requestLine.resize(3);
         _requestLine[RequestLineDataType::RequestType] = getMethodStringView(Method);
@@ -203,7 +204,7 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addHeaders(const std::vector<std::pair<std::string, std::string>>& heads) {
+    HttpRequest& addHeaders(const std::vector<std::pair<std::string, std::string>>& heads) {
         _requestHeaders.insert(heads.begin(), heads.end());
         return *this;
     }
@@ -213,7 +214,7 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addHeaders(const std::unordered_map<std::string, std::string>& heads) {
+    HttpRequest& addHeaders(const std::unordered_map<std::string, std::string>& heads) {
         _requestHeaders.insert(heads.begin(), heads.end());
         return *this;
     }
@@ -223,7 +224,7 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addHeaders(HeaderHashMap&& heads) {
+    HttpRequest& addHeaders(HeaderHashMap&& heads) {
         for (auto&& [k, v] : heads) {
             _requestHeaders[k] = std::move(v);
         }
@@ -235,7 +236,7 @@ public:
      * @param heads 键值对
      * @return Request& 
      */
-    Request& addHeaders(HeaderHashMap const& heads) {
+    HttpRequest& addHeaders(HeaderHashMap const& heads) {
         _requestHeaders.insert(heads.begin(), heads.end());
         return *this;
     }
@@ -250,7 +251,7 @@ public:
         requires (requires (S&& data, std::string s) {
             s += std::forward<S>(data);
         })
-    Request& setBody(S&& data) noexcept {
+    HttpRequest& setBody(S&& data) noexcept {
         _body.clear();
         _body += std::forward<S>(data);
         return *this;
@@ -264,7 +265,7 @@ public:
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
     template <typename Str1, typename Str2>
-    Request& addHeaders(Str1&& key, Str2&& val) {
+    HttpRequest& addHeaders(Str1&& key, Str2&& val) {
         _requestHeaders[std::forward<Str1>(key)] = std::forward<Str2>(val);
         return *this;
     }
@@ -277,7 +278,7 @@ public:
      * @warning `key`在`map`中是区分大小写的, 故不要使用`大小写不同`的相同的`键`
      */
     template <typename Str1, typename Str2>
-    Request& tryAddHeaders(Str1&& key, Str2&& val) {
+    HttpRequest& tryAddHeaders(Str1&& key, Str2&& val) {
         _requestHeaders.try_emplace(std::forward<Str1>(key), std::forward<Str2>(val));
         return *this;
     }
@@ -292,7 +293,7 @@ public:
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserReq() {
         for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserReq(), IO::kBufMaxSize)) {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
             );
@@ -363,7 +364,7 @@ public:
         }
         _completeBody = true;
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
             );
@@ -399,7 +400,7 @@ public:
         }
         _completeBody = true;
         for (std::size_t n = co_await _coParserReqBody(file); n; n = co_await _coParserReqBody(file)) {
-            auto res = co_await _io.recvLinkTimeout<Timeout>(
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
             );
@@ -575,7 +576,7 @@ private:
     std::string_view _urlWildcardData;
 
     // IO 对象 (内含 协程事件循环)
-    IO& _io;
+    IOType& _io;
 
     // multipart/form-data 协议边界.
     std::string_view _boundary;
@@ -593,10 +594,6 @@ private:
     friend class Router;
     friend class WebSocketFactory;
     friend struct ConnectionHandler;
-
-    template <typename Timeout, typename Proxy>
-        requires(utils::HasTimeNTTP<Timeout>)
-    friend class HttpClient;
 
     /**
      * @brief 组装请求行和请求头 (不包含 `content-length`, 和 最终的`\r\n\r\n`分割)
@@ -854,5 +851,7 @@ private:
         co_return 0;
     }
 };
+
+using Request = HttpRequest<IO>;
 
 } // namespace HX::net
