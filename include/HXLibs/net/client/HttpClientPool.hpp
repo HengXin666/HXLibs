@@ -24,13 +24,17 @@
 
 namespace HX::net {
 
-template <typename Timeout, typename Proxy>
+template <typename Timeout, 
+          typename Proxy,
+          typename RequestType,
+          typename ResponseType
+>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpClientPool {
+class HttpBaseClientPool {
 public:
-    using HttpClientType = HttpClient<Timeout, Proxy>;
+    using HttpClientType = HttpBaseClient<Timeout, Proxy, RequestType, ResponseType>;
 
-    HttpClientPool(std::size_t size, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+    HttpBaseClientPool(std::size_t size, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
         : _cliPool{}
     {
         if (size <= 0) [[unlikely]] {
@@ -41,7 +45,7 @@ public:
         }
     }
 
-    HttpClientPool& operator=(HttpClientPool&&) noexcept = delete;
+    HttpBaseClientPool& operator=(HttpBaseClientPool&&) noexcept = delete;
 
     void resize(std::size_t newSize, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) {
         if (newSize <= 0) [[unlikely]] {
@@ -182,6 +186,36 @@ private:
     std::uint64_t _index;
 };
 
+template <typename Timeout, typename Proxy>
+    requires(utils::HasTimeNTTP<Timeout>)
+class HttpClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>> {
+    using Base = HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>>;
+public:
+    using Base::Base;
+
+    HttpClientPool(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+        : Base(std::move(options))
+    {}
+};
+
 HttpClientPool(std::size_t size) -> HttpClientPool<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+
+#if HXLIBS_ENABLE_SSL
+
+template <typename Timeout, typename Proxy>
+    requires(utils::HasTimeNTTP<Timeout>)
+class HttpsClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>> {
+    using Base = HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>>;
+public:
+    using Base::Base;
+
+    HttpsClientPool(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+        : Base(std::move(options))
+    {}
+};
+
+HttpsClientPool(std::size_t size) -> HttpsClientPool<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+
+#endif // !HXLIBS_ENABLE_SSL
 
 } // namespace HX::net

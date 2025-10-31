@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-10-31 21:58:42] : 重构 HttpClient / HttpClientPool 支持指定 IO (并且特化为 Http(s)Client)
+
 - [2025-10-31 20:29:24] : 重构 IO, 分为 HttpIO / HttpsIO (需要开启`HXLIBS_ENABLE_SSL`并且依赖openSSL); 为服务端、客户端支持 Https, 并且在 Https 下 支持代理, 新增 Http 代理. 调整了部分代码架构.
 
 - [2025-10-11 12:22:48] : 尝试实现 https://github.com/HengXin666/HXTest/issues/7 的猜想, 但是实际测试下来, 在各个场景下都不如原始表现. 显然这不是瓶颈...; 为 `TickTock` 工具类新增 forEach, 可多次计时求平均值.

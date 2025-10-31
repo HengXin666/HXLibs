@@ -42,16 +42,20 @@
 
 namespace HX::net {
 
-template <typename Timeout, typename Proxy>
+template <typename Timeout, 
+          typename Proxy,
+          typename RequestType,
+          typename ResponseType
+>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpClient {
+class HttpBaseClient {
 public:
     /**
      * @brief 构造一个 HTTP 客户端
      * @param options 选项
      * @param threadNum 线程数
      */
-    HttpClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) 
+    HttpBaseClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) 
         : _options{std::move(options)}
         , _eventLoop{}
         , _cliFd{kInvalidSocket}
@@ -134,14 +138,14 @@ public:
                 co_await makeSocket(url);
             }
             container::Try<> err{};
-            Request req{_io.get()};
-            req.setReqLine<Method>(UrlParse::extractPath(url));
+            RequestType req{_io.get()};
+            req.template setReqLine<Method>(UrlParse::extractPath(url));
             preprocessHeaders(url, contentType, req);
             req.addHeaders(std::move(headers));
             try {
-                co_await req.sendChunkedReq<Timeout>(path);
-                HttpResponse res{_io.get()};
-                if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+                co_await req.template sendChunkedReq<Timeout>(path);
+                ResponseType res{_io.get()};
+                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
                 co_return res.makeResponseData();
@@ -152,9 +156,9 @@ public:
             try {
                 co_await makeSocket(url);
                 // 再次发送
-                co_await req.sendChunkedReq<Timeout>(path);
-                HttpResponse res{_io.get()};
-                if (!co_await res.parserRes<Timeout>()) [[unlikely]] {
+                co_await req.template sendChunkedReq<Timeout>(path);
+                ResponseType res{_io.get()};
+                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
                 co_return res.makeResponseData();
@@ -419,20 +423,9 @@ public:
         co_return res;
     }
 
-#ifdef HXLIBS_ENABLE_SSL
-    /**
-     * @brief 初始化 SSL, 此为全局单例. 仅以第一次调用为准.
-     * @param config 
-     * @return void
-     */
-    static void initSsl(SslConfig config) {
-        SslContext::get().init<SslContext::SslType::Client>(std::move(config));
-    }
-#endif // !HXLIBS_ENABLE_SSL
+    HttpBaseClient& operator=(HttpBaseClient&&) noexcept = delete;
 
-    HttpClient& operator=(HttpClient&&) noexcept = delete;
-
-    ~HttpClient() noexcept {
+    ~HttpBaseClient() noexcept {
         close();
     }
 private:
@@ -512,8 +505,8 @@ private:
         HttpContentType contentType = HttpContentType::None,
         HeaderHashMap headers = {}
     ) {
-        Request req{_io.get()};
-        req.setReqLine<Method>(UrlParse::extractPath(url));
+        RequestType req{_io.get()};
+        req.template setReqLine<Method>(UrlParse::extractPath(url));
         preprocessHeaders(url, contentType, req);
         req.addHeaders(std::move(headers));
         if (body.size()) {
@@ -524,16 +517,16 @@ private:
         try {
             bool isOkFd = true;
             try {
-                co_await req.sendHttpReq<Timeout>();
+                co_await req.template sendHttpReq<Timeout>();
             } catch (...) {
                 // e: 大概率是 断开的管道, 直接重连
                 isOkFd = false;
             }
-            Response res{_io.get()};
+            ResponseType res{_io.get()};
             do {
                 try {
                     // 可能会抛异常...
-                    if (isOkFd && co_await res.parserRes<Timeout>()) {
+                    if (isOkFd && co_await res.template parserRes<Timeout>()) {
                         break;
                     }
                 } catch (...) {
@@ -544,9 +537,9 @@ private:
                     // 重新建立连接
                     co_await makeSocket(url);
                     // 重新发送一次请求
-                    co_await req.sendHttpReq<Timeout>();
+                    co_await req.template sendHttpReq<Timeout>();
                     // 再次解析请求
-                    if (co_await res.parserRes<Timeout>()) [[likely]] {
+                    if (co_await res.template parserRes<Timeout>()) [[likely]] {
                         break;
                     }
                 }
@@ -575,7 +568,7 @@ private:
      * @param url 
      * @param req 
      */
-    void preprocessHeaders(std::string const& url, HttpContentType contentType, Request& req) { 
+    void preprocessHeaders(std::string const& url, HttpContentType contentType, RequestType& req) { 
         try {
             auto host = UrlParse::extractDomainName(url);
             req.tryAddHeaders("Host", host);
@@ -605,6 +598,45 @@ private:
     bool _isAutoReconnect;
 };
 
+template <typename Timeout, typename Proxy>
+    requires(utils::HasTimeNTTP<Timeout>)
+class HttpClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>> {
+    using Base = HttpBaseClient<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>>;
+public:
+    using Base::Base;
+
+    HttpClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+        : Base(std::move(options))
+    {}
+};
+
 HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+
+#if HXLIBS_ENABLE_SSL
+
+template <typename Timeout, typename Proxy>
+    requires(utils::HasTimeNTTP<Timeout>)
+class HttpsClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>> {
+    using Base = HttpBaseClient<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>>;
+public:
+    using Base::Base;
+    
+    HttpsClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+        : Base(std::move(options))
+    {}
+
+    /**
+     * @brief 初始化 SSL, 此为全局单例. 仅以第一次调用为准.
+     * @param config 
+     * @return void
+     */
+    static void initSsl(SslConfig config) {
+        SslContext::get().init<SslContext::SslType::Client>(std::move(config));
+    }
+};
+
+HttpsClient() -> HttpsClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+
+#endif // !HXLIBS_ENABLE_SSL
 
 } // namespace HX::net

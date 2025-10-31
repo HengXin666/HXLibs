@@ -937,8 +937,5 @@ Transfer/sec:     22.37GB
 ### 7.1 代码规范
 > --> [C++ 编码规范](documents/CodingStandards/CppStyle.md)
 
-### 7.2 开发计划
-> --> [开发计划](documents/DevelopmentPlan.md)
-
-### 7.3 开发日志
+### 7.2 开发日志
 > --> [开发日志](documents/DevelopmentLog.md)
