@@ -2,6 +2,7 @@
 
 HX_CONTROLLER(LoliController) {
     HX_ENDPOINT_MAIN([[maybe_unused]] int a, [[maybe_unused]] std::string const& b) {
+        using namespace HX::net;
         auto loliPtr = std::make_shared<int>();
     
         addEndpoint<GET>("/", [=] ENDPOINT {

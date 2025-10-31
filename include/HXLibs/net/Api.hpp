@@ -28,14 +28,6 @@ namespace HX::net {
 class BaseController {
     HttpServer& _server;
 public:
-    using HttpMethod::GET;
-    using HttpMethod::POST;
-    using HttpMethod::WS;
-    using HttpMethod::DEL;
-    using HttpMethod::HEAD;
-    using HttpMethod::PUT;
-    using HttpMethod::CONNECT;
-
     BaseController(HttpServer& server)
         : _server{server}
     {}
