@@ -112,37 +112,35 @@ int main() {
     std::this_thread::sleep_for(1s);
 
     HttpClient client{HttpClientOptions{
-        ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
+        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
     }};
 #ifdef HXLIBS_ENABLE_SSL
     client.initSsl({
         .verifyOption = SslVerifyOption::None
     });
 #endif // !HXLIBS_ENABLE_SSL
-    log::hxLog.info("get -> ", client.get("http://8.135.10.183:10106/").get().get());
+    // log::hxLog.info("get -> ", client.get("https://drive.google.com/drive/my-drive").get().get());
 
-    // for (auto i = 0; i < 5; ++i) {
-    //     auto res
-    //         = client.get(
-    //             "https://127.0.0.1:28205/",
-    //             {{"Connection", "close"}}
-    //         ).get();
-    //     if (res) {
-    //         log::hxLog.info("get -> ", res.get());
-    //     } else {
-    //         log::hxLog.error("cli Err:", res.what());
-    //     }
+    for (auto i = 0; i < 5; ++i) {
+        auto res
+            = client.get(
+                "https://127.0.0.1:28205/",
+                {{"Connection", "close"}}
+            ).get();
+        if (res) {
+            log::hxLog.info("get -> ", res.get());
+        } else {
+            log::hxLog.error("cli Err:", res.what());
+        }
 
-    //     std::this_thread::sleep_for(500ms);
+        std::this_thread::sleep_for(500ms);
 
-    //     client.wsLoop("wss://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
-    //         log::hxLog.info("ws recv:", co_await ws.recvText());
-    //         co_await ws.sendText("我是张三! awa");
-    //         log::hxLog.info("ws recv:", co_await ws.recvText());
-    //         co_await ws.close();
-    //         co_return;
-    //     }).wait();
-    // }
-
-    // 存在问题: https下, 代理的使用
+        client.wsLoop("wss://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+            log::hxLog.info("ws recv:", co_await ws.recvText());
+            co_await ws.sendText("我是张三! awa");
+            log::hxLog.info("ws recv:", co_await ws.recvText());
+            co_await ws.close();
+            co_return;
+        }).wait();
+    }
 }

@@ -166,6 +166,11 @@ public:
         SSL_set_connect_state(_ssl);
     }
 
+    void reset() noexcept {
+        BIO_reset(_sslBio);
+        BIO_reset(_netBio);
+    }
+
     SslBio& operator=(SslBio&&) = delete;
 
     ~SslBio() {

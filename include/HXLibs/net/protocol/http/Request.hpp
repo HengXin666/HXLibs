@@ -69,6 +69,10 @@ private:
 template <typename IOType>
 class HttpRequest {
 public:
+    // IOType 必须是 Http(s) IO
+    static_assert(std::is_same_v<IOType, HttpIO>
+               || std::is_same_v<IOType, IO>, "The IOType must be Http(s) IO");
+
     explicit HttpRequest(IOType& io) 
         : _recvBuf()
         , _requestLine()

@@ -46,13 +46,6 @@ template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
 class HttpClient {
 public:
-
-// #ifdef HXLIBS_ENABLE_SSL
-//     // 开启 Https 模式, 则禁止使用代理, 因为代理使用明文 (Http)
-//     static_assert(std::is_same_v<Proxy, NoneProxy>,
-//         "Enable HTTPS mode to prohibit the use of proxies");
-// #endif // !HXLIBS_ENABLE_SSL
-
     /**
      * @brief 构造一个 HTTP 客户端
      * @param options 选项
@@ -158,7 +151,6 @@ public:
             // 二次尝试
             try {
                 co_await makeSocket(url);
-                co_await _io.get().bindNewFd(_cliFd);
                 // 再次发送
                 co_await req.sendChunkedReq<Timeout>(path);
                 HttpResponse res{_io.get()};
@@ -396,8 +388,6 @@ public:
                 if (_isAutoReconnect) [[likely]] {
                     // 重新建立连接
                     co_await makeSocket(url);
-                    // 绑定新的 fd
-                    co_await _io.get().bindNewFd(_cliFd);
                     try {
                         ws.set(co_await WebSocketFactory::connect<Timeout>(url, _io.get(), headers));
                         res.reset();
@@ -466,8 +456,11 @@ private:
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
-                if (!_io.isAvailable()) {                
+                auto isInit = _io.isAvailable();
+                if (!isInit) {                
                     _io.set(_cliFd, _eventLoop);
+                } else {
+                    co_await _io.get().bindNewFd(_cliFd);
                 }
                 if constexpr (!std::is_same_v<Proxy, NoneProxy>) {
                     // 初始化代理
@@ -477,7 +470,11 @@ private:
                     }
                 }
 #ifdef HXLIBS_ENABLE_SSL
-                _io.get().initSslBio(SslContext::SslType::Client);
+                if (!isInit) {
+                    _io.get().initSslBio(SslContext::SslType::Client);
+                } else {
+                    _io.get().resetSslBio();
+                }
                 // 初始化连接 (Https 握手)
                 co_await _io.get().template initSsl<Timeout>(false);
 #endif // !HXLIBS_ENABLE_SSL
@@ -541,8 +538,6 @@ private:
                 if (_isAutoReconnect) [[likely]] {
                     // 重新建立连接
                     co_await makeSocket(url);
-                    // 绑定新的 fd
-                    co_await _io.get().bindNewFd(_cliFd);
                     // 重新发送一次请求
                     co_await req.sendHttpReq<Timeout>();
                     // 再次解析请求

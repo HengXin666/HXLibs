@@ -297,6 +297,10 @@ public:
         _ssl.set(type);
     }
 
+    void resetSslBio() {
+        _ssl.get().reset();
+    }
+
     coroutine::Task<int> recv(std::span<char> buf) {
         int res = 0;
         for (;;) {

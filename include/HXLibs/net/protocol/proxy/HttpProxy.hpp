@@ -45,7 +45,6 @@ public:
         }
 
         req.tryAddHeaders("Host", UrlParse::extractDomainName(std::string{url}));
-        req.tryAddHeaders("Accept", "*/*");
         req.tryAddHeaders("Connection", "keep-alive");
         req.tryAddHeaders("User-Agent", "HXLibs/1.0");
 
@@ -59,7 +58,6 @@ public:
         if (res.getStatusCode() != "200") {
             throw std::runtime_error("HTTP Proxy connect failed");
         }
-        log::hxLog.info(res.makeResponseData());
     }
 };
 
