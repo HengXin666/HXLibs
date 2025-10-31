@@ -420,7 +420,12 @@ public:
     }
 
 #ifdef HXLIBS_ENABLE_SSL
-    auto initSsl(SslConfig config) {
+    /**
+     * @brief 初始化 SSL, 此为全局单例. 仅以第一次调用为准.
+     * @param config 
+     * @return void
+     */
+    static void initSsl(SslConfig config) {
         SslContext::get().init<SslContext::SslType::Client>(std::move(config));
     }
 #endif // !HXLIBS_ENABLE_SSL

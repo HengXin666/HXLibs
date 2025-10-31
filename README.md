@@ -33,6 +33,9 @@ HXLibs 是一个现代 C++ 库. 目前集合了:
 CMake以子项目的方式导入使用:
 
 ```cmake
+# 配置是否开启 HTTPS
+set(HXLIBS_ENABLE_SSL ON)
+
 # 导入 libs 文件夹下的 HXLibs
 add_subdirectory(libs/HXLibs)
 target_link_libraries(YouProject PRIVATE HXLibs)

@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2025-10-31 20:29:24] : 重构 IO, 分为 HttpIO / HttpsIO (需要开启`HXLIBS_ENABLE_SSL`并且依赖openSSL); 为服务端、客户端支持 Https, 并且在 Https 下 支持代理, 新增 Http 代理. 调整了部分代码架构.
+
 - [2025-10-11 12:22:48] : 尝试实现 https://github.com/HengXin666/HXTest/issues/7 的猜想, 但是实际测试下来, 在各个场景下都不如原始表现. 显然这不是瓶颈...; 为 `TickTock` 工具类新增 forEach, 可多次计时求平均值.
 
 - [2025-10-10 23:22:09] : 支持协程`whenAll`以及其`&&`运算符重载, 实现 `auto [a, b, c] = co_await (co1() && co2() && co3())` 等价于 `co_await whenAll(co1(), co2(), co3())` 的效果, 使得使用更加方便、直观。并且修复一个 `||` 重载导致的顺序问题.
