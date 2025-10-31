@@ -1,4 +1,4 @@
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 #include <HXLibs/net/protocol/websocket/WebSocket.hpp>
 #include <HXLibs/net/client/HttpClient.hpp>
 

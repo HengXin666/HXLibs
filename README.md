@@ -51,7 +51,7 @@ target_link_libraries(YouProject PRIVATE HXLibs)
 下面是一个简单的服务端示例: ([examples/HttpServer/01_http_server.cpp](examples/HttpServer/01_http_server.cpp))
 
 ```cpp
-#include <HXLibs/net/Api.hpp> // 包含了 端点宏 ENDPOINT
+#include <HXLibs/net/ApiMacro.hpp> // 包含了 端点宏 ENDPOINT
 #include <HXLibs/log/Log.hpp>
 
 using namespace HX;

@@ -1,6 +1,6 @@
 #include <HXLibs/net/client/HttpClient.hpp>
 #include <HXLibs/net/protocol/proxy/Socks5Proxy.hpp>
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 
 #include <HXLibs/log/Log.hpp>
 

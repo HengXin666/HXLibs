@@ -1,5 +1,38 @@
 # 开发日志
 
+- [2025-11-01 00:58:20] : 新增 Web 框架使用的宏, 方便定义端点, 可依赖注入:
+
+```cpp
+#include <HXLibs/net/ApiMacro.hpp>
+
+HX_CONTROLLER(LoliController) {
+    // 可以进行依赖注入, 只需要定义变量
+    HX_ENDPOINT_MAIN([[maybe_unused]] int a, [[maybe_unused]] std::string const& b) {
+        auto loliPtr = std::make_shared<int>(); // 可以定义成员.
+    
+        addEndpoint<GET>("/", [=] ENDPOINT {
+            *loliPtr = 114514;
+            co_return;
+        });
+
+        addEndpoint<POST>("/post", [=] ENDPOINT {
+            *loliPtr = 2233; // 如果是跨端点共享的话, 应该使用智能指针
+                             // 并且注意生命周期~
+            co_return;
+        });
+    }
+};
+
+#include <HXLibs/net/UnApiMacro.hpp>
+
+int main() {
+    using namespace HX::net;
+    HttpServer server{"127.0.0.1", "28205"};
+
+    addController<LoliController>(server, 1, "1"); // 注册控制器, 并且注入依赖变量
+}
+```
+
 - [2025-10-31 21:58:42] : 重构 HttpClient / HttpClientPool 支持指定 IO (并且特化为 Http(s)Client)
 
 - [2025-10-31 20:29:24] : 重构 IO, 分为 HttpIO / HttpsIO (需要开启`HXLIBS_ENABLE_SSL`并且依赖openSSL); 为服务端、客户端支持 Https, 并且在 Https 下 支持代理, 新增 Http 代理. 调整了部分代码架构.

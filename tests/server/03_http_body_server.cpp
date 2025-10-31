@@ -1,4 +1,4 @@
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 
 using namespace HX;
 

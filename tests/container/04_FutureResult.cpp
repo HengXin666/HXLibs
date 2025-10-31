@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 #include <HXLibs/net/client/HttpClientPool.hpp>
 #include <HXLibs/log/Log.hpp>
 

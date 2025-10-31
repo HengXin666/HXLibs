@@ -1,4 +1,4 @@
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 #include <HXLibs/log/Log.hpp>
 
 using namespace HX;

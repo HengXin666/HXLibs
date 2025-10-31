@@ -93,9 +93,10 @@ enum class HttpMethod {
     CONNECT,
     OPTIONS,
     DEL,
+    WS = GET
 };
 
-inline constexpr auto WS = HttpMethod::GET; // WebSocket
+inline constexpr auto WS = HttpMethod::WS; // WebSocket
 inline constexpr auto GET = HttpMethod::GET;
 inline constexpr auto POST = HttpMethod::POST;
 inline constexpr auto DEL = HttpMethod::DEL;

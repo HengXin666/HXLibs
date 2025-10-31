@@ -1,5 +1,5 @@
 #include <HXLibs/net/client/HttpClientPool.hpp>
-#include <HXLibs/net/Api.hpp>
+#include <HXLibs/net/ApiMacro.hpp>
 
 using namespace HX;
 using namespace net;

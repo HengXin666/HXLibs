@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2025-07-09 11:08:08
+ * @Date: 2025-10-31 23:37:15
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,56 @@
 
 #include <HXLibs/net/server/HttpServer.hpp>
 
-/**
- * @brief 定义标准的端点, 请求使用`req`变量, 响应使用`res`变量
- */
-#define ENDPOINT (                           \
-    [[maybe_unused]] HX::net::Request& req,  \
-    [[maybe_unused]] HX::net::Response& res  \
-) -> HX::coroutine::Task<>
+namespace HX::net {
 
+/**
+ * @brief 基础控制器
+ */
+class BaseController {
+    HttpServer& _server;
+public:
+    using HttpMethod::GET;
+    using HttpMethod::POST;
+    using HttpMethod::WS;
+    using HttpMethod::DEL;
+    using HttpMethod::HEAD;
+    using HttpMethod::PUT;
+    using HttpMethod::CONNECT;
+
+    BaseController(HttpServer& server)
+        : _server{server}
+    {}
+
+    /**
+     * @brief 为服务器添加一个端点
+     * @tparam Methods 请求类型, 如`GET`、`POST`; 如果不写, 则全部注册!
+     * @tparam Func 端点函数类型
+     * @tparam Interceptors 拦截器类型
+     * @param key url, 如"/"、"home/{id}"
+     * @param endpoint 端点函数
+     * @param interceptors 拦截器
+     * @return HttpServer& 可链式调用
+     */
+    template <HttpMethod... Methods, typename Func, typename... Interceptors>
+    HttpServer& addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
+        return _server.addEndpoint<Methods...>(
+            std::move(path),
+            std::move(endpoint),
+            std::forward<Interceptors>(interceptors)...
+        );
+    }
+};
+
+/**
+ * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
+ * @tparam T 
+ * @tparam Args 
+ * @param server 服务器实例
+ * @param args 被依赖注入的变量
+ */
+template <typename T, typename... Args>
+inline void addController(HX::net::HttpServer& server, Args&&... args) {
+    T {server}.dependencyInjection(std::forward<Args>(args)...);
+}
+
+} // namespace HX::net
