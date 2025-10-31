@@ -466,7 +466,9 @@ private:
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
-                _io.set(_cliFd, _eventLoop);
+                if (!_io.isAvailable()) {                
+                    _io.set(_cliFd, _eventLoop);
+                }
                 if constexpr (!std::is_same_v<Proxy, NoneProxy>) {
                     // 初始化代理
                     if (_options.proxy.get().size()) {
