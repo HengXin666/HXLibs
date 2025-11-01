@@ -23,7 +23,7 @@ auto hx_init = []{
 }();
 
 int main() {
-    HttpServer serv{"127.0.0.1", "28205"};
+    HttpServer serv{28205};
 
     // 站点`/`, 纯连接, 测试 返回头, 以及 返回 Hello World!
     serv.addEndpoint<GET>("/", [] ENDPOINT {

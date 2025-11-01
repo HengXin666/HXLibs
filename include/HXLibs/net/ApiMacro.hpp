@@ -19,6 +19,8 @@
 
 #include <HXLibs/net/Api.hpp>
 
+// === HX::net === Macro ===
+
 /**
  * @brief 定义标准的端点, 请求使用`req`变量, 响应使用`res`变量
  */
@@ -31,10 +33,8 @@
  * @brief 定义一个控制器类
  */
 #define HX_CONTROLLER(__NAME__)                                                \
-    class __NAME__ : public HX::net::BaseController {                          \
-        template <typename T, typename... Args>                                \
-        friend void HX::net::addController(HX::net::HttpServer&, Args&&...);   \
-                                                                               \
+    class __NAME__ final : public HX::net::BaseController {                    \
+        friend class HX::net::HttpServer;                                      \
     public:                                                                    \
         __NAME__(HX::net::HttpServer& server)                                  \
             : BaseController {server}
@@ -47,3 +47,5 @@
         }                                       \
     private:                                    \
         void dependencyInjection(__VA_ARGS__)
+
+// === HX::net === Macro ===

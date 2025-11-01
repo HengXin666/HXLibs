@@ -3,7 +3,7 @@
 using namespace HX;
 
 int main() {
-    net::HttpServer server{"127.0.0.1", "28205"};
+    net::HttpServer server{28205};
     server.addEndpoint<net::POST>("/{id}", [] ENDPOINT {
         log::hxLog.info("id =", req.getPathParam(0).to<uint64_t>());
         log::hxLog.debug(req.getHeaders());

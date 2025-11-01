@@ -36,7 +36,7 @@ TEST_CASE("测试协程的FutureResult") {
 TEST_CASE("服务端协程FutureResult的使用") {
     using namespace net;
     using namespace std::chrono;
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
     ThreadPool pool;
     pool.setFixedThreadNum(1);
     pool.run<ThreadPool::Model::FixedSizeAndNoCheck>();

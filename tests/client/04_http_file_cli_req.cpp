@@ -10,7 +10,7 @@ using namespace utils;
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-HttpServer server{"127.0.0.1", "28205"};
+HttpServer server{28205};
 
 auto hx_init = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");

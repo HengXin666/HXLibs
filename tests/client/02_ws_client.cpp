@@ -39,7 +39,7 @@ coroutine::Task<> coMain() {
 }
 
 int main() {
-    HttpServer serv{"127.0.0.1", "28205"};
+    HttpServer serv{28205};
     serv.addEndpoint<GET>("/ws", [] ENDPOINT {
         auto head = req.getHeaders();
         log::hxLog.debug("[Server]: the: /ws", "head:", head);

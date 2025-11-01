@@ -52,16 +52,4 @@ public:
     }
 };
 
-/**
- * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
- * @tparam T 
- * @tparam Args 
- * @param server 服务器实例
- * @param args 被依赖注入的变量
- */
-template <typename T, typename... Args>
-inline void addController(HX::net::HttpServer& server, Args&&... args) {
-    T {server}.dependencyInjection(std::forward<Args>(args)...);
-}
-
 } // namespace HX::net

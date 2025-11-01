@@ -41,7 +41,7 @@ auto hx_init = []{
 }();
 
 int main() {
-    HttpServer ser{"127.0.0.1", "28205"};
+    HttpServer ser{28205};
     ser.addEndpoint<GET>("/", [](
         Request& req,
         Response& res

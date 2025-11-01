@@ -11,7 +11,7 @@ using namespace utils;
 #include <doctest.h>
 
 #if 1
-HttpServer server{"127.0.0.1", "28205"};
+HttpServer server{28205};
 
 template <typename T>
 struct JsonVO {

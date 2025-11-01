@@ -31,17 +31,14 @@ class HttpServer {
 public:
     /**
      * @brief 创建一个Http服务器
-     * @param name 服务器绑定的地址, 如`127.0.0.1`
      * @param port 服务器绑定的端口, 如`28205`
      */
     HttpServer(
-        std::string name,
-        std::string port
+        std::uint16_t port
     )
         : _router{}
         , _asyncStopThread{}
-        , _name{std::move(name)}
-        , _port{std::move(port)}
+        , _port{std::to_string(port)}
         , _runNum{0}
         , _isRun{true}
     {}
@@ -66,9 +63,7 @@ public:
 #endif // !HXLIBS_ENABLE_SSL
                 cli.get(
                     (std::is_same_v<IO, HttpIO> ? std::string{"http"} : std::string{"https"}) 
-                    + "://" 
-                    + (_name == "0.0.0.0" ? "127.0.0.1" : _name)
-                    + ":"
+                    + "://127.0.0.1:"
                     + _port
                     + "/",
                     {{"Connection", "close"}}
@@ -172,17 +167,26 @@ public:
         }
         log::hxLog.info("====== HXServer start: \033[33m\033]8;;http"
             + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
-            + "://"
-            + _name 
-            + ":" 
+            + "://127.0.0.1:"
             + _port 
             + "/\033\\http"
             + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
-            + "://"
-            + _name
-            + ":"
+            + "://127.0.0.1:"
             + _port
-            + "/\033]8;;\033\\\033[0m\033[1;32m ======");
+            + "/\033]8;;\033\\\033[0m\033[32m ======");
+    }
+
+    /**
+     * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
+     * @tparam T 控制器类型
+     * @tparam Args 
+     * @param args 被依赖注入的变量
+     */
+    template <typename T, typename... Args>
+        requires (std::is_base_of_v<class BaseController, T>)
+    inline HttpServer& addController(Args&&... args) {
+        T {*this}.dependencyInjection(std::forward<Args>(args)...);
+        return *this;
     }
 
     ~HttpServer() {
@@ -196,7 +200,7 @@ private:
         try {
             coroutine::EventLoop _eventLoop;
             AddressResolver addr;
-            auto entry = addr.resolve(_name, _port);
+            auto entry = addr.resolve("0.0.0.0", _port);
             ++_runNum;
             Acceptor acceptor{_router, _eventLoop, entry};
             auto mainTask = acceptor.start<Timeout>(_isRun);
@@ -211,7 +215,6 @@ private:
     Router _router;
     std::vector<std::jthread> _threads;
     std::unique_ptr<std::jthread> _asyncStopThread; // 异步关闭服务器时候使用的线程
-    std::string _name;
     std::string _port;
     std::atomic_uint16_t _runNum;
     std::atomic_bool _isRun;

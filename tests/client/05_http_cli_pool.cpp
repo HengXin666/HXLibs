@@ -6,7 +6,7 @@ using namespace net;
 using namespace container;
 
 int main() {
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
     server.addEndpoint<GET>("/get", [] ENDPOINT {
         co_await res.setStatusAndContent(Status::CODE_200, "ok")
                     .sendRes();

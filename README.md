@@ -46,6 +46,48 @@ target_link_libraries(YouProject PRIVATE HXLibs)
 > 仍然在开发, 非最终产品
 
 ### 3.1 HX::net (网络模块)
+
+> [!TIP]
+> 新增 宏 API, 快速定义控制器, 支持依赖注入~
+
+```cpp
+#include <HXLibs/net/ApiMacro.hpp> // 导入宏 & HX::net
+
+struct LoliDAO {
+    uint64_t select(uint64_t id) {
+        return id;
+    }
+};
+
+HX_CONTROLLER(LoliController) {
+    HX_ENDPOINT_MAIN(std::shared_ptr<LoliDAO> loliDAO) {
+        using namespace HX::net;
+        addEndpoint<GET>("/", [=] ENDPOINT {
+            auto id = loliDAO->select(114514);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
+        })
+        .addEndpoint<POST>("/post", [=] ENDPOINT {
+            auto id = loliDAO->select(2233);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
+        });
+    }
+};
+
+#include <HXLibs/net/UnApiMacro.hpp> // undef 宏
+
+int main() {
+    using namespace HX::net;
+    HttpServer server{28205};
+
+    // 依赖注入
+    server.addController<LoliController>(std::make_shared<LoliDAO>());
+
+    server.syncRun(1);
+}
+```
+
 #### 3.1.1 编写服务端
 
 下面是一个简单的服务端示例: ([examples/HttpServer/01_http_server.cpp](examples/HttpServer/01_http_server.cpp))
@@ -58,7 +100,7 @@ using namespace HX;
 using namespace net;
 
 int main() {
-    HttpServer ser{"127.0.0.1", "28205"}; // 定义服务器
+    HttpServer ser{28205}; // 定义服务器
     ser.addEndpoint<GET>("/user/{id}", [] ENDPOINT {
         co_await res.setStatusAndContent(
             Status::CODE_200,
@@ -153,7 +195,7 @@ struct TimeLog { // 计时器切面: 端点访问时间间隔
     }
 };
 
-HttpServer ser{"127.0.0.1", "28205"};
+HttpServer ser{28205};
 ser.addEndpoint<GET>("/", [] ENDPOINT {
     co_await res.setStatusAndContent(
         Status::CODE_200, "<h1>这是 HXLibs::net 服务器</h1>" + utils::DateTimeFormat::formatWithMilli())
@@ -234,7 +276,7 @@ void test() {
 > 详细内容请看: [tests/server/02_ws_server.cpp](tests/server/02_ws_server.cpp), 里面还提供了 WebSocket **消息群发** 的代码示例.
 
 ```cpp
-HttpServer serv{"127.0.0.1", "28205"};
+HttpServer serv{28205};
 serv.addEndpoint<GET>("/ws", [] ENDPOINT {
     auto ws = co_await WebSocketFactory::accept(req, res); // 升级为 WebSocket
     struct JsonDataVo {

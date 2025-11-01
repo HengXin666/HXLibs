@@ -56,7 +56,7 @@ struct WSPool {
 };
 
 TEST_CASE("测试普通请求") {
-    HttpServer serv{"127.0.0.1", "28205"};
+    HttpServer serv{28205};
 
     WSPool pool;
 
@@ -114,7 +114,7 @@ TEST_CASE("测试普通请求") {
 }
 
 TEST_CASE("测试断开") {
-    HttpServer serv{"127.0.0.1", "28205"};
+    HttpServer serv{28205};
     serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
         auto ws = co_await net::WebSocketFactory::accept(req, res);
         co_await ws.sendText("你好");
@@ -167,7 +167,7 @@ TEST_CASE("测试断开") {
 }
 
 TEST_CASE("测试超时后再ws") {
-    HttpServer serv{"127.0.0.1", "28205"};
+    HttpServer serv{28205};
     serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
         auto ws = co_await net::WebSocketFactory::accept(req, res);
         co_await ws.sendText("你好");

@@ -17,7 +17,7 @@ coroutine::Task<> coMain() {
 } 
 
 int main() {
-    HttpServer server{"0.0.0.0", "28205"};
+    HttpServer server{28205};
     server.addEndpoint<GET>("/get", [] ENDPOINT {
         std::string json;
         reflection::toJson(req.getHeaders(), json);

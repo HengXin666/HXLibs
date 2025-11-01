@@ -27,7 +27,7 @@ auto hx_init = []{
 #include <doctest.h>
 
 TEST_CASE("一般性测试") {
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
     server.addEndpoint<POST>("/saveFile", [] ENDPOINT {
         log::hxLog.info("save File");
         co_await req.saveToFile("../build/saveFile.html");
@@ -51,7 +51,7 @@ TEST_CASE("一般性测试") {
 }
 
 TEST_CASE("debug") {
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
     server.addEndpoint<POST>("/saveFile", [] ENDPOINT {
         log::hxLog.info("save File");
         co_await req.saveToFile("../build/img.jpg");

@@ -18,6 +18,10 @@
  * limitations under the License.
  */
 
+// === HX::net === Macro ===
+
 #undef ENDPOINT
 #undef HX_CONTROLLER
 #undef HX_ENDPOINT_MAIN
+
+// === HX::net === Macro ===

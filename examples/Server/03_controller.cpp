@@ -1,18 +1,23 @@
 #include <HXLibs/net/ApiMacro.hpp>
 
-HX_CONTROLLER(LoliController) {
-    HX_ENDPOINT_MAIN([[maybe_unused]] int a, [[maybe_unused]] std::string const& b) {
-        using namespace HX::net;
-        auto loliPtr = std::make_shared<int>();
-    
-        addEndpoint<GET>("/", [=] ENDPOINT {
-            *loliPtr = 114514;
-            co_return;
-        });
+struct LoliDAO {
+    uint64_t select(uint64_t id) {
+        return id;
+    }
+};
 
-        addEndpoint<POST>("/post", [=] ENDPOINT {
-            *loliPtr = 2233;
-            co_return;
+HX_CONTROLLER(LoliController) {
+    HX_ENDPOINT_MAIN(std::shared_ptr<LoliDAO> loliDAO) {
+        using namespace HX::net;
+        addEndpoint<GET>("/", [=] ENDPOINT {
+            auto id = loliDAO->select(114514);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
+        })
+        .addEndpoint<POST>("/post", [=] ENDPOINT {
+            auto id = loliDAO->select(2233);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
         });
     }
 };
@@ -21,7 +26,10 @@ HX_CONTROLLER(LoliController) {
 
 int main() {
     using namespace HX::net;
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
 
-    addController<LoliController>(server, 1, "1");
+    // 依赖注入
+    server.addController<LoliController>(std::make_shared<LoliDAO>());
+
+    server.syncRun(1);
 }

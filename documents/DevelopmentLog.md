@@ -1,5 +1,45 @@
 # 开发日志
 
+- [2025-11-01 14:09:33] : 重构服务端构造API, 现在仅需要指定端口即可. 新增 `addController` 方法方便配合 ApiMacro 使用
+
+新API使用如下:
+
+```cpp
+#include <HXLibs/net/ApiMacro.hpp>
+
+struct LoliDAO {
+    uint64_t select(uint64_t id) { // 示例
+        return id;
+    }
+};
+
+HX_CONTROLLER(LoliController) {
+    HX_ENDPOINT_MAIN(std::shared_ptr<LoliDAO> loliDAO) {
+        using namespace HX::net;
+        addEndpoint<GET>("/", [=] ENDPOINT {
+            auto id = loliDAO->select(114514);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
+        })
+        .addEndpoint<POST>("/post", [=] ENDPOINT {
+            auto id = loliDAO->select(2233);
+            co_await res.setStatusAndContent(Status::CODE_200, std::to_string(id))
+                        .sendRes();
+        });
+    }
+};
+
+#include <HXLibs/net/UnApiMacro.hpp>
+
+int main() {
+    using namespace HX::net;
+    HttpServer server{28205};
+
+    // 依赖注入
+    server.addController<LoliController>(std::make_shared<LoliDAO>());
+}
+```
+
 - [2025-11-01 00:58:20] : 新增 Web 框架使用的宏, 方便定义端点, 可依赖注入:
 
 ```cpp
@@ -27,7 +67,7 @@ HX_CONTROLLER(LoliController) {
 
 int main() {
     using namespace HX::net;
-    HttpServer server{"127.0.0.1", "28205"};
+    HttpServer server{28205};
 
     addController<LoliController>(server, 1, "1"); // 注册控制器, 并且注入依赖变量
 }
