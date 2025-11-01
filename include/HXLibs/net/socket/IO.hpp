@@ -71,8 +71,7 @@ public:
     HttpIO& operator=(HttpIO&&) noexcept = delete;
 
     coroutine::Task<int> recv(std::span<char> buf) {
-        co_return static_cast<int>(
-            co_await _eventLoop.makeAioTask().prepRecv(_fd, buf, 0));
+        co_return co_await _eventLoop.makeAioTask().prepRecv(_fd, buf, 0);
     }
 
     coroutine::Task<int> recv(std::span<char> buf, std::size_t n) {
@@ -127,7 +126,7 @@ public:
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<
-        container::UninitializedNonVoidVariant<uint64_t, void> // 只能显式指定返回值
+        container::UninitializedNonVoidVariant<int, void>      // 只能显式指定返回值
     > recvLinkTimeout(std::span<char> buf) {                   // 因为 _AioTimeoutTask 是私有字段
                                                                // 如果想方便, 就写好 _AioTimeoutTask.co() 的返回值
                                                                // 为 public using, 然后直接让我们用~
@@ -379,11 +378,27 @@ public:
 
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
-    coroutine::Task<coroutine::WhenAnyReturnType<
+    coroutine::Task<
+#if defined(__linux__)
+    coroutine::WhenAnyReturnType<
         coroutine::AioTask,
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
-    >> recvLinkTimeout(std::span<char> buf) {
+    >
+#elif defined(_WIN32)
+    container::UninitializedNonVoidVariant<int, void>
+#else
+    // 暂时不支持该操作系统
+    #error "Unsupported operating system"
+#endif // !defined(__linux__)
+    > recvLinkTimeout(std::span<char> buf) {
+#if defined(__linux__)
         coroutine::AwaiterReturnType<decltype(Base::recvLinkTimeout<Timeout>(buf))> res;
+#elif defined(_WIN32)
+        container::UninitializedNonVoidVariant<int, void> res;
+#else
+    // 暂时不支持该操作系统
+    #error "Unsupported operating system"
+#endif // !defined(__linux__)
         res.template emplace<0>(0);
         while (res.index() == 0) [[likely]] {
             auto& ans = get<0, exception::ExceptionMode::Nothrow>(res);

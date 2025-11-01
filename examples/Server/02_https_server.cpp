@@ -111,15 +111,25 @@ int main() {
     using namespace std::chrono;
     std::this_thread::sleep_for(1s);
 
-    HttpClient client{HttpClientOptions{
+    
+#ifdef HXLIBS_ENABLE_SSL
+    HttpsClient client{HttpClientOptions{
+        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
         // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
     }};
-#ifdef HXLIBS_ENABLE_SSL
     client.initSsl({
         .verifyOption = SslVerifyOption::None
     });
+#else
+    HttpClient client{HttpClientOptions{
+        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
+        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
+    }};
 #endif // !HXLIBS_ENABLE_SSL
-    // log::hxLog.info("get -> ", client.get("https://drive.google.com/drive/my-drive").get().get());
+    if constexpr (0) {
+        log::hxLog.info("get -> ", client.get("https://hengxin666.github.io/HXLoLi/").get().get());
+        return 0;
+    }
 
     for (auto i = 0; i < 5; ++i) {
         auto res

@@ -29,8 +29,6 @@
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 
-// #include <HXLibs/log/Log.hpp> // debug
-
 namespace HX::utils {
 
 using platform::LocalFdType;

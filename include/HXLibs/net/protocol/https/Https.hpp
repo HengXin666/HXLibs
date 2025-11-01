@@ -182,24 +182,6 @@ public:
         }
     }
 
-/*
-    bool isConnected() const noexcept {
-        return _ssl && SSL_get_state(_ssl) == TLS_ST_OK;
-    }
-
-    bool hasPendingData() const noexcept {
-        return _ssl && SSL_pending(_ssl) > 0;
-    }
-
-    bool shouldRetry(int result) const noexcept {
-        if (result <= 0) {
-            int err = SSL_get_error(_ssl, result);
-            return err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE;
-        }
-        return false;
-    }
-*/
-
     /**
      * @brief 写入 (网络来的) 密文, 从而解密到明文
      * @param cipher 密文
@@ -223,32 +205,6 @@ public:
             return n;
         }
         int err = SSL_get_error(_ssl, n);
-#if 0
-        switch (err) {
-            case SSL_ERROR_WANT_READ:
-            case SSL_ERROR_WANT_WRITE:
-                return -1; // 等待更多数据
-            case SSL_ERROR_ZERO_RETURN:
-                return 0; // SSL连接正常关闭
-            case SSL_ERROR_SYSCALL:
-                {
-                    // 检查底层错误
-                    auto sys_err = ERR_get_error();
-                    if (sys_err == 0) {
-                        if (n == 0) {
-                            return 0;
-                        }
-                        throw std::runtime_error("SSL 系统调用错误, 没有错误代码");
-                    } else {
-                        throw std::runtime_error("SSL 系统调用错误: " +
-                            std::string(ERR_error_string(sys_err, nullptr)));
-                    }
-                }
-            default:
-                throw std::runtime_error("SSL_read failed, error: " + std::to_string(err) +
-                    ", reason: " + std::string(ERR_error_string(ERR_get_error(), nullptr)));
-        }
-#else
         if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) [[unlikely]] {
             if (err == SSL_ERROR_ZERO_RETURN) [[likely]] {
                 return 0; // SSL连接正常关闭
@@ -256,7 +212,6 @@ public:
             throw std::runtime_error("SSL_write failed");
         }
         return -1; // 等待更多数据
-#endif
     }
 
     /**

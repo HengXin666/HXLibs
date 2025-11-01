@@ -26,6 +26,7 @@ certs/**
 
 # 只提供生成脚本
 !certs/GenerateCerts.sh
+!certs/GenerateCerts.ps1
 
 # 屏蔽本地大文件
 static/bigFile/**

@@ -1,0 +1,9 @@
+{
+  "name": "hxlibs",
+  "version-string": "1.0.0",
+  "homepage": "https://github.com/HengXin666/HXLibs",
+  "description": "A C++20 libraries, Modern C++ Web Framework",
+  "dependencies": [
+    "openssl"
+  ]
+}

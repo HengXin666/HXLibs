@@ -328,7 +328,7 @@ struct AioTask {
             _task->_previous = coroutine;
             _task->_res = -ENOSYS;
         }
-        constexpr uint64_t await_resume() const noexcept {
+        constexpr int await_resume() const noexcept {
             return _task->_res;
         }
         AioTask* _task;
@@ -369,7 +369,7 @@ private:
     friend internal::Iocp;
 
     union {
-        uint64_t _res;
+        int _res;
         ::HANDLE _iocpHandle;
     };
     container::UninitializedNonVoidVariant<::HANDLE, ::SOCKET> _fd;
@@ -915,7 +915,7 @@ int WSASend(
     }
 
     [[nodiscard]] inline static Task<
-        container::UninitializedNonVoidVariant<uint64_t, void>
+        container::UninitializedNonVoidVariant<int, void>
     > linkTimeout(
         AioTask&& task, 
         _AioTimeoutTask&& timeoutTask

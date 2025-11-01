@@ -55,8 +55,10 @@ public:
         while (_runNum) {
             try {
                 // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
+#ifndef HXLIBS_ENABLE_SSL
                 HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-#ifdef HXLIBS_ENABLE_SSL
+#else
+                HttpsClient cli{HttpClientOptions{.timeout = 1_s}};
                 cli.initSsl({
                     SslVerifyOption::None
                 });

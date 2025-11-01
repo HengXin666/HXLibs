@@ -404,7 +404,7 @@ private:
         decltype(std::declval<coroutine::AioTask>().prepLinkTimeout({}, {}))
     >
 #elif defined(_WIN32)
-    container::UninitializedNonVoidVariant<uint64_t, void> // 只能固定返回值
+    container::UninitializedNonVoidVariant<int, void> // 只能固定返回值
 #else
     // 暂时不支持该操作系统
     #error "Unsupported operating system"
