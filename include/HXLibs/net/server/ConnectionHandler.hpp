@@ -82,7 +82,7 @@ struct ConnectionHandler {
                 log::hxLog.error("发生未知错误!");
             }
         } catch (std::exception const& err) {
-            log::hxLog.warning("已经开启Https, 不支持普通Http请求");
+            log::hxLog.warning("已经开启Https, 不支持普通Http请求:", err.what());
         }
         log::hxLog.debug("连接已断开");
 

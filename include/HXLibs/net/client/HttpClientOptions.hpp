@@ -44,7 +44,7 @@ struct ProxyType {
 template <>
 struct ProxyType<NoneProxy> {
     using Type = NoneProxy;
-    inline static constexpr std::string url{};
+    inline static const std::string url{};
 
     operator std::string const&() const noexcept {
         return url;

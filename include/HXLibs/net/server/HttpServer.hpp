@@ -183,8 +183,9 @@ public:
      * @param args 被依赖注入的变量
      */
     template <typename T, typename... Args>
-        requires (std::is_base_of_v<class BaseController, T>)
-    inline HttpServer& addController(Args&&... args) {
+    inline HttpServer& addController(Args&&... args) 
+        requires(std::derived_from<T, class BaseController>)
+    {
         T {*this}.dependencyInjection(std::forward<Args>(args)...);
         return *this;
     }
