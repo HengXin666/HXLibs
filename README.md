@@ -4,7 +4,7 @@
 
 HXLibs 是一个现代 C++ 库. 目前集合了:
 
-- 基于 `io_uring` / `IOCP` **协程** 的 Http / WebSocket 客户端与服务端, 服务器支持**分块编码**/**断点续传**/**超时机制**! 客户端支持 `Socks5` 代理.
+- 基于 `io_uring` / `IOCP` **协程** 的 Http (s) / WebSocket 客户端与服务端, 服务器支持**分块编码**/**断点续传**/**超时机制**! 客户端支持 `Socks5` / `Http` 代理.
 
     > 本地测试 500MB 文件传输吞吐量高达 20 GB/s; wrk 压测 Http 请求并发高达 200w+ Requests/sec
 
@@ -44,6 +44,8 @@ target_link_libraries(YouProject PRIVATE HXLibs)
 ## 三、快速开始
 > [!TIP]
 > 仍然在开发, 非最终产品
+>
+> @todo 文档待翻新...
 
 ### 3.1 HX::net (网络模块)
 

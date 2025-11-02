@@ -48,4 +48,19 @@
     private:                                    \
         void dependencyInjection(__VA_ARGS__)
 
+/**
+ * @brief 定义可使用函数模板的控制器端点
+ * @param ... 依赖注入的参数
+ */
+#define HX_ENDPOINT_TEMPLATE_HEAD               \
+        }                                       \
+    private:
+
+/**
+ * @brief 定义可使用函数模板的控制器端点, 可以定义参数进行依赖注入
+ * @param ... 依赖注入的参数
+ */
+#define HX_ENDPOINT_TEMPLATE_MAIN(...)          \
+        void dependencyInjection(__VA_ARGS__)
+
 // === HX::net === Macro ===

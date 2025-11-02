@@ -1,4 +1,3 @@
-#pragma once
 /*
  * Copyright Heng_Xin. All rights reserved.
  *
@@ -23,5 +22,7 @@
 #undef ENDPOINT
 #undef HX_CONTROLLER
 #undef HX_ENDPOINT_MAIN
+#undef HX_ENDPOINT_TEMPLATE_HEAD
+#undef HX_ENDPOINT_TEMPLATE_MAIN
 
 // === HX::net === Macro ===
