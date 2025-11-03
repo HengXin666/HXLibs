@@ -358,6 +358,7 @@ public:
     /**
      * @brief 朴素的解析 Body
      * @tparam Timeout 超时时间
+     * @return Body String
      */
     template <typename Timeout = decltype(utils::operator""_s<"5">())>
         requires(utils::HasTimeNTTP<Timeout>)
@@ -509,6 +510,10 @@ public:
         return _urlWildcardData;
     }
 
+    /**
+     * @brief 获取 Range 请求视图 (一般配合 `res.useRangeTransferFile()` 使用) 
+     * @return RangeRequestView 
+     */
     RangeRequestView getRangeRequestView() const {
         return {getReqType(), _requestHeaders};
     }

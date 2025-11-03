@@ -33,9 +33,7 @@ public:
      * @brief 创建一个Http服务器
      * @param port 服务器绑定的端口, 如`28205`
      */
-    HttpServer(
-        std::uint16_t port
-    )
+    HttpServer(std::uint16_t port)
         : _router{}
         , _asyncStopThread{}
         , _port{std::to_string(port)}
@@ -50,8 +48,8 @@ public:
      * @warning 该方法不可重入
      */
     void syncStop() {
-        using namespace utils;;
-        _isRun.store(false, std::memory_order_release);;
+        using namespace utils;
+        _isRun.store(false, std::memory_order_release);
         while (_runNum) {
             try {
                 // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
@@ -80,6 +78,7 @@ public:
 
     /**
      * @brief 异步关闭服务器
+     * @warning 该方法不可重入
      */
     void asyncStop() {
         _asyncStopThread = std::make_unique<std::jthread>([this]{
