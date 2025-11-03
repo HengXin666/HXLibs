@@ -53,16 +53,24 @@ public:
     /**
      * @brief 构造一个 HTTP 客户端
      * @param options 选项
-     * @param threadNum 线程数
+     * @param loop 事件循环, 如果传入 nullptr 则是内部独享. 否则就是用户管理的共享.
+     * @warning 当使用共享事件循环时候, 仅可使用协程函数, 使用其他函数可能因为线程竞争导致ub
      */
-    HttpBaseClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) 
+    HttpBaseClient(
+        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        std::shared_ptr<coroutine::EventLoop> loop = nullptr
+    ) 
         : _options{std::move(options)}
-        , _eventLoop{}
+        , _eventLoop{nullptr}
         , _cliFd{kInvalidSocket}
         , _pool{}
         , _host{}
         , _isAutoReconnect{true}
+        , _isUniqueEventLoop{loop == nullptr}
     {
+        _eventLoop = _isUniqueEventLoop
+            ? std::make_shared<coroutine::EventLoop>()
+            : std::move(loop);
         // https://github.com/HengXin666/HXLibs/issues/14
         // 并发时候可能会对fd并发. 多个不同任务不可能共用流式缓冲区.
         // 所以, 使用线程池仅需要的是一个任务队列, 和一个任务线程.
@@ -103,6 +111,14 @@ public:
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
+#ifndef NDEBUG
+        if (!_isUniqueEventLoop) [[unlikely]] {
+            // 当使用共享事件循环时候, 仅可使用协程函数
+            throw std::runtime_error{
+                "When using a shared event loop, "
+                "only coroutine functions are allowed"};
+        }
+#endif // !NDEBUG
         return _pool.addTask([this,
                               _url = std::move(url),
                               _path = std::move(path),
@@ -133,7 +149,7 @@ public:
         HttpContentType contentType = HttpContentType::Text,
         HeaderHashMap headers = {}
     ) {
-        co_return _eventLoop.trySync([&]() -> coroutine::Task<ResponseData> {
+        auto task = [&]() -> coroutine::Task<ResponseData> {
             if (needConnect()) {
                 co_await makeSocket(url);
             }
@@ -170,7 +186,10 @@ public:
             _cliFd = kInvalidSocket;
             err.rethrow();
             co_return {};
-        }());
+        };
+        co_return _isUniqueEventLoop
+            ? _eventLoop->trySync(task())
+            : co_await _eventLoop->tryAsync(task());
     }
 
     /**
@@ -249,6 +268,14 @@ public:
         Str&& body = {},
         HttpContentType contentType = HttpContentType::None
     ) {
+#ifndef NDEBUG
+        if (!_isUniqueEventLoop) [[unlikely]] {
+            // 当使用共享事件循环时候, 仅可使用协程函数
+            throw std::runtime_error{
+                "When using a shared event loop, "
+                "only coroutine functions are allowed"};
+        }
+#endif // !NDEBUG
         return _pool.addTask([this, _url = std::move(url),
                               _body = std::move(body), _headers = std::move(headers), 
                               contentType] {
@@ -275,7 +302,7 @@ public:
         Str&& body = {},
         HttpContentType contentType = HttpContentType::None
     ) {
-        co_return _eventLoop.trySync([&]() -> coroutine::Task<ResponseData> {
+        auto task = [&]() -> coroutine::Task<ResponseData> {
             if (needConnect()) {
                 co_await makeSocket(url);
             }
@@ -285,7 +312,10 @@ public:
                 contentType,
                 std::move(headers)
             );
-        }());
+        };
+        co_return _isUniqueEventLoop 
+            ? _eventLoop->trySync(task())
+            : co_await _eventLoop->tryAsync(task());
     }
 
     /**
@@ -294,12 +324,15 @@ public:
      * @return coroutine::Task<container::Try<>> 
      */
     coroutine::Task<container::Try<>> coConnect(std::string_view url) {
-        co_return _eventLoop.trySync([&]() -> coroutine::Task<> {
+        auto task = [&]() -> coroutine::Task<> {
             if (needConnect()) {
                 co_await coClose();
             }
             co_await makeSocket(url);
-        }());
+        };
+        co_return _isUniqueEventLoop 
+            ? _eventLoop->trySync(task())
+            : co_await _eventLoop->tryAsync(task());
     }
 
     /**
@@ -307,6 +340,14 @@ public:
      * @param url 
      */
     container::FutureResult<container::Try<>> connect(std::string url) {
+#ifndef NDEBUG
+        if (!_isUniqueEventLoop) [[unlikely]] {
+            // 当使用共享事件循环时候, 仅可使用协程函数
+            throw std::runtime_error{
+                "When using a shared event loop, "
+                "only coroutine functions are allowed"};
+        }
+#endif // !NDEBUG
         return _pool.addTask([this, _url = std::move(url)](){
             return coConnect(_url).runSync();
         });
@@ -314,10 +355,19 @@ public:
 
     /**
      * @brief 断开连接
-     * @return container::FutureResult<> 
      */
-    void close() noexcept {
-        _eventLoop.trySync(coClose());
+    void close() {
+        if (_isUniqueEventLoop) {
+            _eventLoop->trySync(coClose());
+            return;
+        }
+#ifndef NDEBUG
+        else if (_cliFd != kInvalidSocket) [[unlikely]] {
+            // 请先调用 coClose() 函数; 对于共享 EventLoop 情况, 必须手动 co_await coClose()
+            throw std::runtime_error{"Please call coClose() first"};
+        }
+#endif // !NDEBUG
+        _io.get().reset();
     }
 
     /**
@@ -352,6 +402,14 @@ public:
         Func&& func,
         HeaderHashMap headers = {}
     ) {
+#ifndef NDEBUG
+        if (!_isUniqueEventLoop) [[unlikely]] {
+            // 当使用共享事件循环时候, 仅可使用协程函数
+            throw std::runtime_error{
+                "When using a shared event loop, "
+                "only coroutine functions are allowed"};
+        }
+#endif // !NDEBUG
         return _pool.addTask([this, _url = std::move(url),
                               _func = std::forward<Func>(func), _headers = std::move(headers)]() mutable {
             return coWsLoop(
@@ -418,16 +476,26 @@ public:
             _cliFd = kInvalidSocket;
         };
         auto taskMain = taskObj();
-        _eventLoop.start(taskMain);
-        _eventLoop.run();
+        if (_isUniqueEventLoop) {
+            _eventLoop->start(taskMain);
+            _eventLoop->run();
+        } else {
+            co_await taskMain;
+        }
         co_return res;
     }
 
     HttpBaseClient& operator=(HttpBaseClient&&) noexcept = delete;
 
+#ifdef NDEBUG
     ~HttpBaseClient() noexcept {
         close();
     }
+#else
+    ~HttpBaseClient() noexcept(false) {
+        close();
+    }
+#endif // !NDEBUG
 private:
     /**
      * @brief 建立 TCP 连接
@@ -440,7 +508,7 @@ private:
         auto entry = resolver.resolve(parser.getHostname(), parser.getService());
         try {
             _cliFd = HXLIBS_CHECK_EVENT_LOOP((
-                co_await _eventLoop.makeAioTask().prepSocket(
+                co_await _eventLoop->makeAioTask().prepSocket(
                     entry._curr->ai_family,
                     entry._curr->ai_socktype,
                     entry._curr->ai_protocol,
@@ -449,14 +517,14 @@ private:
             ));
             try {
                 auto sockaddr = entry.getAddress();
-                co_await _eventLoop.makeAioTask().prepConnect(
+                co_await _eventLoop->makeAioTask().prepConnect(
                     _cliFd,
                     sockaddr._addr,
                     sockaddr._addrlen
                 );
                 auto isInit = _io.isAvailable();
                 if (!isInit) {                
-                    _io.set(_cliFd, _eventLoop);
+                    _io.set(_cliFd, *_eventLoop);
                 } else {
                     co_await _io.get().bindNewFd(_cliFd);
                 }
@@ -484,7 +552,7 @@ private:
             log::hxLog.error("创建套接字失败:", e.what());
         }
         // 总之得关闭
-        co_await _eventLoop.makeAioTask().prepClose(_cliFd);
+        co_await _eventLoop->makeAioTask().prepClose(_cliFd);
         _cliFd = kInvalidSocket;
     }
 
@@ -586,7 +654,7 @@ private:
     }
 
     HttpClientOptions<Timeout, Proxy> _options;
-    coroutine::EventLoop _eventLoop;
+    std::shared_ptr<coroutine::EventLoop> _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
     container::Uninitialized<IO> _io;
@@ -596,6 +664,9 @@ private:
 
     // 是否自动重连
     bool _isAutoReconnect;
+
+    // 是否为独享事件循环
+    bool _isUniqueEventLoop;
 };
 
 template <typename Timeout, typename Proxy>
@@ -605,8 +676,11 @@ class HttpClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpIO>, Ht
 public:
     using Base::Base;
 
-    HttpClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
-        : Base(std::move(options))
+    HttpClient(
+        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        std::shared_ptr<coroutine::EventLoop> loop = nullptr
+    )
+        : Base(std::move(options), std::move(loop))
     {}
 };
 
@@ -621,8 +695,11 @@ class HttpsClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpsIO>, 
 public:
     using Base::Base;
     
-    HttpsClient(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
-        : Base(std::move(options))
+    HttpsClient(
+        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        std::shared_ptr<coroutine::EventLoop> loop = nullptr
+    )
+        : Base(std::move(options), std::move(loop))
     {}
 
     /**

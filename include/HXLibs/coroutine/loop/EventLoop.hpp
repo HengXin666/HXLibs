@@ -379,6 +379,33 @@ struct EventLoop {
     }
 
     /**
+     * @brief 异步调用协程, 如果协程内部抛出异常, 则该异常将保存在 Try<> 中
+     * @note 一般用于共享 EventLoop 时候使用
+     * @tparam T 
+     * @tparam Res 
+     * @param mainTask 
+     * @return coroutine::Task<container::Try<Res>> 协程返回值
+     */
+    template <CoroutineObject T, typename Res = AwaiterReturnType<T>>
+    coroutine::Task<container::Try<Res>> tryAsync(T&& mainTask) noexcept {
+        container::Try<Res> res;
+        auto task = [&res, _mainTask = std::move(mainTask)]() mutable -> Task<> {
+            try {
+                if constexpr (!std::is_void_v<Res>) {
+                    res.setVal(co_await _mainTask);
+                } else {
+                    co_await _mainTask;
+                    res.setVal(container::NonVoidType<>{});
+                }
+            } catch (...) {
+                res.setException(std::current_exception());
+            }
+        };
+        co_await task();
+        co_return res;
+    }
+
+    /**
      * @brief 同步调用协程, 如果协程内部抛出异常, 则该异常会在 sync 重新抛出
      * @warning 应该保证事件循环为空, 否则会抛出异常.
      * @tparam T 
@@ -397,6 +424,14 @@ struct EventLoop {
         }
     }
 
+    /**
+     * @brief 同步调用协程, 如果协程内部抛出异常, 则该异常将保存在 Try<> 中
+     * @warning 应该保证事件循环为空, 否则会抛出异常.
+     * @tparam T 
+     * @tparam Res 
+     * @param mainTask 
+     * @return Try<协程返回值>
+     */
     template <CoroutineObject T, typename Res = AwaiterReturnType<T>>
     container::Try<Res> trySync(T&& mainTask) {
         if (_eventDrive.isRun()) [[unlikely]] {
