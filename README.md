@@ -46,6 +46,8 @@ target_link_libraries(YouProject PRIVATE HXLibs)
 > 仍然在开发, 非最终产品
 >
 > @todo 文档待翻新...
+>
+> 缓慢更新, 新文档: [HXLibs-简介](https://hengxin666.github.io/HXLoLi/docs/%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE/HXLibs/%E7%AE%80%E4%BB%8B)
 
 ### 3.1 HX::net (网络模块)
 

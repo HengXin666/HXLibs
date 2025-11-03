@@ -1,5 +1,20 @@
 # 开发日志
 
+- [2025-11-03 23:58:48] : 修复玄学bug导致的 GCC 协程bug, 添加了文档链接到自述文档中:
+
+```cpp
+// 似乎 GCC 下存在问题: 调试看到 _isUniqueEventLoop = ture, 但是却走 tryAsync 分支...
+co_return _isUniqueEventLoop 
+    ? _eventLoop->trySync(task())
+    : co_await _eventLoop->tryAsync(task());
+
+// 正常的:
+if (_isUniqueEventLoop) {
+    co_return _eventLoop->trySync(task());
+}
+co_return co_await _eventLoop->tryAsync(task());
+```
+
 - [2025-11-03 23:26:24] : 为客户端新增 `std::shared_ptr<coroutine::EventLoop>` 参数, 支持外部注入事件循环. 以支持协程下多客户端模式. 新增 `EventLoop::tryAsync` 以配合 **共享事件循环** 使用. (特别的, 共享事件循环不应跨线程使用, 因为 `EventLoop` 不是线程安全的类); 新增 WebSocketServer 群发测试
 
 - [2025-11-01 14:09:33] : 重构服务端构造API, 现在仅需要指定端口即可. 新增 `addController` 方法方便配合 ApiMacro 使用

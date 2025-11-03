@@ -187,9 +187,10 @@ public:
             err.rethrow();
             co_return {};
         };
-        co_return _isUniqueEventLoop
-            ? _eventLoop->trySync(task())
-            : co_await _eventLoop->tryAsync(task());
+        if (_isUniqueEventLoop) {
+            co_return _eventLoop->trySync(task());
+        }
+        co_return co_await _eventLoop->tryAsync(task());
     }
 
     /**
@@ -313,9 +314,13 @@ public:
                 std::move(headers)
             );
         };
-        co_return _isUniqueEventLoop 
-            ? _eventLoop->trySync(task())
-            : co_await _eventLoop->tryAsync(task());
+        // co_return _isUniqueEventLoop 
+        //     ? _eventLoop->trySync(task())
+        //     : co_await _eventLoop->tryAsync(task());
+        if (_isUniqueEventLoop) {
+            co_return _eventLoop->trySync(task());
+        }
+        co_return co_await _eventLoop->tryAsync(task());
     }
 
     /**
@@ -330,9 +335,10 @@ public:
             }
             co_await makeSocket(url);
         };
-        co_return _isUniqueEventLoop 
-            ? _eventLoop->trySync(task())
-            : co_await _eventLoop->tryAsync(task());
+        if (_isUniqueEventLoop) {
+            co_return _eventLoop->trySync(task());
+        }
+        co_return co_await _eventLoop->tryAsync(task());
     }
 
     /**
