@@ -108,12 +108,43 @@ public:
             (_addEndpoint<Methods>(
                 path, 
                 endpoint, 
-                std::forward<Interceptors>(interceptors)...
+                interceptors...
             ), ...);
         }
     }
 
 private:
+#if defined(_MSC_VER)
+    coroutine::Task<bool> doBeforeAll(bool&, Request&, Response&) const {
+        co_return false;
+    }
+
+    template <typename First>
+    coroutine::Task<bool> doBeforeAll(bool& ok, Request& req, Response& res, First& first) const {
+        co_return co_await doBefore(first, ok, req, res);
+    }
+
+    template <typename First, typename... Rest>
+    coroutine::Task<bool> doBeforeAll(bool& ok, Request& req, Response& res, First& first, Rest&... rest) const {
+        co_return co_await doBefore(first, ok, req, res)
+               && co_await doBeforeAll(ok, req, res, rest...);
+    }
+
+    coroutine::Task<bool> doAfterAll(bool&, Request&, Response&) const {
+        co_return false;
+    }
+
+    template <typename First>
+    coroutine::Task<bool> doAfterAll(bool& ok, Request& req, Response& res, First& first) const {
+        co_return co_await doAfter(first, ok, req, res);
+    }
+
+    template <typename First, typename... Rest>
+    coroutine::Task<bool> doAfterAll(bool& ok, Request& req, Response& res, First& first, Rest&... rest) const {
+        co_return co_await doAfter(first, ok, req, res)
+               && co_await doAfterAll(ok, req, res, rest...);
+    }
+#endif // !defined(_MSC_VER)
 
 #if defined(__GNUC__) && !defined(__clang__)
 // gcc -Wunused-value, 导致无法进行 static_cast<void>(((co_await xxx) && ...))
@@ -139,8 +170,7 @@ private:
         using namespace std::string_view_literals;
         auto isResolvePathVariable = path.find_first_of("{"sv) != std::string_view::npos;
         auto isParseWildcardPath = path.find("/**"sv) != std::string_view::npos;
-        std::function<coroutine::Task<>(
-            Request &, Response &)> realEndpoint;
+        std::function<coroutine::Task<>(Request &, Response &)> realEndpoint;
         switch (static_cast<int>(isResolvePathVariable) | (isParseWildcardPath << 1)) {
             case 0x0: // 不解析任何参数
                 realEndpoint = [this, endpoint = std::move(endpoint),
@@ -150,16 +180,24 @@ private:
                     -> coroutine::Task<> {
                     static_cast<void>(this);
                     bool ok = true;
+#if defined(_MSC_VER)
+                    co_await doBeforeAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doBefore(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
+#if defined(_MSC_VER)
+                    co_await doAfterAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doAfter(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                 };
                 break;
             case 0x1: { // 仅解析{}参数
@@ -179,16 +217,24 @@ private:
                         wildcarArr.emplace_back(pathSplitArr[idx]);
                     }
                     req._wildcarDataArr = wildcarArr;
+#if defined(_MSC_VER)
+                    co_await doBeforeAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doBefore(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
+#if defined(_MSC_VER)
+                    co_await doAfterAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doAfter(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                 };
                 break;
             }
@@ -204,16 +250,24 @@ private:
                     auto pureRequesPath = req.getPureReqPath();
                     std::string_view pureRequesPathView = pureRequesPath;
                     req._urlWildcardData = pureRequesPathView.substr(UWPIndex);
+#if defined(_MSC_VER)
+                    co_await doBeforeAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doBefore(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
+#if defined(_MSC_VER)
+                    co_await doAfterAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doAfter(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                 };
                 break;
             }
@@ -239,16 +293,24 @@ private:
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
+#if defined(_MSC_VER)
+                    co_await doBeforeAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doBefore(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                     if (ok) {
                         co_await endpoint(req, res);
                     }
                     ok = true;
+#if defined(_MSC_VER)
+                    co_await doAfterAll(ok, req, res, interceptors...);
+#else
                     static_cast<void>(((
                         co_await doAfter(interceptors, ok, req, res)
                     ) && ...));
+#endif // !defined(_MSC_VER)
                 };
                 break;
             }
@@ -271,7 +333,7 @@ private:
         bool& ok, 
         Request& req, 
         Response& res
-    ) {
+    ) const {
         if constexpr (requires {
             requires std::convertible_to<
                 coroutine::AwaiterReturnType<decltype(interceptors.before(req, res))>,
@@ -298,7 +360,7 @@ private:
         bool& ok, 
         Request& req, 
         Response& res
-    ) {
+    ) const {
         if constexpr (requires {
             requires std::convertible_to<
                 coroutine::AwaiterReturnType<decltype(interceptors.after(req, res))>,

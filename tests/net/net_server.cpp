@@ -47,24 +47,18 @@ void initServerSsl() {
 #endif // !HXLIBS_ENABLE_SSL
 }
 
-auto makeClient(std::shared_ptr<coroutine::EventLoop> loop = nullptr) {
 #ifdef HXLIBS_ENABLE_SSL
-    return loop ? HttpsClient {HttpClientOptions{
-        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
-        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
-    }, std::move(loop)} : HttpsClient {HttpClientOptions{
-        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
-        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
-    }};
-#endif // !HXLIBS_ENABLE_SSL
-    return loop ? HttpClient {HttpClientOptions{
-        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
-        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
-    }, std::move(loop)} : HttpClient {HttpClientOptions{
-        // ProxyType<Socks5Proxy>{"socks5://127.0.0.1:2333"}
-        // ProxyType<HttpProxy>{"http://127.0.0.1:2334"}
-    }};
+using WebClinet = HttpsClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+#else
+using WebClinet = HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+WebClinet makeClient(std::shared_ptr<coroutine::EventLoop> loop = nullptr) {
+    // MSVC 无法基于 三元运算符进行 RVO 优化...
+    if (loop) {
+        return WebClinet{HttpClientOptions{}, std::move(loop)};
+    }
+    return WebClinet{HttpClientOptions{}};
 }
+#endif
 
 void initClient([[maybe_unused]] auto&& client) {
 #ifdef HXLIBS_ENABLE_SSL
@@ -192,6 +186,7 @@ TEST_CASE("Test01: 测试 GET 请求 / AOP") {
                 CHECK(false);
             } else if (data.body != "AopCoTest: before out!") {
                 sayErr("body != AopCoTest: before out!");
+                log::hxLog.error("body is:", data.body);
                 CHECK(false);
             }
         }
