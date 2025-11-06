@@ -38,7 +38,7 @@ struct RadixTreeNode {
         std::shared_ptr<RadixTreeNode<K, T>>
     > child;
 
-    explicit RadixTreeNode() 
+    RadixTreeNode() 
         : val(std::nullopt)
         , child()
     {}

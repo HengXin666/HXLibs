@@ -56,6 +56,13 @@ struct PathParam {
         return t;
     }
 
+    template <typename T>
+        requires (std::is_same_v<T, std::string>
+               || std::is_same_v<T, std::string_view>)
+    T to() const {
+        return T{_pathParam};
+    }
+
     operator std::string_view() const noexcept {
         return _pathParam;
     }

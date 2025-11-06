@@ -139,7 +139,7 @@ HX_CONTROLLER(Test01Controller) {
 TEST_CASE("Test01: 测试 GET 请求 / AOP") {
     HttpServer server{28205};
     server.addController<Test01Controller>();
-    server.asyncRun(1, initServerSsl, 1500_ms);
+    server.asyncRun(1, initServerSsl, 1500_s);
     auto client = makeClient();
     initClient(client);
     {
@@ -380,6 +380,103 @@ TEST_CASE("Test02: 测试 WebSocket") {
             co_await (client01.coClose() && client02.coClose() && client03.coClose()); 
         }());
     }
+}
+
+HX_CONTROLLER(Test03Controller) {
+    HX_ENDPOINT_MAIN() {
+        addEndpoint<POST>("/home", [] ENDPOINT {
+            co_await res.setStatusAndContent(Status::CODE_200, "home")
+                        .sendRes();
+        });
+        addEndpoint<POST>("/home/{id}", [] ENDPOINT {
+            auto id = req.getPathParam(0).to<std::string>();
+            co_await res.setStatusAndContent(Status::CODE_200, "/home/" + id)
+                        .sendRes();
+        });
+        addEndpoint<POST>("/home/{id}/link/{that}", [] ENDPOINT {
+            auto id = req.getPathParam(0).to<std::string>();
+            auto that = req.getPathParam(1).to<std::string>();
+            co_await res.setStatusAndContent(Status::CODE_200, id + that + "ok")
+                        .sendRes();
+        });
+        addEndpoint<POST>("/home/op/{id}", [] ENDPOINT {
+            auto id = req.getPathParam(0).to<std::string>();
+            co_await res.setStatusAndContent(Status::CODE_200, "op:" + id)
+                        .sendRes();
+        });
+        addEndpoint<POST>("/home/**", [] ENDPOINT {
+            using namespace std::string_literals;
+            auto all = req.getUniversalWildcardPath();
+            co_await res.setStatusAndContent(Status::CODE_200, "all:"s += all)
+                        .sendRes();
+        });
+    }
+};
+
+TEST_CASE("测试路径参数解析") {
+    HttpServer server{28205};
+    server.addController<Test03Controller>();
+    server.asyncRun(1, initServerSsl, 1500_ms);
+    auto client = makeClient();
+    initClient(client);
+#define HX_CLIENT_CHECK(__BODY__)                                              \
+    if (!t) {                                                                  \
+        sayErr(t.what());                                                      \
+        CHECK(false);                                                          \
+    } else {                                                                   \
+        auto data = t.move();                                                  \
+        if (data.status != 200) {                                              \
+            sayErr("status != 200");                                           \
+            log::hxLog.error(data);                                            \
+            CHECK(false);                                                      \
+        } else if (data.body != __BODY__) {                                    \
+            sayErr("body != " __BODY__);                                       \
+            CHECK(false);                                                      \
+        }                                                                      \
+    }
+    {
+        // 无参数
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("home");
+    }
+    {
+        // 一个参数, 仅数字
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home/123"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("/home/123");
+    }
+    {
+        // 一个参数, 混乱
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home/123dasdwaasdasdwasdwas2dwasdas88dwasdwfdcvxcvxcve2s"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("/home/123dasdwaasdasdwasdwas2dwasdas88dwasdwfdcvxcvxcve2s");
+    }
+    {
+        // 两个参数
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home/123/link/qwq"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("123qwqok");
+    }
+    {
+        // 一个参数, 包含之前前缀
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home/op/awa123"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("op:awa123");
+    }
+    {
+        // 通配符
+        auto t = client.post(
+            makeUrl("127.0.0.1:28205/home/o1p/awa123/qwq666"), "", JSON
+        ).get();
+        HX_CLIENT_CHECK("all:/o1p/awa123/qwq666");
+    }
+#undef  HX_CLIENT_CHECK
 }
 
 #include <HXLibs/net/UnApiMacro.hpp>

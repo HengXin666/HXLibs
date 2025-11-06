@@ -18,9 +18,7 @@
  * limitations under the License.
  */
 
-#include <string>
 #include <vector>
-#include <stack>
 #include <functional>
 
 #include <HXLibs/net/protocol/http/Request.hpp>
@@ -79,6 +77,8 @@ public:
         EndpointFunc&& endpoint
     ) {
         auto node = _root;
+        // @todo, 应该校验是否合法, 比如 /xxx{id}/xxx 显然不支持. 以及 /*** 这种.
+        // @todo, 应该支持或者明确不支持中文路径, 因为需要转义
         for (auto& key : buildLink) {
             if (key.front() == '{') { // 特别处理: 如果是 {xxx}, 那么映射到 "*"
                 key = "*";
@@ -93,74 +93,40 @@ public:
         node->val = endpoint;
     }
 
-    template <bool IsWildcard = false>
-    const EndpointFunc& find(const std::vector<std::string_view>& findLink) const {
-        const std::size_t n = findLink.size();
-        std::size_t i = 0;
-        std::stack<std::tuple<std::shared_ptr<Node>, std::size_t>> st;
-        st.push({_root, static_cast<std::size_t>(0)});
-        auto node = _root;
-        while (st.size() && i < n) {
-            auto& top = st.top();
-            node = std::move(std::get<0>(top));
-            i = std::get<1>(top);
-            st.pop();
-            auto findIt = node->child.end(); 
-            if (i == n)
-                goto End;
-
-            for (; i < n; ++i) {
-                findIt = node->child.find(findLink[i]);
-                if (findIt == node->child.end()) {
-                    // 以 {} 尝试
-                    findIt = node->child.find("*");
-                    if (findIt != node->child.end()) {
-                        if constexpr (IsWildcard) { // 注意`/`
-                            if (findLink[i].empty()) [[unlikely]] {
-                                // 特殊的尾部标记, 表示 `/home/**`中
-                                // 访问了`/home/`的情况
-                                goto End;
-                            }
-                        }
-                        st.push({node, n});
-                        node = findIt->second;
-                        if constexpr (IsWildcard) {
-                            // 为了剔除`/`在末尾的影响
-                            // 这时候如果存在 /files 与 /files/**
-                            // 那么就会冲突
-                            if (i == n - 2 && node->val.has_value()) {
-                                return *node->val;
-                            }
-                        }
-                        continue;
-                    }
-                End:
-                    // 只能看看是否有**了
-                    findIt = node->child.find("**");
-                    if (findIt == node->child.end()) {
-                        if (st.empty()) {
-                            return _notFoundHandler;
-                        }
-                        break; // 回溯之前的
-                    }
-                    return *findIt->second->val;
-                } else {
-                    node = findIt->second;
-                    if constexpr (IsWildcard) {
-                        // 为了剔除`/`在末尾的影响
-                        // 这时候如果存在 /files 与 /files/**
-                        // 那么就会冲突
-                        if (i == n - 2 && node->val.has_value()) {
-                            return *node->val;
-                        }
-                    }
-                }
-            }
+    const EndpointFunc& find(std::span<std::string_view const> findLink) const {
+        auto const* opt = _find(findLink, _root);
+        if (opt) {
+            return *opt;
         }
-        return node->val.has_value() ? *node->val : _notFoundHandler;
+        return _notFoundHandler;
     }
 
 private:
+    EndpointFunc const* _find(
+        std::span<std::string_view const> findLink,
+        std::shared_ptr<Node> const& node
+    ) const {
+        if (findLink.empty()) {
+            return node->val ? &(*node->val) : nullptr;
+        }
+        using namespace std::string_view_literals;
+        std::array<std::string_view const, 2> arr{findLink.front(), "*"sv};
+        for (auto const findStr : arr) {
+            auto it = node->child.find(findStr);
+            if (it != node->child.end()) {
+                if (auto* res = _find(findLink.subspan(1), it->second)) {
+                    return res;
+                }
+            }
+        }
+        // 处理通配符
+        auto it = node->child.find("**");
+        if (it != node->child.end()) {
+            return _find({}, it->second);
+        }
+        return nullptr;
+    }
+
     std::shared_ptr<Node> _root;
 
     /**

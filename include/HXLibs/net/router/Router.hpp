@@ -50,10 +50,6 @@ public:
             "/", 
             {method}
         );
-        if (path.back() == '/') { // 为了适配 /** 的情况
-            findLink.emplace_back("");
-            return _routerTree.find<true>(findLink);
-        }
         return _routerTree.find(findLink);
     }
 
