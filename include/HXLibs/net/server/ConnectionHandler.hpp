@@ -30,29 +30,31 @@
 
 namespace HX::net {
 
+template <typename IOType>
 struct ConnectionHandler {
-
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     static coroutine::RootTask<> start(
         SocketFdType fd,
         std::atomic_bool const& isRun,
-        Router const& router,
+        Router<IOType> const& router,
         coroutine::EventLoop& eventLoop
     ) {
         using namespace std::string_view_literals;
-        IO io{fd, eventLoop};
+        IOType io{fd, eventLoop};
         try {
-#if HXLIBS_ENABLE_SSL
-            io.initSslBio(SslContext::SslType::Server);
-            co_await io.initSsl<Timeout>(true);
-#endif // HXLIBS_ENABLE_SSL
-            Request req{io};
-            Response res{io};
+#if defined(HXLIBS_ENABLE_SSL)
+            if constexpr (std::is_same_v<IOType, HttpsIO>) {            
+                io.initSslBio(SslContext::SslType::Server);
+                co_await io.template initSsl<Timeout>(true);
+            }
+#endif // !defined(HXLIBS_ENABLE_SSL)
+            HttpRequest<IOType> req{io};
+            HttpResponse<IOType> res{io};
             try {
                 for (;;) {
                     // 读
-                    if (!co_await req.parserReq<Timeout>()) [[unlikely]] {
+                    if (!co_await req.template parserReq<Timeout>()) [[unlikely]] {
                         break;
                     }
                     // 路由

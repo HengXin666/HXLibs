@@ -8,9 +8,13 @@ enum class ServerStatus : uint32_t {
     Ok = 1
 };
 
+using Request = HttpRequest<HttpIO>;
+using Response = HttpResponse<HttpIO>;
+
 struct TimeLog {
     decltype(std::chrono::steady_clock::now()) t;
 
+    
     auto before(Request&, Response&) {
         t = std::chrono::steady_clock::now();
         return ServerStatus::Ok;

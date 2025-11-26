@@ -47,10 +47,11 @@ void initServerSsl() {
 #endif // !HXLIBS_ENABLE_SSL
 }
 
-#ifdef HXLIBS_ENABLE_SSL
+#ifdef NO_HXLIBS_ENABLE_SSL
 using WebClinet = HttpsClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
 #else
 using WebClinet = HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+#endif
 WebClinet makeClient(std::shared_ptr<coroutine::EventLoop> loop = nullptr) {
     // MSVC 无法基于 三元运算符进行 RVO 优化...
     if (loop) {
@@ -58,7 +59,6 @@ WebClinet makeClient(std::shared_ptr<coroutine::EventLoop> loop = nullptr) {
     }
     return WebClinet{HttpClientOptions{}};
 }
-#endif
 
 void initClient([[maybe_unused]] auto&& client) {
 #ifdef HXLIBS_ENABLE_SSL
@@ -91,6 +91,9 @@ HX_CONTROLLER(Test01Controller) {
 
         // 测试切面
         struct AopTest {
+            using Request = HttpRequest<HttpIO>;
+            using Response = HttpResponse<HttpIO>;
+
             auto before(Request&, Response&) {
                 CHECK(true);
                 return 1;
@@ -118,6 +121,9 @@ HX_CONTROLLER(Test01Controller) {
     // 测试协程切面, 协程切面可以拦截并且响应.
     template <bool IsRes>
     struct AopCoTest {
+        using Request = HttpRequest<HttpIO>;
+        using Response = HttpResponse<HttpIO>;
+
         coroutine::Task<int> before(Request&, Response& res) {
             CHECK(true);
             if constexpr (IsRes) {
@@ -199,13 +205,13 @@ HX_CONTROLLER(Test02Controller) {
 
         // 测试写
         addEndpoint<WS>("/ws/ok", [] ENDPOINT {
-            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto ws = co_await WebSocketFactory{req, res}.accept();;
             co_await ws.sendText("ws ok");
             co_await ws.recvText(); // 等待客户端 close
         });
         // 测试读
         addEndpoint<WS>("/ws/recv", [] ENDPOINT {
-            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto ws = co_await WebSocketFactory{req, res}.accept();;
             co_await ws.sendText(co_await ws.recvText());
             co_await ws.recvText(); // 等待客户端 close
         });
@@ -216,13 +222,13 @@ HX_CONTROLLER(Test02Controller) {
         });
         // 测试断开连接
         addEndpoint<WS>("/ws/close", [] ENDPOINT {
-            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto ws = co_await WebSocketFactory{req, res}.accept();;
             co_await ws.close();
         });
         // 测试多发 + 发送 Json
         addEndpoint<WS>("/ws/all/send", [=] ENDPOINT {
             co_await wsPool->addWsAndKeepAlive(
-                co_await WebSocketFactory::accept(req, res)
+                co_await WebSocketFactory{req, res}.accept()
             );
         })
         .addEndpoint<POST>("/ws/addMsg", [=] ENDPOINT {
@@ -255,7 +261,7 @@ private:
             if (_wsPool.empty())
                 co_return;
             // 一次生成数据
-            auto pk = WebSocketFactory::makePacketView(OpCode::Text, msg);
+            auto pk = WebSocketFactory<HttpIO>::makePacketView(OpCode::Text, msg);
             for (auto& ws : _wsPool) {
                 // 多次重发这个数据
                 co_await ws.sendPacketView(pk);
@@ -263,7 +269,7 @@ private:
         }
         
         // 添加到池中, 并且保活
-        coroutine::Task<> addWsAndKeepAlive(WebSocket<WebSocketModel::Server> ws) {
+        coroutine::Task<> addWsAndKeepAlive(WebSocket<WebSocketModel::Server, HttpIO> ws) {
             auto it = _wsPool.emplace(_wsPool.end(), ws);
             try {
                 while (true) {
@@ -277,7 +283,7 @@ private:
             _wsPool.erase(it);
         }
     private:
-        std::list<WebSocket<WebSocketModel::Server>> _wsPool{};
+        std::list<WebSocket<WebSocketModel::Server, HttpIO>> _wsPool{};
     };
 };
 
@@ -290,7 +296,13 @@ TEST_CASE("Test02: 测试 WebSocket") {
     {
         client.wsLoop(
             makeWsUrl("127.0.0.1:28205/ws/ok"),
-            [] (WebSocketClient ws) -> coroutine::Task<> {
+            [] (
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+                ws) -> coroutine::Task<> {
                 CHECK(co_await ws.recvText() == "ws ok");
                 co_await ws.close();
             }
@@ -299,7 +311,13 @@ TEST_CASE("Test02: 测试 WebSocket") {
     {
         client.wsLoop(
             makeWsUrl("127.0.0.1:28205/ws/recv"),
-            [] (WebSocketClient ws) -> coroutine::Task<> {
+            [] (
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+                 ws) -> coroutine::Task<> {
                 auto str = net::internal::randomBase64();
                 co_await ws.sendText(str);
                 CHECK(co_await ws.recvText() == str);
@@ -324,7 +342,13 @@ TEST_CASE("Test02: 测试 WebSocket") {
     {
         auto t = client.wsLoop(
             makeWsUrl("127.0.0.1:28205/ws/close"),
-            [] (WebSocketClient ws) -> coroutine::Task<> {
+            [] (
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+                 ws) -> coroutine::Task<> {
                 co_await ws.recvText();
                 co_return;
             }
@@ -349,14 +373,26 @@ TEST_CASE("Test02: 测试 WebSocket") {
             // 2. cli03 发送, server 广播
             co_await (client01.coWsLoop(
                 makeWsUrl("127.0.0.1:28205/ws/all/send"),
-                [&](WebSocketClient ws) -> coroutine::Task<> {
+                [&](
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+                    ws) -> coroutine::Task<> {
                     for (std::size_t i = 0; i < n; ++i) {
                         CHECK(co_await ws.recvJson<Test02Controller::Msg>() == recvMsg);
                     }
                     co_await ws.close();
                 }) && client02.coWsLoop(
                 makeWsUrl("127.0.0.1:28205/ws/all/send"),
-                [&](WebSocketClient ws) -> coroutine::Task<> {
+                [&](
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+                    ws) -> coroutine::Task<> {
                     for (std::size_t i = 0; i < n; ++i) {
                         CHECK(co_await ws.recvJson<Test02Controller::Msg>() == recvMsg);
                     }

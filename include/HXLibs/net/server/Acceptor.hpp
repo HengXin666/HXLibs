@@ -30,9 +30,10 @@
 
 namespace HX::net {
 
+template <typename IOType>
 struct Acceptor {
     Acceptor(
-        Router const& router,
+        Router<IOType> const& router,
         coroutine::EventLoop& eventLoop,
         AddressResolver::AddressInfo const& entry
     )
@@ -57,7 +58,8 @@ struct Acceptor {
                 )
             ));
             log::hxLog.debug("有新的连接:", fd);
-            ConnectionHandler::start<Timeout>(fd, isRun, _router, _eventLoop).detach();
+            ConnectionHandler<IOType>::template
+                start<Timeout>(fd, isRun, _router, _eventLoop).detach();
             if (!isRun.load(std::memory_order_acquire)) [[unlikely]] {
                 break;  // 最在乎性能的关闭方式是, 关闭时候通过请求来解决 prepAccept 的阻塞
                         // 而不是写一个 whenAny 然后再写很复杂的逻辑什么的, 它浪费性能, 并且不是永远必须的
@@ -120,10 +122,13 @@ private:
 #endif
     }
 
-    Router const& _router;
+protected:
+    Router<IOType> const& _router;
     coroutine::EventLoop& _eventLoop;
-    [[maybe_unused]] AddressResolver::AddressInfo const& _entry;
+    AddressResolver::AddressInfo const& _entry;
 };
+
+
 
 } // namespace HX::net
 

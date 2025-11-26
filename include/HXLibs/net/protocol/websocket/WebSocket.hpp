@@ -163,7 +163,7 @@ struct WebSocketBase<WebSocketModel::Client> {
 
 } // namespace internal
 
-template <WebSocketModel Model>
+template <WebSocketModel Model, typename IOType>
 class WebSocket : public internal::WebSocketBase<Model> {
     using Base = internal::WebSocketBase<Model>;
     inline static constexpr bool IsServer = Model == WebSocketModel::Server;
@@ -175,13 +175,13 @@ public:
     // 默认读取数据的超时时间: 60s
     using DefaultRDTimeout = decltype(utils::operator""_s<"60">());
 
-    WebSocket(IO& io, std::vector<char> recvBuf)
+    WebSocket(IOType& io, std::vector<char> recvBuf)
         : Base{}
         , _io{io}
         , _recvBuf{std::move(recvBuf)}
     {}
 
-    WebSocket(IO& io, std::vector<char> recvBuf, std::size_t seed)
+    WebSocket(IOType& io, std::vector<char> recvBuf, std::size_t seed)
         : Base{seed}
         , _io{io}
         , _recvBuf{std::move(recvBuf)}
@@ -384,7 +384,7 @@ public:
     }
 
 private:
-    IO& _io;
+    IOType& _io;
 
     // 缓存之前多读取的内容, 特别的, 原本头部的数据是在尾部! 应该使用 back() + pop_back() 进行遍历
     std::vector<char> _recvBuf;
@@ -427,9 +427,9 @@ private:
             }
             // @todo 此处偷懒了, 因为也没有使用到 get<0>() 的实际的值, 所以没有影响
             // 但是不保证日后!
-            co_return co_await _io.recvLinkTimeout<Timeout>(buf.subspan(size));
+            co_return co_await _io.template recvLinkTimeout<Timeout>(buf.subspan(size));
         } else {
-            co_return co_await _io.recvLinkTimeout<Timeout>(buf);
+            co_return co_await _io.template recvLinkTimeout<Timeout>(buf);
         }
     }
 
@@ -719,28 +719,50 @@ private:
     }
 };
 
-using WebSocketServer = WebSocket<WebSocketModel::Server>;
-using WebSocketClient = WebSocket<WebSocketModel::Client>;
+template <typename IOType>
+using WebSocketServer = WebSocket<WebSocketModel::Server, IOType>;
+
+template <typename IOType>
+using WebSocketClient = WebSocket<WebSocketModel::Client, IOType>;
+
+using WSClient = WebSocketClient<HttpIO>;
+
+#if defined(HXLIBS_ENABLE_SSL)
+using WSSClient = WebSocketClient<HttpsIO>;
+#endif // !defined(HXLIBS_ENABLE_SSL)
 
 /**
  * @brief WebSocket的工厂方法
  */
+template <typename IOType>
 class WebSocketFactory {
+    using Request = HttpRequest<IOType>;
+    using Response = HttpResponse<IOType>;
+
+    Request& _req;
+    Response& _res;
 public:
+    WebSocketFactory(Request& req, Response& res)
+        : _req{req}
+        , _res{res}
+    {}
+
+    WebSocketFactory& operator=(WebSocketFactory&&) = delete;
+
     /**
      * @brief 服务端连接, 并且创建 ws 对象
      * @param req 
      * @param res 
      * @return coroutine::Task<WebSocket> 
      */
-    static coroutine::Task<WebSocketServer> accept(Request& req, Response& res) {
+    coroutine::Task<WebSocketServer<IOType>> accept() && {
         using namespace std::string_literals;
-        auto const& headMap = req.getHeaders();
+        auto const& headMap = _req.getHeaders();
         if (headMap.find("origin") == headMap.end()) {
             // Origin字段是必须的
             // 如果缺少origin字段, WebSocket服务器需要回复HTTP 403 状态码
             // https://web.archive.org/web/20170306081618/https://tools.ietf.org/html/rfc6455
-            co_await res.setResLine(Status::CODE_403)
+            co_await _res.setResLine(Status::CODE_403)
                         .sendRes();
             throw std::runtime_error{"The client is missing the origin field"};
         }
@@ -748,7 +770,7 @@ public:
             it == headMap.end() || it->second != "websocket"
         ) [[unlikely]] {
             // 创建 WebSocket 连接失败
-            co_await res.setResLine(Status::CODE_400)
+            co_await _res.setResLine(Status::CODE_400)
                         .sendRes();
             throw std::runtime_error{"Failed to create a websocket connection"};
         }
@@ -756,7 +778,7 @@ public:
             // 可能是 "keep-alive, Upgrade" 这种情况
             it == headMap.end() || it->second.find("Upgrade") == std::string::npos
         ) [[unlikely]] {
-            co_await res.setResLine(Status::CODE_416)
+            co_await _res.setResLine(Status::CODE_416)
                         .sendRes();
             throw std::runtime_error{"Upgrade Required"};
         }
@@ -766,19 +788,19 @@ public:
             throw std::runtime_error{"Not Find sec-websocket-key in headers"};
         }
 
-        co_await res.setResLine(Status::CODE_101)
+        co_await _res.setResLine(Status::CODE_101)
                     .addHeader("Connection", "keep-alive, Upgrade")
                     .addHeader("Upgrade", "websocket")
                     .addHeader("Sec-Websocket-Accept", 
                                internal::webSocketSecretHash(wsKey->second))
                     .sendRes();
 
-        co_return {req._io, [&]{
+        co_return {_res._io, [&]{
             // 缓存迁移
             std::vector<char> buf;
-            std::size_t n = res._recvBuf.size();
+            std::size_t n = _res._recvBuf.size();
             buf.resize(n);
-            auto* data = res._recvBuf.data();
+            auto* data = _res._recvBuf.data();
             for (std::size_t i = 0, j = n - 1; i < n; ++i, --j) {
                 buf[i] = data[j];
             }
@@ -792,26 +814,26 @@ public:
      */
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
-    static coroutine::Task<WebSocketClient> connect(
+    static coroutine::Task<WebSocketClient<IOType>> connect(
         std::string_view url,
-        IO& io,
+        IOType& io,
         HeaderHashMap const& headers
     ) {
         using namespace std::string_view_literals;
         // 发送 ws 升级协议
         Request req{io};
         auto key = internal::randomBase64();
-        req.setReqLine<WS>(UrlParse::extractPath(url))
+        req.template setReqLine<WS>(UrlParse::extractPath(url))
            .addHeaders("Origin", UrlParse::extractWsOrigin(url))
            .addHeaders("Connection", "Upgrade")
            .addHeaders("Upgrade", "websocket")
            .addHeaders("Sec-WebSocket-Key", key)
            .addHeaders("Sec-WebSocket-Version", "13")
            .addHeaders(headers);
-        co_await req.sendHttpReq<Timeout>();
+        co_await req.template sendHttpReq<Timeout>();
         // 解析响应
         Response res{io};
-        if (co_await res.parserRes<Timeout>() == false) [[unlikely]] {
+        if (co_await res.template parserRes<Timeout>() == false) [[unlikely]] {
             throw std::runtime_error{"Timeout"};
         }
         // 判断状态码
@@ -908,7 +930,7 @@ public:
 };
 
 // 断言: 大小不一样, 否则是库内部错误
-static_assert(sizeof(WebSocketClient) != sizeof(WebSocketServer), 
+static_assert(sizeof(WebSocketClient<HttpIO>) != sizeof(WebSocketServer<HttpIO>), 
     "Internal error in the library");
 
 } // namespace HX::net

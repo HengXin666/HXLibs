@@ -69,7 +69,7 @@ auto hx_init = [] {
         co_await res.getIO().close();
     }).addEndpoint<WS>("/ws", [] ENDPOINT {
         log::hxLog.warning("ws 端点");
-        auto ws = co_await WebSocketFactory::accept(req, res);
+        auto ws = co_await WebSocketFactory{req, res}.accept();;
         co_await ws.sendText("OK");
         co_await ws.close();
     }).addEndpoint<GET>("/ass", [] ENDPOINT {
@@ -109,7 +109,7 @@ TEST_CASE("测试get变长body的自动重连") {
 
 TEST_CASE("测试ws") {
     log::hxLog.warning("=== 测试ws ===");
-    client.wsLoop("ws://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+    client.wsLoop("ws://127.0.0.1:28205/ws", [](WSClient ws) -> coroutine::Task<> {
         auto txt = co_await ws.recvText();
         log::hxLog.info("ws:", txt);
         co_await ws.close();

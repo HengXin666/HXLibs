@@ -282,7 +282,7 @@ void test() {
 ```cpp
 HttpServer serv{28205};
 serv.addEndpoint<GET>("/ws", [] ENDPOINT {
-    auto ws = co_await WebSocketFactory::accept(req, res); // 升级为 WebSocket
+    auto ws = co_await WebSocketFactory{req, res}.accept();; // 升级为 WebSocket
     struct JsonDataVo {
         std::string msg;
         int code;

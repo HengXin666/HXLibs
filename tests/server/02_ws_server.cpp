@@ -9,6 +9,9 @@ using namespace utils;
 #include <iostream>
 #include <list>
 
+using Request = HttpRequest<HttpIO>;
+using Response = HttpResponse<HttpIO>;
+
 auto hx_init = []{
     setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
@@ -45,14 +48,14 @@ struct WSPool {
         if (wsPool.empty())
             co_return;
         // 一次生成数据
-        auto pk = WebSocketFactory::makePacketView(OpCode::Text, msg);
+        auto pk = WebSocketFactory<HttpIO>::makePacketView(OpCode::Text, msg);
         for (auto& ws : wsPool) {
             // 多次重发这个数据
             co_await ws.sendPacketView(pk);
         }
     }
 
-    std::list<WebSocket<WebSocketModel::Server>> wsPool;
+    std::list<WebSocket<WebSocketModel::Server, HttpIO>> wsPool;
 };
 
 TEST_CASE("测试普通请求") {
@@ -71,7 +74,7 @@ TEST_CASE("测试普通请求") {
             co_return;
         }, Test{})
         .addEndpoint<GET>("/ws", [] ENDPOINT {
-            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto ws = co_await WebSocketFactory{req, res}.accept();;
             struct JsonDataVo {
                 std::string msg;
                 int code;
@@ -96,7 +99,7 @@ TEST_CASE("测试普通请求") {
             co_return;
         })
         .addEndpoint<GET>("/ws_send_poll", [&] ENDPOINT {
-            auto ws = co_await WebSocketFactory::accept(req, res);
+            auto ws = co_await WebSocketFactory{req, res}.accept();;
             auto it = pool.wsPool.emplace(pool.wsPool.end(), ws);
             try {
                 while (true) {
@@ -116,12 +119,12 @@ TEST_CASE("测试普通请求") {
 TEST_CASE("测试断开") {
     HttpServer serv{28205};
     serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
-        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        auto ws = co_await net::WebSocketFactory{req, res}.accept();;
         co_await ws.sendText("你好");
         co_await ws.recvText();
     });
     serv.addEndpoint<WS>("/ws/err", [] ENDPOINT {
-        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        auto ws = co_await net::WebSocketFactory{req, res}.accept();;
         co_await ws.close();
     });
     serv.addEndpoint<WS>("/ws/400", [] ENDPOINT {
@@ -130,24 +133,24 @@ TEST_CASE("测试断开") {
     serv.asyncRun(1, []{}, utils::operator""_ms<"300">());
 
     HttpClient cli{};
-    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WSClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
         co_await ws.close();
     }).wait();
-    auto t = cli.wsLoop("ws://127.0.0.1:28205/ws/err", [](net::WebSocketClient ws) -> coroutine::Task<> {
+    auto t = cli.wsLoop("ws://127.0.0.1:28205/ws/err", [](net::WSClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
     }).get();
     if (!t) {
         log::hxLog.error("err:", t.what());
     }
-    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WSClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
         co_await ws.close();
     }).wait();
-    cli.wsLoop("ws://127.0.0.1:28205/ws/400", [](net::WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/400", [](net::WSClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
         co_await ws.close();
@@ -156,7 +159,7 @@ TEST_CASE("测试断开") {
             log::hxLog.warning(t.what());
         }
     });
-    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WSClient ws) -> coroutine::Task<> {
         auto str = co_await ws.recvText();
         log::hxLog.debug("str:", str);
         co_await ws.close();
@@ -169,7 +172,7 @@ TEST_CASE("测试断开") {
 TEST_CASE("测试超时后再ws") {
     HttpServer serv{28205};
     serv.addEndpoint<WS>("/ws/ok", [] ENDPOINT {
-        auto ws = co_await net::WebSocketFactory::accept(req, res);
+        auto ws = co_await net::WebSocketFactory{req, res}.accept();;
         co_await ws.sendText("你好");
         co_await ws.recvText();
     }).addEndpoint<GET>("/", [] ENDPOINT {
@@ -180,7 +183,7 @@ TEST_CASE("测试超时后再ws") {
     auto res = cli.get("http://127.0.0.1:28205/").get();
     log::hxLog.info("等待请求超时");
     std::this_thread::sleep_for(decltype(utils::operator""_ms<"800">())::StdChronoVal);
-    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](WSClient ws) -> coroutine::Task<> {
         log::hxLog.info("读取到:", co_await ws.recvText());
     }).thenTry([](auto t) {
         if (!t) {

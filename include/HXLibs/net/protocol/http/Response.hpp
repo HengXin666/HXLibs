@@ -556,7 +556,7 @@ public:
      * @brief 获取内部 IO
      * @return IO& 
      */
-    IO& getIO() noexcept {
+    IOType& getIO() noexcept {
         return _io;
     }
 private:
@@ -587,6 +587,7 @@ private:
     IOType& _io;
     bool _completeResponseHeader = false;           //是否解析完成响应头
 
+    template <typename>
     friend class WebSocketFactory;
 
     /**
@@ -797,7 +798,5 @@ private:
         return 0; // 解析完毕
     }
 };
-
-using Response = HttpResponse<IO>;
 
 } // namespace HX::net

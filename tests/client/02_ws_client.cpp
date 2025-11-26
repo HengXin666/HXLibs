@@ -13,7 +13,7 @@ coroutine::Task<> coMain() {
     HttpClient cli{HttpClientOptions<decltype(3_s)>{}};
     log::hxLog.debug("开始请求");
     co_await cli.coWsLoop("ws://127.0.0.1:28205/ws",
-        [](WebSocketClient ws) -> coroutine::Task<> {
+        [](WSClient ws) -> coroutine::Task<> {
             co_await ws.sendText("hello");
             auto msg = co_await ws.recvText();
             log::hxLog.info("收到: ", msg);
@@ -22,7 +22,7 @@ coroutine::Task<> coMain() {
     );
     try {
         co_await cli.coWsLoop("http://127.0.0.1:28205/ws",
-            [](WebSocketClient ws) -> coroutine::Task<> {
+            [](WSClient ws) -> coroutine::Task<> {
                 co_await ws.sendText("hello");
                 auto msg = co_await ws.recvText();
                 log::hxLog.info("收到: ", msg);
@@ -43,7 +43,7 @@ int main() {
     serv.addEndpoint<GET>("/ws", [] ENDPOINT {
         auto head = req.getHeaders();
         log::hxLog.debug("[Server]: the: /ws", "head:", head);
-        auto ws = co_await WebSocketFactory::accept(req, res);
+        auto ws = co_await WebSocketFactory{req, res}.accept();;
         log::hxLog.debug("[Server]: 已成功建立 ws 连接!");
         while (true) {
             auto msg = co_await ws.recvText();
@@ -51,7 +51,7 @@ int main() {
         }
         // 如果 ws 已断开, 那么会抛异常, 然后服务端会自动断开连接 (准确的说是close fd)
     }).addEndpoint<WS>("/ws/oku", [] ENDPOINT {
-        auto ws = co_await WebSocketFactory::accept(req, res);
+        auto ws = co_await WebSocketFactory{req, res}.accept();;
         for (int i = 0; i < 5; ++i)
             co_await ws.sendText(std::to_string(i));
         co_return co_await ws.close();
@@ -65,7 +65,7 @@ int main() {
 
     HttpClient cli{HttpClientOptions<decltype(3_s)>{}};
     auto res = cli.wsLoop("ws://127.0.0.1:28205/ws",
-        [](WebSocketClient ws) -> coroutine::Task<std::string> {
+        [](WSClient ws) -> coroutine::Task<std::string> {
             co_await ws.sendText("hello 我是同步接口的协程回调");
             auto msg = co_await ws.recvText();
             log::hxLog.info("收到: ", msg);
@@ -77,7 +77,7 @@ int main() {
     log::hxLog.info(res ? "get 收到:" : "get 失败:", res ? res.get() : res.what());
 
     log::hxLog.warning("====== 测试多消息 ======");
-    cli.wsLoop("ws://127.0.0.1:28205/ws/oku", [](WebSocketClient ws) -> coroutine::Task<> {
+    cli.wsLoop("ws://127.0.0.1:28205/ws/oku", [](WSClient ws) -> coroutine::Task<> {
         try {
             for (;;)
                 log::hxLog.info("->:", co_await ws.recvText());

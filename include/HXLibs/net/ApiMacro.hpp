@@ -24,9 +24,9 @@
 /**
  * @brief 定义标准的端点, 请求使用`req`变量, 响应使用`res`变量
  */
-#define ENDPOINT (                           \
-    [[maybe_unused]] HX::net::Request& req,  \
-    [[maybe_unused]] HX::net::Response& res  \
+#define ENDPOINT (                                               \
+    [[maybe_unused]] HX::net::HttpRequest<HX::net::HttpIO>& req, \
+    [[maybe_unused]] HX::net::HttpResponse<HX::net::HttpIO>& res \
 ) -> HX::coroutine::Task<>
 
 /**

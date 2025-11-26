@@ -28,15 +28,18 @@
 
 namespace HX::net {
 
-using EndpointFunc = std::function<coroutine::Task<>(Request&, Response&)>;
+template <typename IOType>
+using EndpointFunc = std::function<coroutine::Task<>(HttpRequest<IOType>&, HttpResponse<IOType>&)>;
 
+template <typename IOType>
 class RouterTree {
-    using Node = container::RadixTreeNode<std::string_view, EndpointFunc>;
+    using EndpointType = EndpointFunc<IOType>;
+    using Node = container::RadixTreeNode<std::string_view, EndpointType>;
 public:
     explicit RouterTree() 
         : _root(std::make_shared<Node>())
-        , _notFoundHandler([](Request &req,
-                              Response &res) 
+        , _notFoundHandler([](HttpRequest<IOType> &req,
+                              HttpResponse<IOType> &res) 
         -> coroutine::Task<> {
             static_cast<void>(req);
             co_return co_await res
@@ -65,7 +68,7 @@ public:
      * @brief 设置`找不到路由`时候, 调用的端点
      * @param func 
      */
-    void setNotFoundHandler(EndpointFunc&& func) {
+    void setNotFoundHandler(EndpointType&& func) {
         _notFoundHandler = std::move(func);
     }
 
@@ -74,7 +77,7 @@ public:
 
     void insert(
         std::vector<std::string_view>& buildLink,
-        EndpointFunc&& endpoint
+        EndpointType&& endpoint
     ) {
         auto node = _root;
         // @todo, 应该校验是否合法, 比如 /xxx{id}/xxx 显然不支持. 以及 /*** 这种.
@@ -93,7 +96,7 @@ public:
         node->val = endpoint;
     }
 
-    const EndpointFunc& find(std::span<std::string_view const> findLink) const {
+    const EndpointType& find(std::span<std::string_view const> findLink) const {
         auto const* opt = _find(findLink, _root);
         if (opt) {
             return *opt;
@@ -102,7 +105,7 @@ public:
     }
 
 private:
-    EndpointFunc const* _find(
+    EndpointType const* _find(
         std::span<std::string_view const> findLink,
         std::shared_ptr<Node> const& node
     ) const {
@@ -132,7 +135,7 @@ private:
     /**
      * @brief 路由找不到时, 调用的端点; 俗称`404`
      */
-    EndpointFunc _notFoundHandler;
+    EndpointType _notFoundHandler;
 };
 
 } // namespace HX::net

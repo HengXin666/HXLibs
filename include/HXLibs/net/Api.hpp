@@ -44,11 +44,12 @@ public:
      */
     template <HttpMethod... Methods, typename Func, typename... Interceptors>
     HttpServer& addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
-        return _server.addEndpoint<Methods...>(
+        _server.addEndpoint<Methods...>(
             std::move(path),
             std::move(endpoint),
             std::forward<Interceptors>(interceptors)...
         );
+        return _server;
     }
 };
 

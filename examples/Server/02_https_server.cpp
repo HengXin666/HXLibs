@@ -81,7 +81,7 @@ int main() {
 
     // ws
     serv.addEndpoint<WS>("/ws", [] ENDPOINT {
-        auto ws = co_await WebSocketFactory::accept(req, res);
+        auto ws = co_await WebSocketFactory{req, res}.accept();
         struct JsonDataVo {
             std::string msg;
             int code;
@@ -145,7 +145,13 @@ int main() {
 
         std::this_thread::sleep_for(500ms);
 
-        client.wsLoop("wss://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+        client.wsLoop("wss://127.0.0.1:28205/ws", [](
+#ifdef HXLIBS_ENABLE_SSL
+            net::WSSClient
+#else
+            net::WSClient
+#endif // !#ifdef HXLIBS_ENABLE_SSL
+        ws) -> coroutine::Task<> {
             log::hxLog.info("ws recv:", co_await ws.recvText());
             co_await ws.sendText("我是张三! awa");
             log::hxLog.info("ws recv:", co_await ws.recvText());

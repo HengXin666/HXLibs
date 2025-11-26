@@ -41,7 +41,7 @@ TEST_CASE("服务端协程FutureResult的使用") {
     pool.setFixedThreadNum(1);
     pool.run<ThreadPool::Model::FixedSizeAndNoCheck>();
     server.addEndpoint<WS>("/ws", [&] ENDPOINT {
-        auto ws = co_await WebSocketFactory::accept(req, res);
+        auto ws = co_await WebSocketFactory{req, res}.accept();;
         co_await ws.sendText("等我一下");
         auto ans = co_await pool.addTask([] {
             log::hxLog.debug("等我500ms");
@@ -54,13 +54,13 @@ TEST_CASE("服务端协程FutureResult的使用") {
     });
     server.asyncRun(1);
     HttpClientPool cli{2};
-    auto r1 = cli.wsLoop("ws://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+    auto r1 = cli.wsLoop("ws://127.0.0.1:28205/ws", [](WSClient ws) -> coroutine::Task<> {
         auto msg = co_await ws.recvText();
         log::hxLog.info("他说:", msg);
         msg = co_await ws.recvText();
         log::hxLog.info("他终于说:", msg);
     });
-    auto r2 = cli.wsLoop("ws://127.0.0.1:28205/ws", [](WebSocketClient ws) -> coroutine::Task<> {
+    auto r2 = cli.wsLoop("ws://127.0.0.1:28205/ws", [](WSClient ws) -> coroutine::Task<> {
         auto msg = co_await ws.recvText();
         log::hxLog.info("他说:", msg);
         msg = co_await ws.recvText();

@@ -7,6 +7,9 @@ using namespace utils;
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
+using Request = HttpRequest<HttpIO>;
+using Response = HttpResponse<HttpIO>;
+
 struct Test {
     auto before(Request&, Response&) {
         CHECK(true);

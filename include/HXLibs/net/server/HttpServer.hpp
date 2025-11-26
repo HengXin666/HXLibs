@@ -27,13 +27,14 @@
 
 namespace HX::net {
 
-class HttpServer {
+template <typename Self, typename IOType>
+class HttpBaseServer {
 public:
     /**
      * @brief 创建一个Http服务器
      * @param port 服务器绑定的端口, 如`28205`
      */
-    HttpServer(std::uint16_t port)
+    HttpBaseServer(std::uint16_t port)
         : _router{}
         , _asyncStopThread{}
         , _port{std::to_string(port)}
@@ -41,13 +42,13 @@ public:
         , _isRun{true}
     {}
 
-    HttpServer& operator=(HttpServer&&) noexcept = delete;
+    HttpBaseServer& operator=(HttpBaseServer&&) noexcept = delete;
 
     /**
      * @brief 同步关闭服务器
      * @warning 该方法不可重入
      */
-    void syncStop() {
+    void syncStop() noexcept {
         using namespace utils;
         _isRun.store(false, std::memory_order_release);
         while (_runNum) {
@@ -94,12 +95,12 @@ public:
      * @param key url, 如"/"、"home/{id}"
      * @param endpoint 端点函数
      * @param interceptors 拦截器
-     * @return HttpServer& 可链式调用
+     * @return HttpBaseServer& 可链式调用
      */
     template <HttpMethod... Methods, typename Func, typename... Interceptors>
-    HttpServer& addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
+    HttpBaseServer& addEndpoint(std::string_view path, Func endpoint, Interceptors&&... interceptors) {
         if constexpr (sizeof...(Methods) == 0) {
-            _router.addEndpoint<
+            _router.template addEndpoint<
                 HttpMethod::GET, HttpMethod::HEAD,
                 HttpMethod::POST, HttpMethod::PUT,
                 HttpMethod::TRACE, HttpMethod::PATCH,
@@ -111,7 +112,7 @@ public:
                 interceptors...
             );
         } else {
-            _router.addEndpoint<Methods...>(
+            _router.template addEndpoint<Methods...>(
                 path,
                 std::move(endpoint),
                 std::forward<Interceptors>(interceptors)...
@@ -166,16 +167,50 @@ public:
                 _sync<Timeout>();
             });
         }
-        log::hxLog.info("====== HXServer start: \033[33m\033]8;;http"
-            + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
-            + "://127.0.0.1:"
-            + _port 
-            + "/\033\\http"
-            + (std::is_same_v<IO, HttpIO> ? std::string{} : std::string{"s"})
-            + "://127.0.0.1:"
-            + _port
-            + "/\033]8;;\033\\\033[0m\033[32m ======");
     }
+
+    /**
+     * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
+     * @tparam T 控制器类型
+     * @tparam Args 
+     * @param args 被依赖注入的变量
+     */
+    template <typename T, typename... Args>
+    inline HttpBaseServer& addController(Args&&... args) 
+        requires(std::derived_from<T, class BaseController>)
+    {
+        T {*this}.dependencyInjection(std::forward<Args>(args)...);
+        return *this;
+    }
+
+    ~HttpBaseServer() noexcept {
+        syncStop();
+    }
+
+private:
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    void _sync() {
+        static_cast<Self*>(this)->template _sync<Timeout>();
+    }
+
+    void info() {
+        static_cast<Self*>(this)->info();
+    }
+    
+protected:
+    Router<IOType> _router;
+    std::vector<std::jthread> _threads;
+    std::unique_ptr<std::jthread> _asyncStopThread; // 异步关闭服务器时候使用的线程
+    std::string _port;
+    std::atomic_uint16_t _runNum;
+    std::atomic_bool _isRun;
+};
+
+class HttpServer : public HttpBaseServer<HttpServer, HttpIO> {
+public:
+    using Base = HttpBaseServer<HttpServer, HttpIO>;
+    using Base::Base;
 
     /**
      * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
@@ -190,12 +225,9 @@ public:
         T {*this}.dependencyInjection(std::forward<Args>(args)...);
         return *this;
     }
-
-    ~HttpServer() {
-        syncStop();
-    }
-
 private:
+    friend Base;
+
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
     void _sync() {
@@ -204,7 +236,7 @@ private:
             AddressResolver addr;
             auto entry = addr.resolve("0.0.0.0", _port);
             ++_runNum;
-            Acceptor acceptor{_router, _eventLoop, entry};
+            Acceptor<HttpIO> acceptor{_router, _eventLoop, entry};
             auto mainTask = acceptor.start<Timeout>(_isRun);
             _eventLoop.start(mainTask);
             _eventLoop.run();
@@ -213,14 +245,65 @@ private:
         }
         --_runNum;
     }
-    
-    Router _router;
-    std::vector<std::jthread> _threads;
-    std::unique_ptr<std::jthread> _asyncStopThread; // 异步关闭服务器时候使用的线程
-    std::string _port;
-    std::atomic_uint16_t _runNum;
-    std::atomic_bool _isRun;
+
+    void info() {
+        log::hxLog.info("====== HXServer start: \033[33m\033]8;;http://127.0.0.1:"
+            + _port 
+            + "/\033\\http://127.0.0.1:"
+            + _port
+            + "/\033]8;;\033\\\033[0m\033[32m ======");
+    }
 };
+
+#if defined(HXLIBS_ENABLE_SSL)
+class HttpsServer : public HttpBaseServer<HttpsServer, HttpsIO> {
+public:
+    using Base = HttpBaseServer<HttpsServer, HttpsIO>;
+    using Base::Base;
+
+    /**
+     * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
+     * @tparam T 控制器类型
+     * @tparam Args 
+     * @param args 被依赖注入的变量
+     */
+    template <typename T, typename... Args>
+    inline HttpsServer& addController(Args&&... args) 
+        requires(std::derived_from<T, class BaseController>)
+    {
+        T {*this}.dependencyInjection(std::forward<Args>(args)...);
+        return *this;
+    }
+private:
+    friend Base;
+
+    template <typename Timeout>
+        requires(utils::HasTimeNTTP<Timeout>)
+    void _sync() {
+        try {
+            coroutine::EventLoop _eventLoop;
+            AddressResolver addr;
+            auto entry = addr.resolve("0.0.0.0", _port);
+            ++_runNum;
+            Acceptor<HttpsIO> acceptor{_router, _eventLoop, entry};
+            auto mainTask = acceptor.start<Timeout>(_isRun);
+            _eventLoop.start(mainTask);
+            _eventLoop.run();
+        } catch (std::exception const& ec) {
+            log::hxLog.error("Server Error:", ec.what());
+        }
+        --_runNum;
+    }
+
+    void info() {
+        log::hxLog.info("====== HXServer start: \033[33m\033]8;;https://127.0.0.1:"
+            + _port 
+            + "/\033\\https://127.0.0.1:"
+            + _port
+            + "/\033]8;;\033\\\033[0m\033[32m ======");
+    }
+};
+#endif // !defined(HXLIBS_ENABLE_SSL)
 
 } // namespace HX::net
 

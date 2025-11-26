@@ -26,13 +26,12 @@ namespace HX::net {
 
 template <typename Timeout, 
           typename Proxy,
-          typename RequestType,
-          typename ResponseType
+          typename IOType
 >
     requires(utils::HasTimeNTTP<Timeout>)
 class HttpBaseClientPool {
 public:
-    using HttpClientType = HttpBaseClient<Timeout, Proxy, RequestType, ResponseType>;
+    using HttpClientType = HttpBaseClient<Timeout, Proxy, IOType>;
 
     HttpBaseClientPool(std::size_t size, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
         : _cliPool{}
@@ -138,9 +137,9 @@ public:
      */
     template <
         typename Func, 
-        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient>>
+        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient<IOType>>, coroutine::Task<Res>>)
     container::FutureResult<container::Try<Res>> wsLoop(
         std::string url,
         Func&& func,
@@ -188,8 +187,8 @@ private:
 
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>> {
-    using Base = HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>>;
+class HttpClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpIO> {
+    using Base = HttpBaseClientPool<Timeout, Proxy, HttpIO>;
 public:
     using Base::Base;
 
@@ -204,8 +203,8 @@ HttpClientPool(std::size_t size) -> HttpClientPool<decltype(utils::operator""_ms
 
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpsClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>> {
-    using Base = HttpBaseClientPool<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>>;
+class HttpsClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpsIO> {
+    using Base = HttpBaseClientPool<Timeout, Proxy, HttpsIO>;
 public:
     using Base::Base;
 

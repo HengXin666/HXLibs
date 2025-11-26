@@ -30,7 +30,11 @@
 
 namespace HX::net {
 
+template <typename IOType>
 class Router {
+    using EndpointType = EndpointFunc<IOType>;
+    using Request = HttpRequest<IOType>;
+    using Response = HttpResponse<IOType>;
 public:
     Router() = default;
     Router& operator=(Router&&) = delete;
@@ -41,7 +45,7 @@ public:
      * @param path 
      * @return EndpointFunc 
      */
-    const EndpointFunc& getEndpoint(
+    const EndpointType& getEndpoint(
         std::string_view method,
         std::string_view path
     ) const {
@@ -377,7 +381,7 @@ private:
         co_return ok;
     }
 
-    RouterTree _routerTree{};
+    RouterTree<IOType> _routerTree{};
 };
 
 } // namespace HX::net

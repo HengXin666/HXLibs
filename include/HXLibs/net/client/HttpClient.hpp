@@ -42,13 +42,14 @@
 
 namespace HX::net {
 
-template <typename Timeout, 
+template <typename Timeout,
           typename Proxy,
-          typename RequestType,
-          typename ResponseType
+          typename IOType
 >
     requires(utils::HasTimeNTTP<Timeout>)
 class HttpBaseClient {
+    using Request = HttpRequest<IOType>;
+    using Response = HttpResponse<IOType>;
 public:
     /**
      * @brief 构造一个 HTTP 客户端
@@ -59,7 +60,7 @@ public:
     HttpBaseClient(
         HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
         std::shared_ptr<coroutine::EventLoop> loop = nullptr
-    ) 
+    )
         : _options{std::move(options)}
         , _eventLoop{nullptr}
         , _cliFd{kInvalidSocket}
@@ -88,8 +89,8 @@ public:
 
     /**
      * @brief 判断是否需要重新建立连接
-     * @return true 
-     * @return false 
+     * @return true
+     * @return false
      */
     bool needConnect() const noexcept {
         return _cliFd == kInvalidSocket;
@@ -140,7 +141,7 @@ public:
      * @param path 需要上传的文件路径
      * @param contentType 正文类型
      * @param headers 请求头
-     * @return coroutine::Task<> 
+     * @return coroutine::Task<>
      */
     template <HttpMethod Method>
     coroutine::Task<container::Try<ResponseData>> coUploadChunked(
@@ -154,13 +155,13 @@ public:
                 co_await makeSocket(url);
             }
             container::Try<> err{};
-            RequestType req{_io.get()};
+            Request req{_io.get()};
             req.template setReqLine<Method>(UrlParse::extractPath(url));
             preprocessHeaders(url, contentType, req);
             req.addHeaders(std::move(headers));
             try {
                 co_await req.template sendChunkedReq<Timeout>(path);
-                ResponseType res{_io.get()};
+                Response res{_io.get()};
                 if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
@@ -173,7 +174,7 @@ public:
                 co_await makeSocket(url);
                 // 再次发送
                 co_await req.template sendChunkedReq<Timeout>(path);
-                ResponseType res{_io.get()};
+                Response res{_io.get()};
                 if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
@@ -196,10 +197,10 @@ public:
     /**
      * @brief 发送一个 GET 请求, 其会在后台线程协程池中执行
      * @param url 请求的 URL
-     * @return container::FutureResult<container::Try<ResponseData>> 
+     * @return container::FutureResult<container::Try<ResponseData>>
      */
     container::FutureResult<container::Try<ResponseData>> get(
-        std::string url, 
+        std::string url,
         HeaderHashMap headers = {}
     ) {
         return requst<GET>(std::move(url), std::move(headers));
@@ -208,7 +209,7 @@ public:
     /**
      * @brief 发送一个 GET 请求, 其以协程的方式运行
      * @param url 请求的 URL
-     * @return coroutine::Task<ResponseData> 
+     * @return coroutine::Task<ResponseData>
      */
     coroutine::Task<container::Try<ResponseData>> coGet(
         std::string url,
@@ -222,7 +223,7 @@ public:
      * @param url 请求的 URL
      * @param body 请求正文
      * @param contentType 请求正文类型
-     * @return container::FutureResult<container::Try<ResponseData>> 
+     * @return container::FutureResult<container::Try<ResponseData>>
      */
     container::FutureResult<container::Try<ResponseData>> post(
         std::string url,
@@ -231,7 +232,7 @@ public:
         HeaderHashMap headers = {}
     ) {
         return requst<POST>(
-            std::move(url), std::move(headers), 
+            std::move(url), std::move(headers),
             std::move(body), contentType);
     }
 
@@ -240,7 +241,7 @@ public:
      * @param url 请求的 URL
      * @param body 请求正文
      * @param contentType 请求正文类型
-     * @return coroutine::Task<ResponseData> 
+     * @return coroutine::Task<ResponseData>
      */
     coroutine::Task<container::Try<ResponseData>> coPost(
         std::string url,
@@ -259,7 +260,7 @@ public:
      * @tparam Str 正文字符串类型
      * @param url url 或者 path (以连接的情况下)
      * @param body 正文
-     * @param contentType 正文类型 
+     * @param contentType 正文类型
      * @return container::FutureResult<container::Try<ResponseData>> 响应数据
      */
     template <HttpMethod Method, meta::StringType Str = std::string>
@@ -278,7 +279,7 @@ public:
         }
 #endif // !NDEBUG
         return _pool.addTask([this, _url = std::move(url),
-                              _body = std::move(body), _headers = std::move(headers), 
+                              _body = std::move(body), _headers = std::move(headers),
                               contentType] {
             return coRequst<Method>(
                 std::move(_url), std::move(_headers),
@@ -293,7 +294,7 @@ public:
      * @tparam Str 正文字符串类型
      * @param url url 或者 path (以连接的情况下)
      * @param body 正文
-     * @param contentType 正文类型 
+     * @param contentType 正文类型
      * @return coroutine::Task<ResponseData> 响应数据
      */
     template <HttpMethod Method, meta::StringType Str = std::string>
@@ -314,7 +315,7 @@ public:
                 std::move(headers)
             );
         };
-        // co_return _isUniqueEventLoop 
+        // co_return _isUniqueEventLoop
         //     ? _eventLoop->trySync(task())
         //     : co_await _eventLoop->tryAsync(task());
         if (_isUniqueEventLoop) {
@@ -325,8 +326,8 @@ public:
 
     /**
      * @brief 建立连接
-     * @param url 
-     * @return coroutine::Task<container::Try<>> 
+     * @param url
+     * @return coroutine::Task<container::Try<>>
      */
     coroutine::Task<container::Try<>> coConnect(std::string_view url) {
         auto task = [&]() -> coroutine::Task<> {
@@ -343,7 +344,7 @@ public:
 
     /**
      * @brief 建立连接
-     * @param url 
+     * @param url
      */
     container::FutureResult<container::Try<>> connect(std::string url) {
 #ifndef NDEBUG
@@ -378,8 +379,8 @@ public:
 
     /**
      * @brief 断开连接
-     * @tparam NowOsType 
-     * @return coroutine::Task<> 
+     * @tparam NowOsType
+     * @return coroutine::Task<>
      */
     coroutine::Task<> coClose() noexcept {
         if (_cliFd == kInvalidSocket) {
@@ -392,17 +393,17 @@ public:
 
     /**
      * @brief 创建一个 WebSocket 循环, 其以线程池的方式独立运行
-     * @tparam Func 
+     * @tparam Func
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
      * @param headers 请求头
      * @return container::FutureResult<container::Try<Res>>
      */
     template <
-        typename Func, 
-        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient>>
+        typename Func,
+        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient<IOType>>, coroutine::Task<Res>>)
     container::FutureResult<container::Try<Res>> wsLoop(
         std::string url,
         Func&& func,
@@ -426,26 +427,26 @@ public:
 
     /**
      * @brief 一个独立的 WebSocket 循环
-     * @tparam Func 
+     * @tparam Func
      * @param url  ws 的 url, 如 ws://127.0.0.1:28205/ws (如果不对则抛异常)
      * @param func 该声明为 [](WebSocketClient ws) -> coroutine::Task<> { }
      * @param headers 请求头
-     * @return coroutine::Task<container::Try<Res>> 
+     * @return coroutine::Task<container::Try<Res>>
      */
     template <
-        typename Func, 
-        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient>>
+        typename Func,
+        typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
-        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient>, coroutine::Task<Res>>)
+        requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient<IOType>>, coroutine::Task<Res>>)
     coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func, HeaderHashMap headers = {}) {
         container::Try<Res> res;
         auto taskObj = [&]() -> coroutine::Task<> {
             if (needConnect()) {
                 co_await makeSocket(url);
             }
-            container::Uninitialized<WebSocketClient> ws;
+            container::Uninitialized<WebSocketClient<IOType>> ws;
             try {
-                ws.set(co_await WebSocketFactory::connect<Timeout>(
+                ws.set(co_await WebSocketFactory<IOType>::template connect<Timeout>(
                     url, _io.get(), headers
                 ));
             } catch (...) {
@@ -457,7 +458,7 @@ public:
                     // 重新建立连接
                     co_await makeSocket(url);
                     try {
-                        ws.set(co_await WebSocketFactory::connect<Timeout>(url, _io.get(), headers));
+                        ws.set(co_await WebSocketFactory<IOType>::template connect<Timeout>(url, _io.get(), headers));
                         res.reset();
                     } catch(...) {
                         res.setException(std::current_exception());
@@ -505,8 +506,8 @@ public:
 private:
     /**
      * @brief 建立 TCP 连接
-     * @param url 
-     * @return coroutine::Task<> 
+     * @param url
+     * @return coroutine::Task<>
      */
     coroutine::Task<> makeSocket(std::string_view url) {
         AddressResolver resolver;
@@ -529,7 +530,7 @@ private:
                     sockaddr._addrlen
                 );
                 auto isInit = _io.isAvailable();
-                if (!isInit) {                
+                if (!isInit) {
                     _io.set(_cliFd, *_eventLoop);
                 } else {
                     co_await _io.get().bindNewFd(_cliFd);
@@ -542,13 +543,15 @@ private:
                     }
                 }
 #ifdef HXLIBS_ENABLE_SSL
-                if (!isInit) {
-                    _io.get().initSslBio(SslContext::SslType::Client);
-                } else {
-                    _io.get().resetSslBio();
+                if constexpr (std::is_same_v<IOType, HttpsIO>) {
+                    if (!isInit) {
+                        _io.get().initSslBio(SslContext::SslType::Client);
+                    } else {
+                        _io.get().resetSslBio();
+                    }
+                    // 初始化连接 (Https 握手)
+                    co_await _io.get().template initSsl<Timeout>(false);
                 }
-                // 初始化连接 (Https 握手)
-                co_await _io.get().template initSsl<Timeout>(false);
 #endif // !HXLIBS_ENABLE_SSL
                 co_return;
             } catch (...) {
@@ -565,12 +568,12 @@ private:
     /**
      * @brief 发送 Http 请求
      * @tparam Method 请求类型
-     * @tparam Str 
+     * @tparam Str
      * @param url 请求 url
      * @param body 请求体
      * @param contentType 正文类型, 如 HTML / JSON / TEXT 等等
      * @param headers 请求头
-     * @return coroutine::Task<ResponseData> 
+     * @return coroutine::Task<ResponseData>
      */
     template <HttpMethod Method, meta::StringType Str = std::string_view>
     coroutine::Task<ResponseData> sendReq(
@@ -579,7 +582,7 @@ private:
         HttpContentType contentType = HttpContentType::None,
         HeaderHashMap headers = {}
     ) {
-        RequestType req{_io.get()};
+        Request req{_io.get()};
         req.template setReqLine<Method>(UrlParse::extractPath(url));
         preprocessHeaders(url, contentType, req);
         req.addHeaders(std::move(headers));
@@ -596,7 +599,7 @@ private:
                 // e: 大概率是 断开的管道, 直接重连
                 isOkFd = false;
             }
-            ResponseType res{_io.get()};
+            Response res{_io.get()};
             do {
                 try {
                     // 可能会抛异常...
@@ -629,7 +632,7 @@ private:
         } catch (...) {
             exceptionPtr = std::current_exception();
         }
-        
+
         log::hxLog.error("解析出错"); // debug
 
         co_await _io.get().close();
@@ -639,10 +642,10 @@ private:
 
     /**
      * @brief 预处理请求头
-     * @param url 
-     * @param req 
+     * @param url
+     * @param req
      */
-    void preprocessHeaders(std::string const& url, HttpContentType contentType, RequestType& req) { 
+    void preprocessHeaders(std::string const& url, HttpContentType contentType, Request& req) {
         try {
             auto host = UrlParse::extractDomainName(url);
             req.tryAddHeaders("Host", host);
@@ -663,7 +666,7 @@ private:
     std::shared_ptr<coroutine::EventLoop> _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
-    container::Uninitialized<IO> _io;
+    container::Uninitialized<IOType> _io;
 
     // 上一次解析的 Host
     std::string _host;
@@ -677,8 +680,8 @@ private:
 
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>> {
-    using Base = HttpBaseClient<Timeout, Proxy, HttpRequest<HttpIO>, HttpResponse<HttpIO>>;
+class HttpClient : public HttpBaseClient<Timeout, Proxy, HttpIO> {
+    using Base = HttpBaseClient<Timeout, Proxy, HttpIO>;
 public:
     using Base::Base;
 
@@ -696,11 +699,11 @@ HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
 
 template <typename Timeout, typename Proxy>
     requires(utils::HasTimeNTTP<Timeout>)
-class HttpsClient : public HttpBaseClient<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>> {
-    using Base = HttpBaseClient<Timeout, Proxy, HttpRequest<HttpsIO>, HttpResponse<HttpsIO>>;
+class HttpsClient : public HttpBaseClient<Timeout, Proxy, HttpsIO> {
+    using Base = HttpBaseClient<Timeout, Proxy, HttpsIO>;
 public:
     using Base::Base;
-    
+
     HttpsClient(
         HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
         std::shared_ptr<coroutine::EventLoop> loop = nullptr
@@ -710,7 +713,7 @@ public:
 
     /**
      * @brief 初始化 SSL, 此为全局单例. 仅以第一次调用为准.
-     * @param config 
+     * @param config
      * @return void
      */
     static void initSsl(SslConfig config) {

@@ -530,7 +530,7 @@ public:
      * @brief 获取内部 IO
      * @return IO& 
      */
-    IO& getIO() noexcept {
+    IOType& getIO() noexcept {
         return _io;
     }
 
@@ -607,8 +607,11 @@ private:
      */
     bool _completeBody = false;
 
+    template <typename>
     friend class Router;
+    template <typename>
     friend class WebSocketFactory;
+    template <typename>
     friend struct ConnectionHandler;
 
     /**
@@ -867,7 +870,5 @@ private:
         co_return 0;
     }
 };
-
-using Request = HttpRequest<IO>;
 
 } // namespace HX::net
