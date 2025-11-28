@@ -26,6 +26,9 @@
 #include <chrono>
 #include <format>
 #include <span>
+#include <random>
+
+#include <HXLibs/meta/FixedString.hpp>
 
 namespace HX::utils {
 
@@ -33,6 +36,13 @@ namespace HX::utils {
  * @brief 字符串操作工具类
  */
 struct StringUtil final {
+    inline static constexpr meta::FixedString kPureNumbers
+        = "0123456789";
+    inline static constexpr meta::FixedString kCapital
+        = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    inline static constexpr meta::FixedString kLowercase
+        = "abcdefghijklmnopqrstuvwxyz";
+
     /**
      * @brief 将字符串按`delimiter`分割为数组
      * @tparam Str 字符串类型, 可以是`std::string`或者`std::string_view`等
@@ -43,7 +53,7 @@ struct StringUtil final {
      * @return std::vector<Str> 
      */
     template <typename Str, bool SkipEmpty = true>
-    inline static std::vector<Str> split(
+    static std::vector<Str> split(
         std::string_view str,
         std::string_view delim, 
         std::vector<Str> res = std::vector<Str>{}
@@ -88,7 +98,7 @@ struct StringUtil final {
      * @return std::vector<std::pair<std::size_t, Str>> 数组<<该首字母在原字符串的索引, 字符串>>
      */
     template <typename Str, bool SkipEmpty = true>
-    inline static std::vector<std::pair<std::size_t, Str>> splitWithPos(
+    static std::vector<std::pair<std::size_t, Str>> splitWithPos(
         std::string_view str,
         std::string_view delim, 
         std::vector<std::pair<std::size_t, Str>> res = std::vector<std::pair<std::size_t, Str>>{}
@@ -129,7 +139,7 @@ struct StringUtil final {
      * @param delimiter 分割字符
      * @return 分割后的数组, 失败返回: `{"", ""}`
      */
-    inline static std::pair<std::string, std::string> splitAtFirst(
+    static std::pair<std::string, std::string> splitAtFirst(
         std::string_view str,
         std::string_view delim
     ) {
@@ -148,7 +158,7 @@ struct StringUtil final {
      * @brief 将字符串转为小写字母
      * @param str [in, out] 待处理字符串
      */
-    inline static void toLower(std::string& str) {
+    static void toLower(std::string& str) {
         size_t len = str.size();
         size_t ec = len / 8;
         uint64_t *p8 = (uint64_t *)str.data();
@@ -166,7 +176,7 @@ struct StringUtil final {
      * @brief 将字符串转为大写字母
      * @param str [in, out] 待处理字符串
      */
-    inline static void toUpper(std::string& str) {
+    static void toUpper(std::string& str) {
         if (str.empty())
             return;
         size_t len = str.size() + 1;
@@ -186,7 +196,7 @@ struct StringUtil final {
      * @param delim 模版字符串
      * @return 截取后面的子字符串, 如果没有则返回: 返回原字符串
      */
-    inline static std::string rfindAndTrim(std::string_view str, std::string_view delim) {
+    static std::string rfindAndTrim(std::string_view str, std::string_view delim) {
         std::size_t pos = str.rfind(delim);
         if (pos != std::string::npos) {
             return std::string {str.substr(pos + 1)};
@@ -199,8 +209,26 @@ struct StringUtil final {
      * @param buf 
      * @param sv 不要试图传递裸C数组, 这样会被构造为含有'\0'的内容, 至少使用 ""sv
      */
-    inline static void append(std::vector<char>& buf, std::span<char const> sv) {
+    static void append(std::vector<char>& buf, std::span<char const> sv) {
         buf.insert(buf.end(), sv.begin(), sv.end());
+    }
+
+    /**
+     * @brief 生成一个随机字符串
+     * @tparam Ranges 字符串数据范围
+     * @param size 生成的字符串长度
+     * @return std::string 
+     */
+    template <meta::FixedString Ranges>
+    static std::string random(std::size_t size) {
+        static_assert(Ranges.size() > 0, "The length of the range string should be greater than 1");
+        thread_local static std::mt19937 rng{std::random_device{}()};
+        std::uniform_int_distribution<std::size_t> uni{0, Ranges.size() - 1};
+        std::string res;
+        res.resize(size);
+        for (std::size_t i = 0; i < size; ++i)
+            res[i] = Ranges.data[uni(rng)];
+        return res;
     }
 };
 

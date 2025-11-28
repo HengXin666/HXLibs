@@ -878,60 +878,60 @@ public:
             return buf;
         }(), std::random_device{}()};
     }
-
-    /**
-     * @brief 生成一个可以复用的发送包, 以减少拷贝开销
-     * @warning 仅服务端可用
-     * @param opCode 
-     * @param msg 
-     * @return WebSocketPacketView 
-     */
-    static WebSocketServerSendView makePacketView(OpCode opCode, std::string_view msg) {
-        WebSocketServerSendView res{};
-        std::vector<uint8_t>& data = res.head;
-        data.reserve(2 + 8); // 不发送掩码
-
-        // 假设内容不会太大, 因为一个包可以最大存放是轻轻松松是 GB 级别的了 (1 << 63)
-        // 所以只有一个分片
-        constexpr bool fin = true;
-
-        // head0
-        data.push_back(fin << 7 | static_cast<uint8_t>(opCode));
-
-        // head1
-        constexpr bool Mask = false;
-        // 设置长度
-        uint8_t payloadLen8 = 0;
-        if (msg.size() < 0x7E) {
-            payloadLen8 = static_cast<uint8_t>(msg.size());
-            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
-        } else if (msg.size() <= 0xFFFF) {
-            payloadLen8 = 0x7E;
-            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
-            auto payloadLen16 = static_cast<uint16_t>(msg.size());
-            payloadLen16 = utils::ByteUtils::byteswapIfLittle(payloadLen16);
-            auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen16);
-            data.push_back(pLen[0]);
-            data.push_back(pLen[1]);
-        } else {
-            payloadLen8 = 0x7F;
-            data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
-            auto payloadLen64 = static_cast<uint64_t>(msg.size());
-            payloadLen64 = utils::ByteUtils::byteswapIfLittle(payloadLen64);
-            auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen64);
-            for (std::size_t i = 0; i < 8; ++i) {
-                data.push_back(pLen[i]);
-            }
-        }
-
-        res.content = msg;
-        return res;
-    }
 };
 
 // 断言: 大小不一样, 否则是库内部错误
 static_assert(sizeof(WebSocketClient<HttpIO>) != sizeof(WebSocketServer<HttpIO>), 
     "Internal error in the library");
+
+/**
+ * @brief 生成一个可以复用的发送包, 以减少拷贝开销
+ * @warning 仅服务端可用
+ * @param opCode 
+ * @param msg 
+ * @return WebSocketPacketView 
+ */
+inline WebSocketServerSendView makePacketView(OpCode opCode, std::string_view msg) {
+    WebSocketServerSendView res{};
+    std::vector<uint8_t>& data = res.head;
+    data.reserve(2 + 8); // 不发送掩码
+
+    // 假设内容不会太大, 因为一个包可以最大存放是轻轻松松是 GB 级别的了 (1 << 63)
+    // 所以只有一个分片
+    constexpr bool fin = true;
+
+    // head0
+    data.push_back(fin << 7 | static_cast<uint8_t>(opCode));
+
+    // head1
+    constexpr bool Mask = false;
+    // 设置长度
+    uint8_t payloadLen8 = 0;
+    if (msg.size() < 0x7E) {
+        payloadLen8 = static_cast<uint8_t>(msg.size());
+        data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+    } else if (msg.size() <= 0xFFFF) {
+        payloadLen8 = 0x7E;
+        data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+        auto payloadLen16 = static_cast<uint16_t>(msg.size());
+        payloadLen16 = utils::ByteUtils::byteswapIfLittle(payloadLen16);
+        auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen16);
+        data.push_back(pLen[0]);
+        data.push_back(pLen[1]);
+    } else {
+        payloadLen8 = 0x7F;
+        data.push_back(Mask << 7 | static_cast<uint8_t>(payloadLen8));
+        auto payloadLen64 = static_cast<uint64_t>(msg.size());
+        payloadLen64 = utils::ByteUtils::byteswapIfLittle(payloadLen64);
+        auto* pLen = reinterpret_cast<uint8_t const*>(&payloadLen64);
+        for (std::size_t i = 0; i < 8; ++i) {
+            data.push_back(pLen[i]);
+        }
+    }
+
+    res.content = msg;
+    return res;
+}
 
 } // namespace HX::net
 

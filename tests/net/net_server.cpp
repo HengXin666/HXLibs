@@ -261,7 +261,7 @@ private:
             if (_wsPool.empty())
                 co_return;
             // 一次生成数据
-            auto pk = WebSocketFactory<HttpIO>::makePacketView(OpCode::Text, msg);
+            auto pk = makePacketView(OpCode::Text, msg);
             for (auto& ws : _wsPool) {
                 // 多次重发这个数据
                 co_await ws.sendPacketView(pk);

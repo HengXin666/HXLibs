@@ -67,6 +67,27 @@ struct FixedString {
     constexpr auto operator<=>(const FixedString&) const noexcept = default;
 };
 
+template <std::size_t N, std::size_t M>
+constexpr auto operator|(FixedString<N> lhs, FixedString<M> rhs) noexcept -> FixedString<lhs.size() + rhs.size() + 1> {
+    char tmp[lhs.size() + rhs.size() + 1];
+    for (std::size_t i = 0; i < lhs.size(); ++i)
+        tmp[i] = lhs[i];
+    for (std::size_t i = 0; i < rhs.size(); ++i)
+        tmp[i + lhs.size()] = rhs[i];
+    tmp[lhs.size() + rhs.size()] = '\0';
+    return {tmp};
+}
+
+template <std::size_t N, std::size_t M>
+constexpr auto operator|(FixedString<N> lhs, const char (&rhs)[M]) noexcept -> FixedString<lhs.size() + M> {
+    return lhs | FixedString{rhs};
+}
+
+template <std::size_t N, std::size_t M>
+constexpr auto operator|(const char (&lhs)[N], FixedString<M> rhs) noexcept -> FixedString<N + rhs.size()> {
+    return FixedString{lhs} | rhs;
+}
+
 namespace internal {
 
 // 把 FixedString<S> 编译期展开为 CharPack<S[0], S[1], ...>
