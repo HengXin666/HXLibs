@@ -11,6 +11,9 @@
 # msvc ? vs2022 ?
 cpp.hint
 
+# vcpkg
+vcpkg_installed/**
+
 # User-specific stuff
 .idea/**/workspace.xml
 .idea/**/tasks.xml

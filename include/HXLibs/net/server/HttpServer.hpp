@@ -49,32 +49,8 @@ public:
      * @warning 该方法不可重入
      */
     void syncStop() noexcept {
-        using namespace utils;
         _isRun.store(false, std::memory_order_release);
-        while (_runNum) {
-            try {
-                // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
-#ifndef HXLIBS_ENABLE_SSL
-                HttpClient cli{HttpClientOptions{.timeout = 1_s}};
-#else
-                HttpsClient cli{HttpClientOptions{.timeout = 1_s}};
-                cli.initSsl({
-                    SslVerifyOption::None
-                });
-#endif // !HXLIBS_ENABLE_SSL
-                cli.get(
-                    (std::is_same_v<IO, HttpIO> ? std::string{"http"} : std::string{"https"}) 
-                    + "://127.0.0.1:"
-                    + _port
-                    + "/",
-                    {{"Connection", "close"}}
-                ).get();
-                cli.close();
-            } catch (...) {
-                ;
-            }
-        }
-        log::hxLog.warning("服务器已关闭...");
+        static_cast<Self*>(this)->syncStop();
     }
 
     /**
@@ -212,6 +188,27 @@ public:
     using Base = HttpBaseServer<HttpServer, HttpIO>;
     using Base::Base;
 
+    void syncStop() noexcept {
+        using namespace utils;
+        while (_runNum) {
+            try {
+                // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
+                HttpClient cli{HttpClientOptions{.timeout = 1_s}};
+                cli.get(
+                    (std::is_same_v<IO, HttpIO> ? std::string{"http"} : std::string{"https"}) 
+                    + "://127.0.0.1:"
+                    + _port
+                    + "/",
+                    {{"Connection", "close"}}
+                ).get();
+                cli.close();
+            } catch (...) {
+                ;
+            }
+        }
+        log::hxLog.warning("服务器已关闭...");
+    }
+
     /**
      * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
      * @tparam T 控制器类型
@@ -260,6 +257,29 @@ class HttpsServer : public HttpBaseServer<HttpsServer, HttpsIO> {
 public:
     using Base = HttpBaseServer<HttpsServer, HttpsIO>;
     using Base::Base;
+
+    void syncStop() noexcept {
+        using namespace utils;
+        while (_runNum) {
+            try {
+                HttpsClient cli{HttpClientOptions{.timeout = 1_s}};
+                cli.initSsl({
+                    SslVerifyOption::None
+                });
+                cli.get(
+                    (std::is_same_v<IO, HttpIO> ? std::string{"http"} : std::string{"https"}) 
+                    + "://127.0.0.1:"
+                    + _port
+                    + "/",
+                    {{"Connection", "close"}}
+                ).get();
+                cli.close();
+            } catch (...) {
+                ;
+            }
+        }
+        log::hxLog.warning("服务器已关闭...");
+    }
 
     /**
      * @brief 注册控制器到服务器, 可以进行依赖注入, 依次传参即可
