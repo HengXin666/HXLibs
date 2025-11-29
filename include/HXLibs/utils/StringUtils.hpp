@@ -222,7 +222,6 @@ struct StringUtil final {
     template <meta::FixedString Ranges>
     static std::string random(std::size_t size) {
         static_assert(Ranges.size() > 0, "The length of the range string should be greater than 1");
-        thread_local static std::mt19937 rng{std::random_device{}()};
         std::uniform_int_distribution<std::size_t> uni{0, Ranges.size() - 1};
         std::string res;
         res.resize(size);
@@ -230,6 +229,9 @@ struct StringUtil final {
             res[i] = Ranges.data[uni(rng)];
         return res;
     }
+
+private:
+    inline thread_local static std::mt19937 rng{std::random_device{}()};
 };
 
 /**

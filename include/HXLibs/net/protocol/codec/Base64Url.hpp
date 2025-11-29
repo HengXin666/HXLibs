@@ -22,7 +22,6 @@
 #include <string>
 #include <array>
 #include <string_view>
-#include <vector>
 #include <span>
 #include <stdexcept>
 
@@ -95,39 +94,47 @@ inline std::string base64UrlEncode(std::span<const char> input) {
  * @param input 
  * @return std::vector<uint8_t> 
  */
-inline std::vector<uint8_t> base64UrlDecode(std::string_view input) {
-    const size_t len = input.size();
-    if (len == 0)
+inline std::string base64UrlDecode(std::string_view input) {
+    const std::size_t len = input.size();
+    if (len == 0) [[unlikely]] {
         return {};
+    }
 
-    if (len % 4 == 1) [[unlikely]]
+    std::size_t fullBlocks = len / 4;
+    std::size_t rem = len % 4;
+    if (rem == 1) [[unlikely]] {
         throw std::runtime_error("invalid base64 length");
+    }
 
-    size_t outLen = (len / 4) * 3;
-    if (len % 4 == 2)
-        outLen += 1;
-    else if (len % 4 == 3)
-        outLen += 2;
+    std::string out(fullBlocks * 3 + (rem ? rem - 1 : 0), '\0');
 
-    std::vector<uint8_t> out(outLen);
-    size_t o = 0;
+    const uint8_t* inPtr  = reinterpret_cast<const uint8_t*>(input.data());
+    uint8_t* outPtr = reinterpret_cast<uint8_t*>(out.data());
 
-    for (size_t i = 0; i < len; i += 4) {
-        uint32_t v = 0;
-        for (size_t j = 0; j < 4 && i + j < len; ++j) {
-            char c = input[i + j];
-            if (c == '=')
-                break;
-            uint8_t d = kDecodeTable[uint8_t(c)];
-            if (d == 0xFF) [[unlikely]]
-                throw std::runtime_error("invalid base64 char");
-            v = (v << 6) | d;
-        }
+    // 处理整块 4 字符
+    for (std::size_t i = 0; i < fullBlocks; ++i) {
+        uint32_t v = (static_cast<uint32_t>(kDecodeTable[inPtr[0]]) << 18u) |
+                     (static_cast<uint32_t>(kDecodeTable[inPtr[1]]) << 12u) |
+                     (static_cast<uint32_t>(kDecodeTable[inPtr[2]]) << 6u)  |
+                      static_cast<uint32_t>(kDecodeTable[inPtr[3]]);
 
-        size_t bytes = std::min(size_t(3), len - i - 1);
-        for (size_t b = bytes; b-- > 0;) {
-            out[o++] = uint8_t((v >> (8 * b)) & 0xFF);
-        }
+        *outPtr++ = (v >> 16) & 0xFF;
+        *outPtr++ = (v >> 8) & 0xFF;
+        *outPtr++ = v & 0xFF;
+        inPtr += 4;
+    }
+
+    // 处理最后残余 2~3 字符
+    if (rem == 2) {
+        uint32_t v = (static_cast<uint32_t>(kDecodeTable[inPtr[0]]) << 6u) | 
+                      static_cast<uint32_t>(kDecodeTable[inPtr[1]]);
+        *outPtr++ = (v >> 4) & 0xFF;
+    } else if (rem == 3) {
+        uint32_t v = (static_cast<uint32_t>(kDecodeTable[inPtr[0]]) << 12u) |
+                     (static_cast<uint32_t>(kDecodeTable[inPtr[1]]) << 6u)  |
+                      static_cast<uint32_t>(kDecodeTable[inPtr[2]]);
+        *outPtr++ = (v >> 10) & 0xFF;
+        *outPtr++ = (v >> 2) & 0xFF;
     }
 
     return out;

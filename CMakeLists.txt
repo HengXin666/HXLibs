@@ -13,9 +13,6 @@ project(HXLibs
 # 是否开启 绕过操作系统的缓存, 直接将数据从用户空间读写到磁盘
 # set(IO_URING_DIRECT ON) # 有BUG 先不要用
 
-# 配置是否开启 HTTPS
-# set(HXLIBS_ENABLE_SSL ON)
-
 include(cmake/install.cmake)
 
 if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")

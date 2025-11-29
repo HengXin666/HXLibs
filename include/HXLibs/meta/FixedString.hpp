@@ -39,6 +39,8 @@ template <std::size_t N>
 struct FixedString {
     char data[N] {};
 
+    inline static constexpr std::size_t Size = N - 1;
+
     // 接收字面量拷贝到 data
     constexpr FixedString(const char(&s)[N]) {
         for (std::size_t i = 0; i < N; ++i) 
@@ -58,7 +60,7 @@ struct FixedString {
     // 长度不含终止符
     static constexpr std::size_t literalSize() noexcept { return N; }
 
-    static constexpr std::size_t size() noexcept { return N - 1; }
+    static constexpr std::size_t size() noexcept { return Size; }
 
     // 编译期索引访问
     constexpr char operator[](std::size_t i) const noexcept { return data[i]; }
@@ -68,7 +70,9 @@ struct FixedString {
 };
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(FixedString<N> lhs, FixedString<M> rhs) noexcept -> FixedString<lhs.size() + rhs.size() + 1> {
+constexpr auto operator|(
+    FixedString<N> lhs, FixedString<M> rhs
+) noexcept -> FixedString<FixedString<N>::Size + FixedString<M>::Size + 1> {
     char tmp[lhs.size() + rhs.size() + 1];
     for (std::size_t i = 0; i < lhs.size(); ++i)
         tmp[i] = lhs[i];
@@ -79,12 +83,16 @@ constexpr auto operator|(FixedString<N> lhs, FixedString<M> rhs) noexcept -> Fix
 }
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(FixedString<N> lhs, const char (&rhs)[M]) noexcept -> FixedString<lhs.size() + M> {
+constexpr auto operator|(
+    FixedString<N> lhs, const char (&rhs)[M]
+) noexcept -> FixedString<FixedString<N>::Size + M> {
     return lhs | FixedString{rhs};
 }
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(const char (&lhs)[N], FixedString<M> rhs) noexcept -> FixedString<N + rhs.size()> {
+constexpr auto operator|(
+    const char (&lhs)[N], FixedString<M> rhs
+) noexcept -> FixedString<N + FixedString<M>::Size> {
     return FixedString{lhs} | rhs;
 }
 

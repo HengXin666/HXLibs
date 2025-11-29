@@ -19,13 +19,24 @@ jobs:
       - name: 设置 MSVC 编译环境
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: 配置
-        run: >
-          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}"
-          -G "Ninja"
-          -DCMAKE_BUILD_TYPE=${{matrix.mode}}
-          -DCMAKE_C_COMPILER=cl.exe
-          -DCMAKE_CXX_COMPILER=cl.exe
+      - name: 安装 vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "${{github.workspace}}/vcpkg"
+          cd "${{github.workspace}}/vcpkg"
+          .\bootstrap-vcpkg.bat
+
+      - name: 安装依赖
+        run: |
+          "${{github.workspace}}/vcpkg/vcpkg.exe" install --triplet x64-windows
+
+      - name: 配置 CMake
+        run: |
+          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}" ^
+            -G "Ninja" ^
+            -DCMAKE_BUILD_TYPE=${{matrix.mode}} ^
+            -DCMAKE_C_COMPILER=cl.exe ^
+            -DCMAKE_CXX_COMPILER=cl.exe ^
+            -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake"
 
       - name: 构建
         run: cmake --build "${{github.workspace}}/build"
