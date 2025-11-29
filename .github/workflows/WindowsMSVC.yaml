@@ -31,11 +31,11 @@ jobs:
 
       - name: 配置 CMake
         run: |
-          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}" ^
-            -G "Ninja" ^
-            -DCMAKE_BUILD_TYPE=${{matrix.mode}} ^
-            -DCMAKE_C_COMPILER=cl.exe ^
-            -DCMAKE_CXX_COMPILER=cl.exe ^
+          cmake -B "${{github.workspace}}/build" -S "${{github.workspace}}" `
+            -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=${{matrix.mode}} `
+            -DCMAKE_C_COMPILER=cl.exe `
+            -DCMAKE_CXX_COMPILER=cl.exe `
             -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake"
 
       - name: 构建
