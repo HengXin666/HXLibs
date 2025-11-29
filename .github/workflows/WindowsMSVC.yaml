@@ -27,7 +27,7 @@ jobs:
 
       - name: 安装依赖
         run: |
-          "${{github.workspace}}/vcpkg/vcpkg.exe" install --triplet x64-windows
+          & "${{github.workspace}}/vcpkg/vcpkg.exe" install --triplet x64-windows
 
       - name: 配置 CMake
         run: |
