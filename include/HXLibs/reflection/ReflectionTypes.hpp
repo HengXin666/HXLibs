@@ -45,14 +45,14 @@ struct HasOutReflection<T, std::void_t<decltype(membersCount(std::declval<T>()))
  * @tparam T 
  */
 template <typename T>
-constexpr bool HasInsideReflection = internal::HasInsideReflection<meta::remove_cvref_t<T>>::value;
+constexpr bool HasInsideReflection = internal::HasInsideReflection<meta::RemoveCvRefType<T>>::value;
 
 /**
  * @brief 是否在类的内部使用反射宏注册
  * @tparam T 
  */
 template <typename T>
-constexpr bool HasOutReflection = internal::HasOutReflection<meta::remove_cvref_t<T>>::value;
+constexpr bool HasOutReflection = internal::HasOutReflection<meta::RemoveCvRefType<T>>::value;
 
 /**
  * @brief 是否为HXLibs可反射类型
@@ -63,7 +63,7 @@ constexpr bool IsReflective = (
              std::is_class_v<T>
              && std::is_aggregate_v<T> 
              && !std::is_same_v<T, std::monostate>
-             && !meta::is_std_array_v<T>)
+             && !meta::IsStdArrayVal<T>)
              || HasInsideReflection<T>
              || HasOutReflection<T>;
 

@@ -392,7 +392,7 @@ std::conditional_t<
                         // func 返回值是 void
                         _func(InArgType{data.move()});
                         ans->setData(NonVoidType<>{});
-                    } else if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
+                    } else if constexpr (IsTryTypeVal<meta::RemoveCvRefType<Res>>) {
                         // 特判如果是 Try 则去掉一层
                         Uninitialized<Res> funcRes;
                         funcRes.set(_func(InArgType{data.move()}));
@@ -411,7 +411,7 @@ std::conditional_t<
                         // func 返回值是 void
                         _func(InArgType{self._res->getException()});
                         ans->setData(NonVoidType<>{});
-                    } else if constexpr (IsTryTypeVal<meta::remove_cvref_t<Res>>) {
+                    } else if constexpr (IsTryTypeVal<meta::RemoveCvRefType<Res>>) {
                         // 特判如果是 Try 则去掉一层
                         Uninitialized<Res> funcRes;
                         funcRes.set(_func(InArgType{self._res->getException()}));

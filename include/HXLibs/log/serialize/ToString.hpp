@@ -435,7 +435,7 @@ struct FormatZipString {
 
     template <typename CharT, std::size_t N, typename Stream>
     constexpr void make(CharArrWarp<CharT, N> t, Stream& s) {
-        if constexpr (std::is_same_v<typename meta::remove_cvref_t<decltype(t)>::Type, char>) {
+        if constexpr (std::is_same_v<typename meta::RemoveCvRefType<decltype(t)>::Type, char>) {
             s.append({t.arr, N - 1});
         } else {
             s.append(toByteString({t.arr, N - 1}));
@@ -543,13 +543,13 @@ struct FormatZipString {
 
     // std::智能指针
     template <typename T>
-        requires (meta::is_smart_pointer_v<T>)
+        requires (meta::IsSmartPointerVal<T>)
     constexpr std::string make(T const& ptr) {
         return ptr ? make(*ptr) : make(nullptr);
     }
 
     template <typename T, typename Stream>
-        requires (meta::is_smart_pointer_v<T>)
+        requires (meta::IsSmartPointerVal<T>)
     constexpr void make(T const& ptr, Stream& s) {
         ptr ? make(*ptr, s) : make(nullptr, s);
     }

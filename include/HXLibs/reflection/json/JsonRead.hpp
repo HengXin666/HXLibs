@@ -262,7 +262,7 @@ struct FromJson {
     }
     
     template <typename T, typename It>
-        requires(meta::is_optional_v<T> || meta::is_smart_pointer_v<T>)
+        requires(meta::IsOptionalVal<T> || meta::IsSmartPointerVal<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
         // 解析指针 或者 optional
@@ -278,10 +278,10 @@ struct FromJson {
             it += 4;
             return;
         }
-        if constexpr (meta::is_optional_v<T>) {
+        if constexpr (meta::IsOptionalVal<T>) {
             t = typename T::value_type{}; // 要求支持默认无参构造
             fromJson(*t, it, end);
-        } else if constexpr (meta::is_smart_pointer_v<T>) {
+        } else if constexpr (meta::IsSmartPointerVal<T>) {
             t = T{new typename T::element_type{}}; // 要求支持默认无参构造 并且可以被 new
             fromJson(*t, it, end);
         } else {
@@ -309,8 +309,8 @@ struct FromJson {
     }
 
     template <meta::SingleElementContainer T, typename It>
-        requires(!meta::is_std_array_v<T> 
-              && !meta::is_span_v<T>)
+        requires(!meta::IsStdArrayVal<T> 
+              && !meta::IsSpanVal<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
         verify<'['>(it, end);
@@ -341,8 +341,8 @@ struct FromJson {
     }
 
     template <typename T, typename It>
-        requires (meta::is_std_array_v<T> 
-               || meta::is_span_v<T>)
+        requires (meta::IsStdArrayVal<T> 
+               || meta::IsSpanVal<T>)
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
         verify<'['>(it, end);
@@ -425,22 +425,22 @@ struct FromJson {
                 // 解析值 (非空白字符)
                 // 需要一个运行时可以查找到第 i 个元素的偏移量的方法
                 std::visit([&](auto&& idx) {
-                    if constexpr (std::is_array_v<meta::remove_cvref_t<decltype(
-                        *std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(
+                    if constexpr (std::is_array_v<meta::RemoveCvRefType<decltype(
+                        *std::get<meta::RemoveCvRefType<decltype(idx)>::Idx>(
                             reflection::internal::getStaticObjPtrTuple<T>())
                     )>>) {
                         // 不支持C风格数组, 至少替换成 std::array
                         static_assert(!sizeof(T), "Not supporting C-style arrays, "
                                                   "at least replace with std::array");
-                    } else if constexpr (std::is_pointer_v<meta::remove_cvref_t<decltype(
-                        *std::get<meta::remove_cvref_t<decltype(idx)>::Idx>(
+                    } else if constexpr (std::is_pointer_v<meta::RemoveCvRefType<decltype(
+                        *std::get<meta::RemoveCvRefType<decltype(idx)>::Idx>(
                             reflection::internal::getStaticObjPtrTuple<T>())
                     )>>) {
                         // 不支持C风格裸指针, 至少替换成 智能指针
                         static_assert(!sizeof(T), "Does not support C-style bare pointers, "
                                                   "at least replace with smart pointers");
                     }
-                    using PtrType = typename meta::remove_cvref_t<decltype(idx)>::Type *;
+                    using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type *;
                     auto ptr = reinterpret_cast<PtrType>(
                         reinterpret_cast<char*>(&t) + idx.offset
                     );

@@ -91,7 +91,7 @@ inline consteval std::size_t membersCount() {
  */
 template <typename T>
 inline consteval std::size_t membersCount() {
-    return internal::membersCount<meta::remove_cvref_t<T>>();
+    return internal::membersCount<meta::RemoveCvRefType<T>>();
 }
 
 /**

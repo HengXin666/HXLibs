@@ -517,13 +517,13 @@ struct FormatString {
 
     // std::智能指针
     template <typename T>
-        requires (meta::is_smart_pointer_v<T>)
+        requires (meta::IsSmartPointerVal<T>)
     constexpr std::string make(T const& ptr) {
         return ptr ? make(*ptr) : make(nullptr);
     }
 
     template <typename T, typename Stream>
-        requires (meta::is_smart_pointer_v<T>)
+        requires (meta::IsSmartPointerVal<T>)
     constexpr void make(T const& ptr, Stream& s) {
         ptr ? make(*ptr, s) : make(nullptr, s);
     }

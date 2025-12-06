@@ -69,7 +69,7 @@ struct SetObjIdx {
 
 template <std::size_t... Idx, typename... Ts>
 constexpr auto makeVariantSetObjIdxs(std::index_sequence<Idx...>, std::tuple<Ts...>) {
-    return std::variant<SetObjIdx<Idx, meta::remove_cvref_t<Ts>>...>{};
+    return std::variant<SetObjIdx<Idx, meta::RemoveCvRefType<Ts>>...>{};
 }
 
 } // namespace internal
@@ -90,7 +90,7 @@ constexpr auto makeNameToIdxVariantHashMap() {
         [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
             return std::array<std::pair<std::string_view, CHashMapValType>, N>{{{
                 nameArr[Idx], CHashMapValType{
-                    internal::SetObjIdx<Idx, meta::remove_cvref_t<decltype(std::get<Idx>(tp))>>{
+                    internal::SetObjIdx<Idx, meta::RemoveCvRefType<decltype(std::get<Idx>(tp))>>{
                         static_cast<std::size_t>(
                             reinterpret_cast<std::byte*>(&std::get<Idx>(tp))
                             - reinterpret_cast<std::byte const*>(&t)
@@ -108,7 +108,7 @@ constexpr auto makeNameToIdxVariantHashMap() {
  */
 template <typename T>
 inline constexpr auto makeMemberPtrToNameMap() noexcept {
-    using U = meta::remove_cvref_t<T>;
+    using U = meta::RemoveCvRefType<T>;
     constexpr auto Cnt = membersCountVal<U>;
     constexpr auto membersArr = getMembersNames<U>();
     constexpr auto& t = internal::getStaticObj<T>();

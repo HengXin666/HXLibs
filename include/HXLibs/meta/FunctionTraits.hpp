@@ -69,7 +69,7 @@ struct FunctionTraits<Lambda> : FunctionTraits<decltype(&Lambda::operator())>{};
  * @tparam Func 
  */
 template <typename Func>
-using FunctionInfo = internal::FunctionTraits<meta::remove_cvref_t<Func>>;
+using FunctionInfo = internal::FunctionTraits<meta::RemoveCvRefType<Func>>;
 
 /**
  * @brief 获取函数的第 Idx 个参数的类型

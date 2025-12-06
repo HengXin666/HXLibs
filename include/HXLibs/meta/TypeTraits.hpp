@@ -30,7 +30,7 @@ namespace HX::meta {
  * @tparam T 
  */
 template <typename T>
-using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+using RemoveCvRefType = std::remove_cv_t<std::remove_reference_t<T>>;
 
 /**
  * @brief 判断`variant<Ts...>`中是否含有`T`类型
@@ -38,27 +38,27 @@ using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
  * @tparam Ts 
  */
 template <typename T, typename... Ts>
-constexpr bool has_variant_type_v = false;
+constexpr bool HasTypeInVariantVal = false;
 
 template <typename T, typename... Ts>
-constexpr bool has_variant_type_v<T, std::variant<Ts...>> = std::disjunction_v<std::is_same<T, Ts>...>;
+constexpr bool HasTypeInVariantVal<T, std::variant<Ts...>> = std::disjunction_v<std::is_same<T, Ts>...>;
 
 /**
  * @brief 类型萃取: 是否为 optional 类型
  * @tparam T 
  */
 template <typename T>
-constexpr bool is_optional_v = false;
+constexpr bool IsOptionalVal = false;
 
 template <typename T>
-constexpr bool is_optional_v<std::optional<T>> = true;
+constexpr bool IsOptionalVal<std::optional<T>> = true;
 
 /**
  * @brief 类型萃取: 是否为 智能指针 类型
  * @tparam T 
  */
 template <typename T>
-concept is_smart_pointer_v = std::same_as<T, std::unique_ptr<typename T::element_type>>
+concept IsSmartPointerVal = std::same_as<T, std::unique_ptr<typename T::element_type>>
                           || std::same_as<T, std::shared_ptr<typename T::element_type>>
                           || std::same_as<T, std::weak_ptr<typename T::element_type>>;
 
@@ -67,17 +67,17 @@ concept is_smart_pointer_v = std::same_as<T, std::unique_ptr<typename T::element
  * @tparam T 
  */
 template <typename T>
-constexpr bool is_std_array_v = false;
+constexpr bool IsStdArrayVal = false;
 
 template <typename T, std::size_t N>
-constexpr bool is_std_array_v<std::array<T, N>> = true;
+constexpr bool IsStdArrayVal<std::array<T, N>> = true;
 
 /**
  * @brief 概念: 是否为 span 类型 (支持 subspan 方法的)
  * @tparam T 
  */
 template <typename T>
-concept is_span_v = requires (T&& t) {
+concept IsSpanVal = requires (T&& t) {
     t.subspan(0);
 };
 

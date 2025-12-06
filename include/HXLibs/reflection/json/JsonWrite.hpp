@@ -333,7 +333,7 @@ struct ToJson {
 
     // opt
     template <typename T, typename S>
-        requires (meta::is_optional_v<T>)
+        requires (meta::IsOptionalVal<T>)
     static void toJson(T const& t, S& s) {
         t ? toJson(*t, s) : toJson(std::nullopt, s);
     }
@@ -348,7 +348,7 @@ struct ToJson {
 
     // 智能指针
     template <typename T, typename S>
-        requires (meta::is_smart_pointer_v<T>)
+        requires (meta::IsSmartPointerVal<T>)
     static void toJson(T const& t, S& s) {
         t ? toJson(*t, s) : toJson(std::nullptr_t{}, s);
     }

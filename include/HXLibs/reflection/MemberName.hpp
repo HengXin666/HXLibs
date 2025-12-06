@@ -70,16 +70,16 @@ inline constexpr std::string_view getMemberName() noexcept {
  */
 template <typename T>
 struct StaticObj {
-    inline static meta::remove_cvref_t<T> obj;
+    inline static meta::RemoveCvRefType<T> obj;
 };
 
 /**
  * @brief 获取类静态成员T
  * @tparam T 
- * @return constexpr utils::remove_cvref_t<T>& 
+ * @return constexpr utils::RemoveCvRefType<T>& 
  */
 template <typename T>
-inline constexpr meta::remove_cvref_t<T>& getStaticObj() {
+inline constexpr meta::RemoveCvRefType<T>& getStaticObj() {
     return StaticObj<T>::obj;
 }
 
@@ -182,11 +182,11 @@ struct ReflectionVisitor<T, N> {                            \
 template <typename T>
 inline constexpr auto getStaticObjPtrTuple() {
     if constexpr (reflection::HasInsideReflection<T>) {
-        return meta::remove_cvref_t<T>::visit();
+        return meta::RemoveCvRefType<T>::visit();
     } else if constexpr (reflection::HasOutReflection<T>) {
         return visit(getStaticObj<T>());
     } else {
-        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit();
+        return ReflectionVisitor<meta::RemoveCvRefType<T>, membersCountVal<T>>::visit();
     }
 }
 
@@ -199,11 +199,11 @@ inline constexpr auto getStaticObjPtrTuple() {
 template <typename T>
 inline constexpr auto getObjTie(T& obj) {
     if constexpr (reflection::HasInsideReflection<T>) {
-        return meta::remove_cvref_t<T>::visit(obj);
+        return meta::RemoveCvRefType<T>::visit(obj);
     } else if constexpr (reflection::HasOutReflection<T>) {
         return visit(getStaticObj<T>(), obj);
     }else {
-        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+        return ReflectionVisitor<meta::RemoveCvRefType<T>, membersCountVal<T>>::visit(obj);
     }
 }
 
@@ -216,11 +216,11 @@ inline constexpr auto getObjTie(T& obj) {
 template <typename T>
 inline constexpr auto getObjTie(T const& obj) {
     if constexpr (reflection::HasInsideReflection<T>) {
-        return meta::remove_cvref_t<T>::visit(obj);
+        return meta::RemoveCvRefType<T>::visit(obj);
     } else if constexpr (reflection::HasOutReflection<T>) {
         return visit(getStaticObj<T>(), obj);
     } else {
-        return ReflectionVisitor<meta::remove_cvref_t<T>, membersCountVal<T>>::visit(obj);
+        return ReflectionVisitor<meta::RemoveCvRefType<T>, membersCountVal<T>>::visit(obj);
     }
 }
 

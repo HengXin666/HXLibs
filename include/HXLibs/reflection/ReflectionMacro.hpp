@@ -35,7 +35,7 @@ namespace HX::reflection {
 
 /// @brief 声明 __NAME__ 成员
 #define _hx_REFL_STRUCT_G_MEMBER__(__NAME__)                                   \
-    decltype(meta::remove_cvref_t<decltype(t)>::__NAME__) __NAME__;
+    decltype(meta::RemoveCvRefType<decltype(t)>::__NAME__) __NAME__;
 
 /// @brief 前置逗号获取成员变量
 #define _hx_REFL_GET_MEMBER__(__NAME__) , t.__NAME__
@@ -55,7 +55,7 @@ namespace HX::reflection {
 
 /// @brief 声明 __NAME__ 类型名称为 __NEW_NAME__ 的成员
 #define _hx_REFL_STRUCT_G_MEMBER_AS__(__NAME__, __NEW_NAME__)                  \
-    decltype(meta::remove_cvref_t<decltype(t)>::__NAME__) __NEW_NAME__;
+    decltype(meta::RemoveCvRefType<decltype(t)>::__NAME__) __NEW_NAME__;
 
 /// @brief 前置逗号获取成员变量
 #define _hx_REFL_GET_MEMBER_AS__(__NAME__, _) , t.__NAME__

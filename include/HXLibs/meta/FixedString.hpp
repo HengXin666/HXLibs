@@ -52,7 +52,7 @@ struct FixedString {
         data[N - 1] = '\0';
         for (std::size_t i = 0; i < sv.size(); ++i) 
             data[i] = sv[i];
-        if (data[N - 1]) {
+        if (data[N - 1] || Size != sv.size()) [[unlikely]] {
             throw; // N 应该加1, 留存 '\0' 以确保某些时候的兼容性
         }
     }
@@ -70,7 +70,7 @@ struct FixedString {
 };
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(
+constexpr auto operator+(
     FixedString<N> lhs, FixedString<M> rhs
 ) noexcept -> FixedString<FixedString<N>::Size + FixedString<M>::Size + 1> {
     char tmp[lhs.size() + rhs.size() + 1];
@@ -83,17 +83,17 @@ constexpr auto operator|(
 }
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(
+constexpr auto operator+(
     FixedString<N> lhs, const char (&rhs)[M]
 ) noexcept -> FixedString<FixedString<N>::Size + M> {
-    return lhs | FixedString{rhs};
+    return lhs + FixedString{rhs};
 }
 
 template <std::size_t N, std::size_t M>
-constexpr auto operator|(
+constexpr auto operator+(
     const char (&lhs)[N], FixedString<M> rhs
 ) noexcept -> FixedString<N + FixedString<M>::Size> {
-    return FixedString{lhs} | rhs;
+    return FixedString{lhs} + rhs;
 }
 
 namespace internal {

@@ -16,7 +16,13 @@ TEST_CASE("FixedString") {
 }
 
 TEST_CASE("FixedString op") {
-    static_assert(meta::ToCharPack<meta::FixedString{"a"} | "a">::view() == "aa");
-    static_assert(meta::ToCharPack<meta::FixedString{"a"} | "a" | "a">::view() == "aaa");
-    static_assert(meta::ToCharPack<"a" | meta::FixedString{"a"} | "a">::view() == "aaa");
+    static_assert(meta::ToCharPack<meta::FixedString{"a"} + "a">::view() == "aa");
+    static_assert(meta::ToCharPack<meta::FixedString{"a"} + "a" + "a">::view() == "aaa");
+    static_assert(meta::ToCharPack<"a" + meta::FixedString{"a"} + "a">::view() == "aaa");
+
+    constexpr std::string_view str{"a"};
+    constexpr meta::FixedString<str.size() + 1> fStr{str};
+    static_assert(meta::ToCharPack<fStr>::view() == "a");
+
+    static_assert(meta::ToCharPack<meta::FixedString{"a"} + "a" + fStr>::view() == "aaa");
 }
