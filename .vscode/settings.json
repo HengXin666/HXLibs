@@ -14,5 +14,6 @@
             "args": ["/K","chcp 65001"],
             "icon": "terminal-cmd"
         }
-    }
+    },
+    "editor.tabSize": 4
 }

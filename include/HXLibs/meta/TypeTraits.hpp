@@ -123,11 +123,30 @@ constexpr bool IsConstructibleVal = requires {
 
 /**
  * @brief 判断类型是否全部相同
- * @tparam T0 
- * @tparam Ts 
  */
 template <typename T0, typename... Ts>
 constexpr bool IsAllSameVal = (std::is_same_v<T0, Ts> && ...);
+
+/**
+ * @brief 判断类型 T 是否和 Types 都 不相同
+ * @tparam T 
+ * @tparam Ts 
+ */
+template <typename T, typename... Ts>
+constexpr bool IsTypeNotInTypesVal = (!std::is_same_v<T, Ts> && ...);
+
+/**
+ * @brief 判断 [T, Ts] 中的类型是否都 互不相同
+ */
+template <typename T, typename... Ts>
+constexpr bool IsAllUniqueVal = [] {
+    // O(N^2)
+    if constexpr (sizeof...(Ts) <= 1) {
+        return IsTypeNotInTypesVal<T, Ts...>;
+    } else {
+        return IsTypeNotInTypesVal<T, Ts...> && IsAllUniqueVal<Ts...>;
+    }
+}();
 
 } // namespace HX::meta
 

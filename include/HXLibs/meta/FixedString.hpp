@@ -21,6 +21,8 @@
 #include <array>
 #include <string_view>
 
+#include <HXLibs/log/serialize/CustomToString.hpp>
+
 namespace HX::meta {
     
 // 一个承载 char 参数包的类型
@@ -108,3 +110,21 @@ template <FixedString S>
 using ToCharPack = decltype(internal::toCharPackImpl<S>(std::make_index_sequence<S.size()>{}));
 
 } // namespace HX::meta
+
+namespace HX::log {
+
+template <std::size_t N, typename FormatType>
+struct CustomToString<meta::FixedString<N>, FormatType> {
+    FormatType* self;
+
+    std::string make(meta::FixedString<N> const& v) {
+        return self->make(std::string_view{v.data, v.size()});
+    }
+
+    template <typename Stream>
+    void make(meta::FixedString<N> const& v, Stream& s) {
+        return self->make(std::string_view{v.data, v.size()}, s);
+    }
+};
+
+} // namespace HX::log

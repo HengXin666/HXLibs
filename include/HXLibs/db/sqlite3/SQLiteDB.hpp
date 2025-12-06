@@ -41,7 +41,7 @@
 
 #include <HXLibs/db/MakeSqlStr.hpp>
 #include <HXLibs/db/SQLiteMeta.hpp>
-#include <HXLibs/db/sqlite/SQLiteStmt.hpp>
+#include <HXLibs/db/sqlite3/SQLiteStmt.hpp>
 
 namespace HX::db {
 
