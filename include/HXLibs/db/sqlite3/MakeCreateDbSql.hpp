@@ -24,7 +24,10 @@
 #include <HXLibs/reflection/MemberName.hpp>
 #include <HXLibs/reflection/MemberPtr.hpp>
 #include <HXLibs/reflection/TypeName.hpp>
+#include <HXLibs/reflection/EnumName.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
+
+#include <HXLibs/log/Log.hpp> // debug
 
 namespace HX::db::sqlite3 {
 
@@ -73,7 +76,7 @@ struct CreateDbSql {
                 mainSql += "UNIQUE";
             } else if constexpr (std::is_same_v<Constraint, attr::AutoIncrement>) {
                 mainSql += "AUTOINCREMENT";
-            } else if constexpr (std::is_same_v<Constraint, attr::Index>) {
+            } else if constexpr (attr::IsIndexVal<Constraint>) {
                 // SQLite 语法规定 索引必须独立语句, 不能写在创建表中.
                 return;
             } else if constexpr (attr::IsDefaultValTypeVal<Constraint>) {
@@ -82,37 +85,48 @@ struct CreateDbSql {
                     mainSql += log::toString(Value);
                 }(Constraint{});
             } else if constexpr (attr::IsForeignVal<Constraint>) {
-                [&] <auto... Keys> (attr::Foreign<Keys...>) constexpr {
-                    ([&] (auto Key) constexpr {
-                        using PtrType = decltype(Key);
-                        using ClassType = meta::GetMemberPtrClassType<PtrType>;
-                        auto map = reflection::makeMemberPtrToNameMap<ClassType>();
-                        auto name = map.at(Key);
-                        foreignKeySql += "FOREIGN KEY(";
-                        foreignKeySql += selfName;
-                        foreignKeySql += ") REFERENCES ";
-                        foreignKeySql += reflection::getTypeName<ClassType>();
-                        foreignKeySql += '(';
-                        foreignKeySql += name;
-                        foreignKeySql += "),";
-                    }(Keys), ...);
+                [&] <auto Key> (attr::Foreign<Key>) {
+                    // 确保外键约束的类型和本类字段的类型一致
+                    static_assert(std::is_same_v<T, typename meta::GetMemberPtrType<decltype(Key)>::Type>,
+                        "The foreign key type is inconsistent with the field type of this type");
+
+                    using ForeignTable = meta::GetMemberPtrsClassType<decltype(Key)>;
+                    std::string keySql = "FOREIGN KEY(";
+                    std::string refSql = " REFERENCES ";
+                    refSql += reflection::getTypeName<ForeignTable>();
+                    refSql += '(';
+
+                    auto map = reflection::makeMemberPtrToNameMap<ForeignTable>();
+                    auto name = map.at(Key);
+                    keySql += selfName;
+                    keySql += ',';
+                    refSql += name;
+                    refSql += ',';
+                    keySql.back() = ')';
+                    refSql.back() = ')';
+                    refSql += ',';
+                    foreignKeySql += keySql;
+                    foreignKeySql += refSql;
                 }(Constraint{});
                 return;
+            } else if constexpr (attr::IsUnionForeignVal<Constraint>) {
+                // 不应该在类中使用 UnionForeign, 应该在嵌套类 UnionAttr 中使用
+                static_assert(!sizeof(T),
+                    "UnionForeign should not be used in the class, "
+                    "but should be used in the nested class UnionAttr");
             }
             mainSql += ' ';
         }(ConstraintTypes{}), ...);
     }
 
     template <typename T>
-    static std::string createDatabase(T&& t) noexcept {
+    static std::string createDatabase(T&& t) {
         using Table = meta::RemoveCvRefType<T>;
         std::string sql = "CREATE TABLE ";
         std::string foreignKeySql{};
         sql += reflection::getTypeName<Table>();
         sql += " (";
-        reflection::forEach(t, [&] <std::size_t Idx> (
-            std::index_sequence<Idx>, auto name, auto&& val
-        ) {
+        reflection::forEach(t, [&] (auto, auto name, auto&& val) {
             sql += name;
             sql += ' ';
             using Type = meta::RemoveCvRefType<decltype(val)>;
@@ -124,12 +138,102 @@ struct CreateDbSql {
                 sql += ',';
             }
         });
+        // 嵌套类
+        if constexpr (attr::HasUnionAttr<Table>) {
+            reflection::forEach(typename Table::UnionAttr{}, [&] (auto, auto, auto&& val) {
+                using Type = meta::RemoveCvRefType<decltype(val)>;
+                if constexpr (attr::IsUnionForeignVal<Type>) {
+                    [&] <auto... InternalKeyPtrs, auto... ForeignKeyPtrs> (
+                        attr::UnionForeign<attr::ForeignMap<InternalKeyPtrs, ForeignKeyPtrs>...>
+                    ) {
+                        // 内键应该来源于本表
+                        static_assert(std::is_same_v<
+                            Table, meta::GetMemberPtrsClassType<decltype(InternalKeyPtrs)...>>, 
+                            "Internal key should come from this table");
+                        using ForeignTable = meta::GetMemberPtrsClassType<decltype(ForeignKeyPtrs)...>;
+                        // 外键应该来自同一个表
+                        static_assert(!std::is_void_v<ForeignTable>,
+                            "The foreign key should come from the same table");
+                        // 内外键对应的类型应该相同 (ForeignMap 类型默认保证)
+                        std::string keySql = "FOREIGN KEY(";
+                        std::string refSql = " REFERENCES ";
+                        refSql += reflection::getTypeName<ForeignTable>();
+                        refSql += '(';
+                        
+                        auto selfNameMap = reflection::makeMemberPtrToNameMap<Table>();
+                        auto foreignNameMap = reflection::makeMemberPtrToNameMap<ForeignTable>();
+                        ([&] (auto iKey, auto fKey) {
+                            keySql += selfNameMap.at(iKey);
+                            keySql += ',';
+                            refSql += foreignNameMap.at(fKey);
+                            refSql += ',';
+                        }(InternalKeyPtrs, ForeignKeyPtrs), ...);
+
+                        keySql.back() = ')';
+                        refSql.back() = ')';
+                        refSql += ',';
+                        foreignKeySql += keySql;
+                        foreignKeySql += refSql;
+                    }(Type{});
+                }
+            });
+        }
+
         sql += foreignKeySql;
         sql.back() = ')';
         sql += ';';
         return sql;
     }
-};
 
+    template <typename... Keys>
+    static void setIndexOrder(std::string& sql, attr::Index<Keys...>) {
+        constexpr std::size_t N = sizeof...(Keys);
+        // 不应该在成员变量 Constraint<> 中书写聚合索引, 应该单独写在嵌套类 UnionAttr 中
+        static_assert(N <= 1,
+            "The aggregate index should not be written in the member variable Constraint<>, "
+            "but should be written separately in the nested class UnionAttr"); 
+        if constexpr (N == 1) {
+            using ClassType = meta::GetMemberPtrsClassType<typename Keys::KeyType...>;
+            // 不能指定 成员指针, 应该使用默认 Index<> / AseIndex / DescIndex 类型
+            static_assert(std::is_same_v<ClassType, attr::internal::Place>,
+                "The member pointer cannot be specified, "
+                "and the default Index<>/AseIndex/DescIndex type should be used");
+            ((sql += reflection::toEnumName<attr::Order, Keys::IdxOrder>()), ...);
+        } else {
+            sql += "Asc";
+        }
+    }
+
+    template <typename T>
+    static std::vector<std::string> createIndex(T&& t) {
+        using Table = meta::RemoveCvRefType<T>;
+        auto sqls = std::vector<std::string>{};
+        constexpr auto tableName = reflection::getTypeName<Table>();;
+        reflection::forEach(t, [&] (auto, auto name, auto&& val) {
+            using Type = meta::RemoveCvRefType<decltype(val)>;
+            if constexpr (IsConstraintVal<Type>) {
+                [&] <typename U, typename... ConstraintTypes> (Constraint<U, ConstraintTypes...>&) {
+                    ([&] <typename Constraint> (Constraint) {
+                        if constexpr (attr::IsIndexVal<Constraint>) {
+                            std::string sql = "CREATE INDEX idx_";
+                            sql += tableName;
+                            sql += '_';
+                            sql += name;
+                            sql += " ON ";
+                            sql += tableName;
+                            sql += '(';
+                            sql += name;
+                            sql += ' ';
+                            setIndexOrder(sql, Constraint{});
+                            sql += ");";
+                            sqls.push_back(std::move(sql));
+                        }
+                    }(ConstraintTypes{}), ...);
+                }(val);
+            }
+        });
+        return sqls;
+    }
+};
 
 } // namespace HX::db::sqlite3

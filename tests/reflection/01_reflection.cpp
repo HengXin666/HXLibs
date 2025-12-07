@@ -68,14 +68,14 @@ TEST_CASE("initializer_list") {
 #include <chrono>
 #include <thread>
 
-#if 0
+#if 1
 #include <stack>
 #include <queue>
 #include <bitset>
 #include <complex>
 #endif
 
-#if 0
+#if 1
 #include <filesystem>
 #include <span>
 #include <regex>
@@ -112,31 +112,31 @@ TEST_CASE("cnt") {
         std::multimap<int, int> _20;
         std::unordered_multimap<int, int> _21;
 
-        // std::stack<int> _22;
-        // std::queue<int> _23;
-        // std::priority_queue<int> _24;
+        std::stack<int> _22;
+        std::queue<int> _23;
+        std::priority_queue<int> _24;
 
-        // std::chrono::system_clock::time_point _25;
+        std::chrono::system_clock::time_point _25;
         std::chrono::duration<int> _26;
 
         std::pair<int, int> _27;
         std::tuple<int, double, std::string> _28;
 
-        // std::bitset<32> _29;
-        // std::complex<double> _30;
+        std::bitset<32> _29;
+        std::complex<double> _30;
 
         int _31;
         double _32;
         bool _33;
     };
 
-    CHECK(reflection::membersCountVal<Test> == 27);
+    CHECK(reflection::membersCountVal<Test> == 33);
 
     struct TestErr {    // 是聚合类
         std::thread _1; // 不是聚和类
     };
 
-    CHECK(reflection::membersCountVal<TestErr> != 1);
+    CHECK(reflection::membersCountVal<TestErr> == 1);
 
     struct HttpHeader {
         std::string_view name;
@@ -144,6 +144,7 @@ TEST_CASE("cnt") {
     };
 
     CHECK(reflection::membersCountVal<HttpHeader> == 2);
+    CHECK(meta::IsConstructibleVal<HttpHeader, reflection::internal::Any, reflection::internal::Any>);
 
     struct TestOpt {
         std::optional<int> _;

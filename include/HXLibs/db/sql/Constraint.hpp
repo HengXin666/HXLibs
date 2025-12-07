@@ -27,6 +27,48 @@ namespace HX::db {
 
 namespace attr {
 
+enum class Order {
+    Asc,    // 升序
+    Desc    // 降序
+};
+
+template <auto Key, Order SortOrder = Order::Asc>
+struct IndexOrder {
+    static_assert(meta::IsMemberPtrVal<decltype(Key)>, "Is Not Member Ptr Val");
+    using KeyType = decltype(Key);
+    inline static constexpr Order IdxOrder = SortOrder;
+};
+
+template <auto InternalKeyPtr, auto ForeignKeyPtr>
+struct ForeignMap;
+
+namespace internal {
+
+// 占位
+struct Place {
+    Place const* place;
+};
+
+/**
+ * @brief 判断是否是 IndexOrder 类型
+ */
+template <typename T>
+constexpr bool IsIndexOrderVal = false;
+
+template <auto Key, Order SortOrder>
+constexpr bool IsIndexOrderVal<IndexOrder<Key, SortOrder>> = true;
+
+/**
+ * @brief 判断是否是 ForeignMap 类型
+ */
+template <typename T>
+constexpr bool IsForeignMapVal = false;
+
+template <auto InternalKeyPtr, auto ForeignKeyPtr>
+constexpr bool IsForeignMapVal<ForeignMap<InternalKeyPtr, ForeignKeyPtr>> = true;
+
+} // namespace internal
+
 // 非空约束
 struct NotNull {};
 
@@ -39,35 +81,68 @@ struct Unique {};
 // 自增约束
 struct AutoIncrement {};
 
-// 索引
+// 索引, 多参数则表示为聚合索引, 使用于 struct <Table>::IndexAttr 中
+template <typename... Keys>
+    requires (internal::IsIndexOrderVal<Keys> && ...)
 struct Index {};
 
-// 外键约束, 多个时候, 为联合外键
-template <auto... Keys>
+// 可指定排序顺序的单索引, 仅用于 Constraint 中.
+using AseIndex = Index<IndexOrder<&internal::Place::place, Order::Asc>>;
+using DescIndex = Index<IndexOrder<&internal::Place::place, Order::Desc>>;
+
+// 单索引, 仅用于 Constraint 中.
+template <>
+struct Index<> {};
+
+// 单外键约束
+template <auto KeyPtr>
 struct Foreign {
-    static_assert((meta::IsMemberPtrVal<decltype(Keys)> && ...), "Is Not Member Ptr Val");
-    using ForeignKey = decltype(std::make_tuple(Keys...));
+    static_assert(meta::IsMemberPtrVal<decltype(KeyPtr)>, "Is Not Member Ptr Val");
+};
+
+// 联合外键约束, 使用于 UnionAttr 嵌套类中
+template <typename... Keys>
+struct UnionForeign {
+    // 应该使用 外键映射 (ForeignMap<>) 包装
+    static_assert((internal::IsForeignMapVal<Keys> && ...),
+        "The ForeignMap<> wrapper should be used");
 };
 
 // 默认值约束
 template <auto Value>
 struct DefaultVal {
-    inline static constexpr auto Val = Value;
+    // inline static constexpr auto Val = Value;
 };
 
 /**
- * @brief 判断是否是外键约束类型
- * @tparam T 
+ * @brief 判断是否是索引约束类型
+ */
+template <typename T>
+constexpr bool IsIndexVal = false;
+
+template <typename... Keys>
+constexpr bool IsIndexVal<Index<Keys...>> = true;
+
+/**
+ * @brief 判断是否是单外键约束类型
  */
 template <typename T>
 constexpr bool IsForeignVal = false;
 
-template <auto... Keys>
-constexpr bool IsForeignVal<Foreign<Keys...>> = true;
+template <auto KeyPtr>
+constexpr bool IsForeignVal<Foreign<KeyPtr>> = true;
+
+/**
+ * @brief 判断是否是联合外键约束类型
+ */
+template <typename T>
+constexpr bool IsUnionForeignVal = false;
+
+template <typename... Keys>
+constexpr bool IsUnionForeignVal<UnionForeign<Keys...>> = true;
 
 /**
  * @brief 判断是否是默认值约束类型
- * @tparam T 
  */
 template <typename T>
 constexpr bool IsDefaultValTypeVal = false;
@@ -75,6 +150,11 @@ constexpr bool IsDefaultValTypeVal = false;
 template <auto Value>
 constexpr bool IsDefaultValTypeVal<DefaultVal<Value>> = true;
 
+/**
+ * @brief 判断是否存在嵌套类 UnionAttr
+ */
+template <typename T>
+constexpr bool HasUnionAttr = requires { typename T::UnionAttr; };
 
 } // namespace attr
 
@@ -98,12 +178,48 @@ struct Constraint {
 
 /**
  * @brief 判断是否是约束包类型
- * @tparam T 
  */
 template <typename T>
 constexpr bool IsConstraintVal = false;
 
 template <typename T, typename... ConstraintTypes>
 constexpr bool IsConstraintVal<Constraint<T, ConstraintTypes...>> = true;
+
+namespace internal {
+
+template <typename T>
+struct RemoveConstraintToTypeImpl {
+    using Type = T;
+};
+
+template <typename T, typename... ConstraintTypes>
+struct RemoveConstraintToTypeImpl<Constraint<T, ConstraintTypes...>> {
+    using Type = T;
+};
+
+} // namespace internal
+
+/**
+ * @brief 去掉 Constraint, 获取到 T
+ */
+template <typename T>
+using RemoveConstraintToType = typename internal::RemoveConstraintToTypeImpl<T>::Type;
+
+namespace attr {
+
+template <auto InternalKeyPtr, auto ForeignKeyPtr>
+struct ForeignMap {
+    using InternalKey = decltype(InternalKeyPtr);
+    using ForeignKey = decltype(ForeignKeyPtr);
+    static_assert(meta::IsMemberPtrVal<InternalKey> && meta::IsMemberPtrVal<ForeignKey>,
+        "Is Not Member Ptr Val");
+    // 内外键类型得相同
+    static_assert(std::is_same_v<
+        RemoveConstraintToType<meta::GetMemberPtrType<InternalKey>>,
+        RemoveConstraintToType<meta::GetMemberPtrType<ForeignKey>>>, 
+        "Foreign key type is different from internal key");
+};
+
+} // namespace attr
 
 } // namespace HX::db

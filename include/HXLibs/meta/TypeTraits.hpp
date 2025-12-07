@@ -118,7 +118,7 @@ consteval std::size_t findUniqueConstructibleIndex() noexcept {
  */
 template <typename T, typename U, typename... Args>
 constexpr bool IsConstructibleVal = requires {
-    T {{Args{}}..., {U{}}};
+    T {Args{Args{}}..., U{U{}}};
 };
 
 /**

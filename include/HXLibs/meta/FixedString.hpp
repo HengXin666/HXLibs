@@ -109,6 +109,15 @@ constexpr auto toCharPackImpl(std::index_sequence<I...>) -> CharPack<S[I]...>;
 template <FixedString S>
 using ToCharPack = decltype(internal::toCharPackImpl<S>(std::make_index_sequence<S.size()>{}));
 
+namespace fixed_string_literals {
+
+template <FixedString Fs>
+constexpr decltype(Fs) operator""_fs() noexcept {
+    return Fs;
+}
+
+} // namespace fixed_string_literals
+
 } // namespace HX::meta
 
 namespace HX::log {

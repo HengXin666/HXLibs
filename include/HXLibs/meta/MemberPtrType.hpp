@@ -59,23 +59,30 @@ using GetMemberPtrType = typename internal::GetMemberPtrTypeImpl<T>::Type;
 template <typename T>
 using GetMemberPtrClassType = typename internal::GetMemberPtrTypeImpl<T>::ClassType;
 
-/**
- * @brief 获取成员指针们的类的类型, 并且保证这些指针都来自于同一个类
- * @tparam MemberPtr 
- * @tparam MemberPtrs
- */
-template <typename... MemberPtrTs>
-using GetMemberPtrsClassType = decltype([] <typename MP, typename... MemberPtrs> (MP, MemberPtrs...) {
+namespace internal {
+
+// 依旧 https://gcc.gnu.org/bugzilla/show_bug.cgi?id=121287 导致的问题, 需要提出
+template <typename MP, typename... MemberPtrs>
+auto GetMemberPtrsClassTypeImpl(MP, MemberPtrs...) {
     // 别名模板不支持部分推导
     // 不能 <typename MP, typename... MemberPtrs> 然后直接让 <typename... MemberPtrTs> 匹配
     // 只能拆开
     using MemberPtr = MP;
     return std::conditional_t<
-    (std::is_same_v<
-        GetMemberPtrClassType<MemberPtr>,
-        GetMemberPtrClassType<MemberPtrs>
-    > && ...),
-    GetMemberPtrClassType<MemberPtr>, void> {};
-} (MemberPtrTs{}...));
+        (std::is_same_v<
+            GetMemberPtrClassType<MemberPtr>,
+            GetMemberPtrClassType<MemberPtrs>
+        > && ...),
+        GetMemberPtrClassType<MemberPtr>, void
+    > {};
+}
+
+} // namespace internal
+
+/**
+ * @brief 获取成员指针们的类的类型, 并且保证这些指针都来自于同一个类; 如果不同返回 void
+ */
+template <typename... MemberPtrTs>
+using GetMemberPtrsClassType = decltype(internal::GetMemberPtrsClassTypeImpl(MemberPtrTs{}...));
 
 } // namespace HX::meta
