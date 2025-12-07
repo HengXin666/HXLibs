@@ -70,6 +70,6 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     auto sql = sqlite3::CreateDbSql::createDatabase(user);
     log::hxLog.info(sql);
-    auto indexSql = sqlite3::CreateDbSql::createIndex(user);
-    log::hxLog.info(indexSql);
+    // auto indexSql = sqlite3::CreateDbSql::createIndex(user);
+    // log::hxLog.info(indexSql);
 }
