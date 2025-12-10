@@ -186,7 +186,7 @@ struct CreateDbSql {
     }
 
     template <typename... Keys>
-    static void setIndexOrder(std::string& sql, attr::Index<Keys...>) {
+    static void setSingleIndexOrder(std::string& sql, attr::Index<Keys...>) {
         constexpr std::size_t N = sizeof...(Keys);
         // 不应该在成员变量 Constraint<> 中书写聚合索引, 应该单独写在嵌套类 UnionAttr 中
         static_assert(N <= 1,
@@ -208,7 +208,7 @@ struct CreateDbSql {
     static std::vector<std::string> createIndex(T&& t) {
         using Table = meta::RemoveCvRefType<T>;
         auto sqls = std::vector<std::string>{};
-        constexpr auto tableName = reflection::getTypeName<Table>();;
+        constexpr auto tableName = reflection::getTypeName<Table>();
         reflection::forEach(t, [&] (auto, auto name, auto&& val) {
             using Type = meta::RemoveCvRefType<decltype(val)>;
             if constexpr (IsConstraintVal<Type>) {
@@ -224,7 +224,7 @@ struct CreateDbSql {
                             sql += '(';
                             sql += name;
                             sql += ' ';
-                            setIndexOrder(sql, Constraint{});
+                            setSingleIndexOrder(sql, Constraint{});
                             sql += ");";
                             sqls.push_back(std::move(sql));
                         }
@@ -232,6 +232,44 @@ struct CreateDbSql {
                 }(val);
             }
         });
+        // 处理嵌套类
+        if constexpr (attr::HasUnionAttr<Table>) {
+            auto map = reflection::makeMemberPtrToNameMap<Table>();
+            reflection::forEach(typename Table::UnionAttr{}, [&] (auto, auto, auto&& val) {
+                using Type = meta::RemoveCvRefType<decltype(val)>;
+                if constexpr (attr::IsIndexVal<Type>) {
+                    // 未明确索引目标字段, 需使用 attr::IndexOrder<&本类::成员> 明确
+                    static_assert(meta::IsTypeNotInTypesVal<
+                        Type, attr::Index<>, attr::DescIndex, attr::AseIndex>, 
+                        "The target field is not explicitly indexed. "
+                        "You need to use attr::IndexOrder<&ThisClass::Member> explicitly");
+                    [&] <typename... Keys> (attr::Index<Keys...>) {
+                        // 要求 Index 都是来自同一个类的 
+                        static_assert(!std::is_void_v<meta::GetMemberPtrsClassType<
+                            attr::internal::GetIndexOrderKeyType<Keys>...>>,
+                            "It is required that all indexes are from the same class");
+                        std::string sql = "CREATE INDEX idx_";
+                        std::string idxSql = "(";
+                        sql += tableName;
+                        ([&] <auto KeyPtr, attr::Order SortOrder> (attr::IndexOrder<KeyPtr, SortOrder>) {
+                            auto name = map.at(KeyPtr);
+                            sql += '_';
+                            sql += name;
+                            idxSql += name;
+                            idxSql += ' ';
+                            idxSql += reflection::toEnumName<attr::Order, SortOrder>();
+                            idxSql += ',';
+                        }(Keys{}), ...);
+                        sql += " ON ";
+                        sql += tableName;
+                        idxSql.back() = ')';
+                        idxSql += ';';
+                        sql += idxSql;
+                        sqls.push_back(std::move(sql));
+                    }(val);
+                }
+            });
+        }
         return sqls;
     }
 };

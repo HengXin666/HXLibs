@@ -48,28 +48,14 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
                 attr::IndexOrder<&User::roleId>
             > index_1;
 
+            // attr::Index<> idx_2;
+
             attr::UnionForeign<attr::ForeignMap<&User::id, &Role::loliId>> f_1;
         };
     } user{};
 
-    struct UnionAttr {
-        attr::Index<
-            attr::IndexOrder<&User::age, attr::Order::Desc>,
-            attr::IndexOrder<&User::roleId>
-        > index_1;
-
-        attr::UnionForeign<attr::ForeignMap<&Role::id, &Role::loliId>, attr::ForeignMap<&Role::id, &Role::loliId>> f_1;
-    };
-
-    [[maybe_unused]] constexpr auto N
-         = reflection::membersCountVal<UnionAttr>;
-
-    // std::is_aggregate_v<UnionAttr>; // true
-
-    static_assert(db::attr::HasUnionAttr<User>);
-
     auto sql = sqlite3::CreateDbSql::createDatabase(user);
     log::hxLog.info(sql);
-    // auto indexSql = sqlite3::CreateDbSql::createIndex(user);
-    // log::hxLog.info(indexSql);
+    auto indexSql = sqlite3::CreateDbSql::createIndex(user);
+    log::hxLog.info(indexSql);
 }

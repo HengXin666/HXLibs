@@ -37,6 +37,8 @@ struct IndexOrder {
     static_assert(meta::IsMemberPtrVal<decltype(Key)>, "Is Not Member Ptr Val");
     using KeyType = decltype(Key);
     inline static constexpr Order IdxOrder = SortOrder;
+
+    constexpr IndexOrder() = default;
 };
 
 template <auto InternalKeyPtr, auto ForeignKeyPtr>
@@ -67,6 +69,13 @@ constexpr bool IsForeignMapVal = false;
 template <auto InternalKeyPtr, auto ForeignKeyPtr>
 constexpr bool IsForeignMapVal<ForeignMap<InternalKeyPtr, ForeignKeyPtr>> = true;
 
+/**
+ * @brief 获取 IndexOrder 的 KeyType
+ * @warning 必须保证 IndexOrder 的类型是 IndexOrder, 否则程序非良构
+ */
+template <typename IndexOrder>
+using GetIndexOrderKeyType = typename IndexOrder::KeyType;
+
 } // namespace internal
 
 // 非空约束
@@ -84,7 +93,11 @@ struct AutoIncrement {};
 // 索引, 多参数则表示为聚合索引, 使用于 struct <Table>::IndexAttr 中
 template <typename... Keys>
     requires (internal::IsIndexOrderVal<Keys> && ...)
-struct Index {};
+struct Index {
+    // 无法在此处要求 Index 都是来自同一个类的, 因为类型不完整 
+    // 空类需要明确书写构造函数, 否则无法反射
+    constexpr Index() = default;
+};
 
 // 可指定排序顺序的单索引, 仅用于 Constraint 中.
 using AseIndex = Index<IndexOrder<&internal::Place::place, Order::Asc>>;
@@ -92,7 +105,9 @@ using DescIndex = Index<IndexOrder<&internal::Place::place, Order::Desc>>;
 
 // 单索引, 仅用于 Constraint 中.
 template <>
-struct Index<> {};
+struct Index<> {
+    constexpr Index() = default;
+};
 
 // 单外键约束
 template <auto KeyPtr>
@@ -106,13 +121,12 @@ struct UnionForeign {
     // 应该使用 外键映射 (ForeignMap<>) 包装
     static_assert((internal::IsForeignMapVal<Keys> && ...),
         "The ForeignMap<> wrapper should be used");
+    constexpr UnionForeign() = default;
 };
 
 // 默认值约束
 template <auto Value>
-struct DefaultVal {
-    // inline static constexpr auto Val = Value;
-};
+struct DefaultVal {};
 
 /**
  * @brief 判断是否是索引约束类型
