@@ -14,13 +14,17 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     using namespace meta::fixed_string_literals;
 
     struct Role {
-        Constraint<uint64_t, attr::PrimaryKey> id;
-        Constraint<int, attr::PrimaryKey> loliId;
+        uint64_t id;
+        int loliId;
+
+        struct UnionAttr {
+            attr::PrimaryKey<&Role::id, &Role::loliId> pk;
+        };
     };
     
     struct User {
         Constraint<int,
-            attr::PrimaryKey,
+            attr::PrimaryKey<>,
             attr::AutoIncrement,
             attr::NotNull
         > id;
@@ -53,6 +57,8 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
             attr::UnionForeign<attr::ForeignMap<&User::id, &Role::loliId>> f_1;
         };
     } user{};
+
+    log::hxLog.warning("Role", sqlite3::CreateDbSql::createDatabase<Role>({}));
 
     auto sql = sqlite3::CreateDbSql::createDatabase(user);
     log::hxLog.info(sql);

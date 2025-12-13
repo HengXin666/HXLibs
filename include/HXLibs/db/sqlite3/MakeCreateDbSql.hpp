@@ -27,8 +27,6 @@
 #include <HXLibs/reflection/EnumName.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
 
-#include <HXLibs/log/Log.hpp> // debug
-
 namespace HX::db::sqlite3 {
 
 struct CreateDbSql {
@@ -59,19 +57,26 @@ struct CreateDbSql {
     }
 
     template <typename T, typename... ConstraintTypes>
-    static constexpr void setConstraints(
+    static constexpr std::size_t setConstraints(
         std::string_view selfName,
         Constraint<T, ConstraintTypes...>&,
         std::string& mainSql,
         std::string& foreignKeySql
     ) {
+        std::size_t primaryKeyCnt = 0;
         mainSql += getSqlTypeStr<T>();
         mainSql += ' ';
         ([&] <typename Constraint> (Constraint) {
             if constexpr (std::is_same_v<Constraint, attr::NotNull>) {
                 mainSql += "NOT NULL";
-            } else if constexpr (std::is_same_v<Constraint, attr::PrimaryKey>) {
+            } else if constexpr (attr::IsPrimaryKeyVal<Constraint>) {
+                [] <auto... KPs> (attr::PrimaryKey<KPs...>) {
+                    // Constraint 中只能使用 attr::PrimaryKey<> 声明
+                    static_assert(sizeof...(KPs) == 0,
+                        "Only attr::PrimaryKey<> declaration can be used in Constraint");
+                }(Constraint{});
                 mainSql += "PRIMARY KEY";
+                ++primaryKeyCnt;
             } else if constexpr (std::is_same_v<Constraint, attr::Unique>) {
                 mainSql += "UNIQUE";
             } else if constexpr (std::is_same_v<Constraint, attr::AutoIncrement>) {
@@ -87,7 +92,8 @@ struct CreateDbSql {
             } else if constexpr (attr::IsForeignVal<Constraint>) {
                 [&] <auto Key> (attr::Foreign<Key>) {
                     // 确保外键约束的类型和本类字段的类型一致
-                    static_assert(std::is_same_v<T, typename meta::GetMemberPtrType<decltype(Key)>::Type>,
+                    static_assert(std::is_same_v<T, RemoveConstraintToType<
+                        meta::GetMemberPtrType<decltype(Key)>>>,
                         "The foreign key type is inconsistent with the field type of this type");
 
                     using ForeignTable = meta::GetMemberPtrsClassType<decltype(Key)>;
@@ -117,11 +123,13 @@ struct CreateDbSql {
             }
             mainSql += ' ';
         }(ConstraintTypes{}), ...);
+        return primaryKeyCnt;
     }
 
     template <typename T>
     static std::string createDatabase(T&& t) {
         using Table = meta::RemoveCvRefType<T>;
+        std::size_t primaryKeyCnt = 0;
         std::string sql = "CREATE TABLE ";
         std::string foreignKeySql{};
         sql += reflection::getTypeName<Table>();
@@ -131,13 +139,14 @@ struct CreateDbSql {
             sql += ' ';
             using Type = meta::RemoveCvRefType<decltype(val)>;
             if constexpr (IsConstraintVal<Type>) {
-                setConstraints(name, val, sql, foreignKeySql);
+                primaryKeyCnt += setConstraints(name, val, sql, foreignKeySql);
                 sql.back() = ',';
             } else {
                 sql += getSqlTypeStr<Type>();
                 sql += ',';
             }
         });
+        
         // 嵌套类
         if constexpr (attr::HasUnionAttr<Table>) {
             reflection::forEach(typename Table::UnionAttr{}, [&] (auto, auto, auto&& val) {
@@ -175,8 +184,29 @@ struct CreateDbSql {
                         foreignKeySql += keySql;
                         foreignKeySql += refSql;
                     }(Type{});
+                } else if constexpr (attr::IsPrimaryKeyVal<Type>) {
+                    auto selfNameMap = reflection::makeMemberPtrToNameMap<Table>();
+                    [&] <auto... KeyPtrs> (attr::PrimaryKey<KeyPtrs...>) {
+                        // 主键参数不能为空
+                        static_assert(sizeof...(KeyPtrs) >= 1,
+                            "Primary key parameter cannot be empty");
+                        // 主键字段应该来自本类
+                        static_assert(std::is_same_v<Table, 
+                            meta::GetMemberPtrsClassType<decltype(KeyPtrs)...>>,
+                            "The primary key field should come from this class");
+                        ++primaryKeyCnt;
+                        sql += "PRIMARY KEY(";
+                        ((sql += selfNameMap.at(KeyPtrs), sql += ','), ...);
+                        sql.back() = ')';
+                        sql += ',';
+                    }(Type{});
                 }
             });
+        }
+
+        if (primaryKeyCnt > 1) [[unlikely]] {
+            // 只能声明一个主键
+            throw std::runtime_error{"Only one primary key can be declared"};
         }
 
         sql += foreignKeySql;

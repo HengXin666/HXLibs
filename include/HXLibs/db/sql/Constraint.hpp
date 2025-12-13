@@ -81,8 +81,18 @@ using GetIndexOrderKeyType = typename IndexOrder::KeyType;
 // 非空约束
 struct NotNull {};
 
-// 主键约束
-struct PrimaryKey {};
+// 联合主键约束
+template <auto... KeyPtrs>
+    requires (meta::IsMemberPtrVal<decltype(KeyPtrs)> && ...)
+struct PrimaryKey {
+    constexpr PrimaryKey() = default;
+};
+
+// 单主键约束
+template <>
+struct PrimaryKey<> {
+    constexpr PrimaryKey() = default;
+};
 
 // 唯一约束
 struct Unique {};
@@ -127,6 +137,15 @@ struct UnionForeign {
 // 默认值约束
 template <auto Value>
 struct DefaultVal {};
+
+/**
+ * @brief 判断是否是主键类型
+ */
+template <typename T>
+constexpr bool IsPrimaryKeyVal = false;
+
+template <auto... KeyPtrs>
+constexpr bool IsPrimaryKeyVal<PrimaryKey<KeyPtrs...>> = true;
 
 /**
  * @brief 判断是否是索引约束类型
