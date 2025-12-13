@@ -37,23 +37,40 @@ struct CustomType {
     ); // 屏蔽主模板
 
     // Type 序列化为 std::string
-    // static std::string bind(Type const&) noexcept {
+    // static std::string toSql(Type const&) noexcept {
     //     return {};
     // }
 
     // std::string_view 反序列化为 Type
-    // static Type unbind(std::string_view) noexcept {
+    // static Type fromSql(std::string_view) noexcept {
     //     return {};
     // }
 
-    static Type const& bind(Type const& t) noexcept {
+    static Type const& toSql(Type const& t) noexcept {
         return t;
     }
 
-    static Type const& unbind(Type const& t) noexcept {
+    static Type const& fromSql(Type const& t) noexcept {
         return t;
     }
 };
+
+template <typename T>
+    requires (std::is_integral_v<T>
+           || std::is_floating_point_v<T>
+           || meta::StringType<T>)
+struct CustomType<std::optional<T>> {
+    using Type = std::optional<T>;
+
+    static Type toSql(Type t) noexcept {
+        return std::move(t);
+    }
+
+    static Type fromSql(Type t) noexcept {
+        return std::move(t);
+    }
+};
+
 
 /**
  * @brief 判断 T 是否是已经注册的自定义SQL类型
