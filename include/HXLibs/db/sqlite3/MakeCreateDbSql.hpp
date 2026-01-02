@@ -249,7 +249,12 @@ struct CreateDbSql {
     static std::vector<std::string> createIndex(T&& t) {
         using Table = meta::RemoveCvRefType<T>;
         auto sqls = std::vector<std::string>{};
+#if defined(_MSC_VER)
+        // https://github.com/HengXin666/HXLibs/issues/17 (MSVC ICE)
+        const auto tableName = reflection::getTypeName<Table>();
+#else
         constexpr auto tableName = reflection::getTypeName<Table>();
+#endif // !defined(_MSC_VER)
         reflection::forEach(t, [&] (auto, auto name, auto&& val) {
             using Type = meta::RemoveCvRefType<decltype(val)>;
             if constexpr (IsConstraintVal<Type>) {
