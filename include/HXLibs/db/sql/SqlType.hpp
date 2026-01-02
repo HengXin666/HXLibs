@@ -20,10 +20,22 @@
 
 #include <chrono>
 
+#include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/meta/FixedString.hpp>
+
 namespace HX::db {
 
 using Date = std::chrono::sys_days;
 using Timestamp = std::chrono::sys_time<std::chrono::microseconds>;
 using Time = std::chrono::microseconds;
+
+template <typename T>
+constexpr bool IsSqlNumberTypeVal = std::is_integral_v<T>
+    || std::is_floating_point_v<T>;
+
+template <typename T>
+constexpr bool IsSqlTypeVal = IsSqlNumberTypeVal<T>
+    || meta::StringType<T>
+    || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>;
 
 } // namespace HX::db

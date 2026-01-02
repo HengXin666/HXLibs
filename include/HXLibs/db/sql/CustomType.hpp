@@ -32,11 +32,7 @@ template <typename T>
 struct CustomType {
     using Type = T;
 
-    static_assert(std::is_integral_v<T>
-               || std::is_floating_point_v<T>
-               || meta::StringType<T>
-               || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>
-    ); // 屏蔽主模板
+    static_assert(IsSqlTypeVal<T>); // 屏蔽主模板
 
     // Type 序列化为 std::string
     // static std::string toSql(Type const&) noexcept {
@@ -58,10 +54,7 @@ struct CustomType {
 };
 
 template <typename T>
-    requires (std::is_integral_v<T>
-           || std::is_floating_point_v<T>
-           || meta::StringType<T>
-           || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>)
+    requires (IsSqlTypeVal<T>)
 struct CustomType<std::optional<T>> {
     using Type = std::optional<T>;
 

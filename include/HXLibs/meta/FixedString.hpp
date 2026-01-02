@@ -118,6 +118,12 @@ constexpr decltype(Fs) operator""_fs() noexcept {
 
 } // namespace fixed_string_literals
 
+template <typename T>
+constexpr bool IsFixedStringVal = false;
+
+template <std::size_t N>
+constexpr bool IsFixedStringVal<FixedString<N>> = true;
+
 } // namespace HX::meta
 
 namespace HX::log {

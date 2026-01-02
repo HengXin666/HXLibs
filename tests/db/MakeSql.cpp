@@ -70,12 +70,14 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     [[maybe_unused]] auto c = Col{&User::id}.as<"userId">();
 
-    DateBase{}.select<Col{&User::id}>()
+    DateBase{}.select<Col{&User::id}.as<"userId">()>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::id)>()
-              .where<(Col(&User::age) == meta::NumberNTTP<18>{}) 
-                  && Col(&User::name).like<"loli_%">()>()
+              .where<((Col(&User::age) == 18) 
+                  && Col(&User::name).like<"loli_%">())
+                  || Col(&Role::id).notIn<1, 2, 3>()
+                  || (Col(&User::id) == Col(&Role::id) + 1)>()
               .groupBy<&User::name>()
               .orderBy<Col(&User::age).asc()>()
               .limit<10, 50>();

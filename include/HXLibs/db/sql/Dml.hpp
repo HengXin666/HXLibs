@@ -63,8 +63,12 @@ struct GroupByBuild : public OrderByBuild<Db> {
     using Base = OrderByBuild<Db>;
     using Base::Base;
 
-
     template <auto... Ptrs>
+    OrderByBuild<Db> groupBy() && {
+        return {this->_dbRef, std::move(this->_sql)};
+    }
+
+    template <Col... Ptrs>
     OrderByBuild<Db> groupBy() && {
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -115,6 +119,8 @@ struct FromBuild : public SqlBuild<Db> {
     constexpr JoinOrWhereBuild<Db> from() && {
         return {this->_dbRef, std::move(this->_sql)};
     }
+
+    // op= 当使用这个的时候, 进行build
 };
 
 template <typename Db>

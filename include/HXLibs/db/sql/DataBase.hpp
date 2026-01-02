@@ -26,7 +26,7 @@ namespace HX::db {
 struct DateBase {
     template <Col... Cs>
     auto select() noexcept {
-        return SelectBuild<DateBase*>{this, {}}.select<Cs...>();
+        return SelectBuild<DateBase&>{*this, {}}.select<Cs...>();
     }
 };
 

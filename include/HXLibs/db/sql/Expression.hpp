@@ -20,7 +20,7 @@
 
 #include <tuple>
 
-#include <HXLibs/meta/NumberNTTP.hpp>
+#include <HXLibs/db/sql/SqlType.hpp>
 #include <HXLibs/db/sql/Column.hpp>
 #include <HXLibs/db/sql/Operator.hpp>
 
@@ -40,6 +40,34 @@ constexpr bool IsExpressionVal<Expression<Ts...>> = true;
 template <typename T>
 concept ExprType = IsExpressionVal<T>;
 
+template <typename T>
+constexpr bool IsCalculateExprTypeVal = false;
+
+template <typename Expr, typename Op, typename VT>
+constexpr bool IsCalculateExprTypeVal<Expression<Expr, Op, VT, void>> = true;
+
+// 计算中的表达式, 如 a.id + 1, 即 `字段 op 字面量`, op 为 +-*/%
+template <typename T>
+concept CalculateExprType = IsCalculateExprTypeVal<T>;
+
+#define HX_DB_EXPR_OP_IMPL(OP, OP_NAME)                                        \
+    template <ExprType ET>                                                     \
+    constexpr Expression<Expression, OP_NAME, ET> operator OP(ET)              \
+        const noexcept {                                                       \
+        return {};                                                             \
+    }
+
+template <typename Expr, typename Op, typename VT>
+struct Expression<Expr, Op, VT, void> {
+    using ExprInfo = std::tuple<Expr, Op, void>;
+    // 可能是 A op B
+    // 也可能是 A in <B>
+    VT _opVal; // 此处的 B 是具体的编译期常量
+
+    HX_DB_EXPR_OP_IMPL(||, op::Or)
+    HX_DB_EXPR_OP_IMPL(&&, op::And)
+};
+
 // ==, >, <, +, -, ||, &&, ..., like, in
 template <typename Expr1, typename Op, typename Expr2>
 struct Expression<Expr1, Op, Expr2> {
@@ -47,15 +75,8 @@ struct Expression<Expr1, Op, Expr2> {
     // 可能是 A op B
     // 也可能是 A in <B>
 
-    template <ExprType ET>
-    constexpr Expression<Expression, op::Or, ET> operator||(ET) const noexcept {
-        return {};
-    }
-
-    template <ExprType ET>
-    constexpr Expression<Expression, op::And, ET> operator&&(ET) const noexcept {
-        return {};
-    }
+    HX_DB_EXPR_OP_IMPL(||, op::Or)
+    HX_DB_EXPR_OP_IMPL(&&, op::And)
 };
 
 // is null, asc/desc
@@ -63,15 +84,8 @@ template <typename Expr, typename Op>
 struct Expression<Expr, Op> {
     using ExprInfo = std::tuple<Expr, Op>;
 
-    template <ExprType ET>
-    constexpr Expression<Expression, op::Or, ET> operator||(ET) const noexcept {
-        return {};
-    }
-
-    template <ExprType ET>
-    constexpr Expression<Expression, op::And, ET> operator&&(ET) const noexcept {
-        return {};
-    }
+    HX_DB_EXPR_OP_IMPL(||, op::Or)
+    HX_DB_EXPR_OP_IMPL(&&, op::And)
 };
 
 // not
@@ -79,17 +93,11 @@ template <typename Op, typename Expr>
 struct Expression<Op, Expr, void> {
     using ExprInfo = std::tuple<Op, Expr>;
 
-    template <ExprType ET>
-    constexpr Expression<Expression, op::Or, ET> operator||(ET) const noexcept {
-        return {};
-    }
-
-    template <ExprType ET>
-    constexpr Expression<Expression, op::And, ET> operator&&(ET) const noexcept {
-        return {};
-    }
+    HX_DB_EXPR_OP_IMPL(||, op::Or)
+    HX_DB_EXPR_OP_IMPL(&&, op::And)
 };
 
+#undef HX_DB_EXPR_OP_IMPL
 #define HX_DB_3OP_IMPL(OP, OP_NAME)                                            \
     template <ColType C1, ColType C2>                                          \
     constexpr auto operator OP(C1, C2) noexcept {                              \
@@ -100,28 +108,70 @@ HX_DB_3OP_IMPL(&&, op::And)
 HX_DB_3OP_IMPL(||, op::Or)
 
 #undef HX_DB_3OP_IMPL
+#define HX_DB_3OP_LOGIC_IMPL(OP, OP_NAME)                                      \
+    template <ColType C1, ColType C2>                                          \
+    constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
+        return {};                                                             \
+    }                                                                          \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(C, auto v) noexcept                             \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
+    }                                                                          \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(auto v, C) noexcept                             \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
+    }
 
+HX_DB_3OP_LOGIC_IMPL(<, op::Lt)
+HX_DB_3OP_LOGIC_IMPL(<=, op::Le)
+HX_DB_3OP_LOGIC_IMPL(>, op::Gt)
+HX_DB_3OP_LOGIC_IMPL(>=, op::Ge)
+
+#undef HX_DB_3OP_LOGIC_IMPL
 #define HX_DB_3OP_NUMBER_IMPL(OP, OP_NAME)                                     \
     template <ColType C1, ColType C2>                                          \
-    constexpr auto operator OP(C1, C2) noexcept {                              \
-        return Expression<C1, OP_NAME, C2>{};                                  \
+    constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
+        return {};                                                             \
     }                                                                          \
-    template <ColType C1, auto C2>                                             \
-    constexpr auto operator OP(C1, meta::NumberNTTP<C2>) noexcept {            \
-        return Expression<C1, OP_NAME, meta::NumberNTTP<C2>>{};                \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(C, auto v) noexcept                             \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }                                                                          \
-    template <auto C1, ColType C2>                                             \
-    constexpr auto operator OP(meta::NumberNTTP<C1>, C2) noexcept {            \
-        return Expression<meta::NumberNTTP<C1>, OP_NAME, C2>{};                \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(auto v, C) noexcept                             \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
+    }                                                                          \
+    template <ColType C, CalculateExprType CET>                                \
+    constexpr Expression<C, OP_NAME, CET> operator OP(C, CET) noexcept {       \
+        return {};                                                             \
+    }                                                                          \
+    template <CalculateExprType CET, ColType C>                                \
+    constexpr Expression<C, OP_NAME, CET> operator OP(CET, C) noexcept {       \
+        return {};                                                             \
+    }                                                                          \
+    template <CalculateExprType CET>                                           \
+    constexpr auto operator OP(CET, auto v) noexcept                           \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<CET, OP_NAME, decltype(v), void>{std::move(v)};      \
+    }                                                                          \
+    template <CalculateExprType CET>                                           \
+    constexpr auto operator OP(auto v, CET) noexcept                           \
+        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+    {                                                                          \
+        return Expression<CET, OP_NAME, decltype(v), void>{std::move(v)};      \
     }
 
 HX_DB_3OP_NUMBER_IMPL(==, op::Eq)
 HX_DB_3OP_NUMBER_IMPL(!=, op::Ne)
-HX_DB_3OP_NUMBER_IMPL(<, op::Lt)
-HX_DB_3OP_NUMBER_IMPL(<=, op::Le)
-HX_DB_3OP_NUMBER_IMPL(>, op::Gt)
-HX_DB_3OP_NUMBER_IMPL(>=, op::Ge)
-
 HX_DB_3OP_NUMBER_IMPL(+, op::Add)
 HX_DB_3OP_NUMBER_IMPL(-, op::Sub)
 HX_DB_3OP_NUMBER_IMPL(*, op::Mul)
@@ -129,7 +179,28 @@ HX_DB_3OP_NUMBER_IMPL(/, op::Div)
 HX_DB_3OP_NUMBER_IMPL(%, op::Mod)
 
 #undef HX_DB_3OP_NUMBER_IMPL
+#define HX_DB_3OP_STR_IMPL(OP, OP_NAME)                                        \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(C, auto v) noexcept                             \
+        requires(meta::IsFixedStringVal<decltype(v)>)                          \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
+    }                                                                          \
+    template <ColType C>                                                       \
+    constexpr auto operator OP(auto v, C) noexcept                             \
+        requires(meta::IsFixedStringVal<decltype(v)>)                          \
+    {                                                                          \
+        return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
+    }
 
+HX_DB_3OP_STR_IMPL(==, op::Eq)
+HX_DB_3OP_STR_IMPL(!=, op::Ne)
+HX_DB_3OP_STR_IMPL(<, op::Lt)
+HX_DB_3OP_STR_IMPL(<=, op::Le)
+HX_DB_3OP_STR_IMPL(>, op::Gt)
+HX_DB_3OP_STR_IMPL(>=, op::Ge)
+
+#undef HX_DB_3OP_STR_IMPL
 #define HX_DB_2OP_HEAD_IMPL(OP, OP_NAME)                                       \
     template <ColType C>                                                       \
     constexpr auto operator OP(C) noexcept {                                   \
@@ -148,8 +219,20 @@ struct Table {
     std::string name;
 };
 
+struct Table2 {
+    int id;
+    int cd;
+    std::string name;
+};
+
 constexpr auto _1 = Col{&Table::id}.as<"tableId">() == Col{&Table::cd};
 constexpr auto _2 = Col{&Table::id} == Col{&Table::cd};
-constexpr auto _3 = _1 || _2 && Col{&Table::name}.like<"">() && !Col{&Table::id};
+constexpr auto _3 = _1 || (_2 && Col{&Table::name}.like<"">() && !Col{&Table::id});
+
+constexpr auto _4 = Col{&Table::id} == meta::fixed_string_literals::operator""_fs<"暂时">();
+
+constexpr auto _5 = Col{&Table::id} == Col{&Table2::id} + 1;
+constexpr auto _6 = Col{&Table::id} - 1 == Col{&Table2::id};
+constexpr auto _7 = Col{&Table::id} % 2 == 1;
 
 } // namespace HX::db
