@@ -26,6 +26,7 @@
  
 #include <HXLibs/db/sql/Operator.hpp>
 #include <HXLibs/db/sql/Constraint.hpp>
+#include <HXLibs/db/sql/OrderType.hpp>
 
 namespace HX::db {
 
@@ -74,11 +75,11 @@ struct Col {
         return {};
     }
 
-    constexpr Expression<Col, op::Asc> asc() && noexcept {
+    constexpr OrderType<MemberPtrType, op::Asc> asc() && noexcept {
         return {};
     }
 
-    constexpr Expression<Col, op::Desc> desc() && noexcept {
+    constexpr OrderType<MemberPtrType, op::Desc> desc() && noexcept {
         return {};
     }
 };
@@ -130,11 +131,11 @@ struct Col<MemberPtrType, ""> {
         return {};
     }
 
-    constexpr Expression<Col, op::Asc> asc() && noexcept {
+    constexpr OrderType<MemberPtrType, op::Asc> asc() && noexcept {
         return {};
     }
 
-    constexpr Expression<Col, op::Desc> desc() && noexcept {
+    constexpr OrderType<MemberPtrType, op::Desc> desc() && noexcept {
         return {};
     }
 };

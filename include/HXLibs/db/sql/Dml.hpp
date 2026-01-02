@@ -52,7 +52,7 @@ struct OrderByBuild : public LimitBuild<Db> {
     using Base = LimitBuild<Db>;
     using Base::Base;
 
-    template <Expression Expr>
+    template <OrderType... Orders>
     LimitBuild<Db> orderBy() && {
         return {this->_dbRef, std::move(this->_sql)};
     }

@@ -50,6 +50,7 @@ constexpr bool IsCalculateExprTypeVal<Expression<Expr, Op, VT, void>> = true;
 template <typename T>
 concept CalculateExprType = IsCalculateExprTypeVal<T>;
 
+// 实现 表达式的 &&, == 运算符, 用于 `表达式1 op 表达式2`
 #define HX_DB_EXPR_OP_IMPL(OP, OP_NAME)                                        \
     template <ExprType ET>                                                     \
     constexpr Expression<Expression, OP_NAME, ET> operator OP(ET)              \
@@ -98,17 +99,9 @@ struct Expression<Op, Expr, void> {
 };
 
 #undef HX_DB_EXPR_OP_IMPL
-#define HX_DB_3OP_IMPL(OP, OP_NAME)                                            \
-    template <ColType C1, ColType C2>                                          \
-    constexpr auto operator OP(C1, C2) noexcept {                              \
-        return Expression<C1, OP_NAME, C2>{};                                  \
-    }
 
-HX_DB_3OP_IMPL(&&, op::And)
-HX_DB_3OP_IMPL(||, op::Or)
-
-#undef HX_DB_3OP_IMPL
-#define HX_DB_3OP_LOGIC_IMPL(OP, OP_NAME)                                      \
+// 实现 比较运算符, 支持 列的比较, 列与常量的比较
+#define HX_DB_3OP_COMP_IMPL(OP, OP_NAME)                                       \
     template <ColType C1, ColType C2>                                          \
     constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
         return {};                                                             \
@@ -126,12 +119,14 @@ HX_DB_3OP_IMPL(||, op::Or)
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }
 
-HX_DB_3OP_LOGIC_IMPL(<, op::Lt)
-HX_DB_3OP_LOGIC_IMPL(<=, op::Le)
-HX_DB_3OP_LOGIC_IMPL(>, op::Gt)
-HX_DB_3OP_LOGIC_IMPL(>=, op::Ge)
+HX_DB_3OP_COMP_IMPL(<, op::Lt)
+HX_DB_3OP_COMP_IMPL(<=, op::Le)
+HX_DB_3OP_COMP_IMPL(>, op::Gt)
+HX_DB_3OP_COMP_IMPL(>=, op::Ge)
 
-#undef HX_DB_3OP_LOGIC_IMPL
+#undef HX_DB_3OP_COMP_IMPL
+
+// 实现 数学运算符, 支持 `列 eq/ne 列`, `列 op 字面量`, `列 op 数学运算符`
 #define HX_DB_3OP_NUMBER_IMPL(OP, OP_NAME)                                     \
     template <ColType C1, ColType C2>                                          \
     constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
@@ -179,6 +174,8 @@ HX_DB_3OP_NUMBER_IMPL(/, op::Div)
 HX_DB_3OP_NUMBER_IMPL(%, op::Mod)
 
 #undef HX_DB_3OP_NUMBER_IMPL
+
+// 对字符串列与字面量提供比较
 #define HX_DB_3OP_STR_IMPL(OP, OP_NAME)                                        \
     template <ColType C>                                                       \
     constexpr auto operator OP(C, auto v) noexcept                             \
@@ -201,15 +198,17 @@ HX_DB_3OP_STR_IMPL(>, op::Gt)
 HX_DB_3OP_STR_IMPL(>=, op::Ge)
 
 #undef HX_DB_3OP_STR_IMPL
-#define HX_DB_2OP_HEAD_IMPL(OP, OP_NAME)                                       \
+
+// 为一元运算符提供实现
+#define HX_DB_1OP_HEAD_IMPL(OP, OP_NAME)                                       \
     template <ColType C>                                                       \
     constexpr auto operator OP(C) noexcept {                                   \
         return Expression<OP_NAME, C>{};                                       \
     }
 
-HX_DB_2OP_HEAD_IMPL(!, op::Not)
+HX_DB_1OP_HEAD_IMPL(!, op::Not)
 
-#undef HX_DB_2OP_HEAD_IMPL
+#undef HX_DB_1OP_HEAD_IMPL
 
 /// test
 
@@ -234,5 +233,6 @@ constexpr auto _4 = Col{&Table::id} == meta::fixed_string_literals::operator""_f
 constexpr auto _5 = Col{&Table::id} == Col{&Table2::id} + 1;
 constexpr auto _6 = Col{&Table::id} - 1 == Col{&Table2::id};
 constexpr auto _7 = Col{&Table::id} % 2 == 1;
+// constexpr auto _8 = Col{&Table::id} + Col{&Table2::id} == 1; // 不合法, 一边只能放一个`列`
 
 } // namespace HX::db
