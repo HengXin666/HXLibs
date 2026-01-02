@@ -26,6 +26,9 @@ if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")
         set(__HX_UN_DEBUG__ "ON") # 是否关闭内存泄漏 (开启则可能无法通过某些异常来调试)
     endif()
 
+    # 开发模式启动全部功能
+    set(HXLIBS_ENABLE_DB_SQLITE3 ON)
+
     include(cmake/utils.cmake)
     include(cmake/config.cmake)
     include(cmake/develop.cmake)

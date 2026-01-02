@@ -59,7 +59,7 @@ struct FixedString {
         }
     }
 
-    // 长度不含终止符
+    // 长度(含终止符)
     static constexpr std::size_t literalSize() noexcept { return N; }
 
     static constexpr std::size_t size() noexcept { return Size; }

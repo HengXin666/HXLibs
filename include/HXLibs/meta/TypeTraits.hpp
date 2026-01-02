@@ -53,6 +53,27 @@ constexpr bool IsOptionalVal = false;
 template <typename T>
 constexpr bool IsOptionalVal<std::optional<T>> = true;
 
+namespace internal {
+
+template <typename T>
+struct RemoveOptionalWrapTypeImpl {
+    using Type = T;
+};
+
+template <typename T>
+struct RemoveOptionalWrapTypeImpl<std::optional<T>> {
+    using Type = T;
+};
+
+} // namespace internal
+
+/**
+ * @brief 去除 类型的 std::optional 包裹, std::optional<T> -> T
+ * @tparam T 
+ */
+template <typename T>
+using RemoveOptionalWrapType = internal::RemoveOptionalWrapTypeImpl<T>::Type;
+
 /**
  * @brief 类型萃取: 是否为 智能指针 类型
  * @tparam T 

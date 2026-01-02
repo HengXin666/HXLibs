@@ -4,6 +4,7 @@
 #include <doctest.h>
 
 #include <HXLibs/db/sqlite3/MakeCreateDbSql.hpp>
+#include <HXLibs/db/sql/DataBase.hpp>
 #include <HXLibs/meta/FixedString.hpp>
 #include <HXLibs/log/Log.hpp>
 
@@ -64,4 +65,18 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     log::hxLog.info(sql);
     auto indexSql = sqlite3::CreateDbSql::createIndex(user);
     log::hxLog.info(indexSql);
+
+    using db::Col;
+
+    [[maybe_unused]] auto c = Col{&User::id}.as<"userId">();
+
+    DateBase{}.select<Col{&User::id}>()
+              .from<User>()
+              .join<Role>()
+              .on<Col(&User::roleId) == Col(&Role::id)>()
+              .where<(Col(&User::age) == meta::NumberNTTP<18>{}) 
+                  && Col(&User::name).like<"loli_%">()>()
+              .groupBy<&User::name>()
+              .orderBy<Col(&User::age).asc()>()
+              .limit<10, 50>();
 }

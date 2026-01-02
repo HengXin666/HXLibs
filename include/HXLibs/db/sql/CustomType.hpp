@@ -19,6 +19,7 @@
  */
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/db/sql/SqlType.hpp>
 
 namespace HX::db {
 
@@ -34,6 +35,7 @@ struct CustomType {
     static_assert(std::is_integral_v<T>
                || std::is_floating_point_v<T>
                || meta::StringType<T>
+               || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>
     ); // 屏蔽主模板
 
     // Type 序列化为 std::string
@@ -58,7 +60,8 @@ struct CustomType {
 template <typename T>
     requires (std::is_integral_v<T>
            || std::is_floating_point_v<T>
-           || meta::StringType<T>)
+           || meta::StringType<T>
+           || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>)
 struct CustomType<std::optional<T>> {
     using Type = std::optional<T>;
 
@@ -70,7 +73,6 @@ struct CustomType<std::optional<T>> {
         return std::move(t);
     }
 };
-
 
 /**
  * @brief 判断 T 是否是已经注册的自定义SQL类型

@@ -19,6 +19,7 @@
  */
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/db/sql/SqlType.hpp>
 #include <HXLibs/db/sql/Constraint.hpp>
 #include <HXLibs/db/sql/CustomType.hpp>
 #include <HXLibs/reflection/MemberName.hpp>
@@ -30,30 +31,40 @@
 namespace HX::db::sqlite3 {
 
 struct CreateDbSql {
-    template <typename T>
-    static constexpr std::string_view getSqlTypeStr() noexcept {
+    template <typename Type, typename Lambda>
+    static constexpr std::string_view getSqlTypeStrImpl(Lambda&& doNotTypeFunc) {
+        using T = meta::RemoveOptionalWrapType<Type>;
         if constexpr (std::is_integral_v<T>) {
             return "INTEGER";
         } else if constexpr (std::is_floating_point_v<T>) {
             return "REAL";
         } else if constexpr (meta::StringType<T>) {
             return "TEXT";
+        } else if constexpr (std::is_same_v<T, db::Date>) {
+            return "DATE";
+        } else if constexpr (std::is_same_v<T, db::Time>) {
+            return "TIME";
+        } else if constexpr (std::is_same_v<T, db::Timestamp>) {
+            static_assert(!sizeof(T), "type is not sql type");
         } else {
+            return std::forward<Lambda>(doNotTypeFunc)();
+        }
+    }
+
+    template <typename T>
+    static constexpr std::string_view getSqlTypeStr() noexcept {
+        return getSqlTypeStrImpl<T>([] {
             // 不支持该类型
             static_assert(!sizeof(T), "type is not sql type");
-        }
+        });
     }
 
     template <typename T>
         requires (IsCustomTypeVal<T>)
     static constexpr std::string_view getSqlTypeStr() noexcept {
-        if constexpr (std::is_integral_v<T>) {
-            return "INTEGER";
-        } else if constexpr (std::is_floating_point_v<T>) {
-            return "REAL";
-        } else {
+        return getSqlTypeStrImpl<T>([] {
             return "TEXT";
-        }
+        });
     }
 
     template <typename T, typename... ConstraintTypes>
