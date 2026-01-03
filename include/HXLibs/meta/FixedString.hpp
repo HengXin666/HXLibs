@@ -59,6 +59,10 @@ struct FixedString {
         }
     }
 
+    constexpr operator std::string_view() const noexcept {
+        return {data, size()};
+    }
+
     // 长度(含终止符)
     static constexpr std::size_t literalSize() noexcept { return N; }
 
@@ -69,6 +73,9 @@ struct FixedString {
 
     // 为了结构化类型比较, 避免某些实现细节陷阱
     constexpr auto operator<=>(const FixedString&) const noexcept = default;
+
+    constexpr char* begin() { return &data[0]; }
+    constexpr char* end() { return data + N; }
 };
 
 template <std::size_t N, std::size_t M>

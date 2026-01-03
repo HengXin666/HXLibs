@@ -26,9 +26,10 @@ namespace agg {
 
 #define HX_DB_AGG_OP_IMPL(OP_NAME, SQL_STR)                                    \
     struct OP_NAME {                                                           \
-        template <meta::FixedString Name>                                      \
-        static constexpr auto toSql() noexcept {                               \
-            return meta::FixedString{SQL_STR} + "(" + Name + ")";              \
+        static constexpr std::string toSql(std::string name) noexcept {        \
+            name = SQL_STR "(" + std::move(name);                              \
+            name += ")";                                                       \
+            return name;                                                       \
         }                                                                      \
     };
 
@@ -43,24 +44,27 @@ HX_DB_AGG_OP_IMPL(Count, "COUNT") // 统计列中非 NULL 的行数
 
 // 统计行数, 不管 NULL
 struct CountAll {
-    template <meta::FixedString Name>
-    static constexpr auto toSql() noexcept {
+    static constexpr std::string toSql(std::string_view) noexcept {
         return "COUNT(*)";
     }
 };
 
 // 统计列中不同值的数量
 struct CountDistinct {
-    template <meta::FixedString Name>
-    static constexpr auto toSql() noexcept {
-        return "COUNT(DISTINCT " + Name + ")";
+    static constexpr std::string toSql(std::string name) noexcept {
+        name = "COUNT(DISTINCT " + std::move(name);
+        name += ")";
+        return name;
     }
 };
 
 } // namespace agg
 
 template <Col C, typename Func>
-struct AggregateFunc {};
+struct AggregateFunc {
+    using AggFunc = Func;
+    inline static constexpr auto ColVal = C;
+};
 
 template <typename T>
 constexpr bool IsAggregateFuncVal = false;

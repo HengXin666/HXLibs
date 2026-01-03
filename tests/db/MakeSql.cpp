@@ -12,6 +12,10 @@
 using namespace HX;
 using namespace db;
 
+struct Text {
+    inline static constexpr std::string_view TableName = "TextLoLi";
+};
+
 TEST_CASE("sqlite3/MakeCreateDbSql") {
     using namespace meta::fixed_string_literals;
 
@@ -69,7 +73,9 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     using db::Col;
 
-    [[maybe_unused]] auto c = Col{&User::id}.as<"userId">();
+    [[maybe_unused]] constexpr auto c = Col{&User::id}.as<"userId">();
+
+    // static_assert(c._ptr == nullptr);
 
     DateBase{}.select<Col{&User::id}.as<"userId">()>()
               .from<User>()
@@ -93,4 +99,6 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
               .groupBy<&User::name>()
               .orderBy<Col(&User::age).asc()>()
               .limit<10, 50>();
+
+    log::hxLog.info("table:", db::getTableName<Text>());
 }

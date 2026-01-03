@@ -18,11 +18,14 @@
  * limitations under the License.
  */
 
-#include <string>
 
+#include <HXLibs/reflection/MemberPtr.hpp>
+#include <HXLibs/db/sql/Table.hpp>
 #include <HXLibs/db/sql/Column.hpp>
 #include <HXLibs/db/sql/Aggregate.hpp>
 #include <HXLibs/db/sql/Expression.hpp>
+
+#include <HXLibs/log/Log.hpp> // debug
 
 namespace HX::db {
 
@@ -30,6 +33,23 @@ namespace internal {
 
 template <ColType... Cs>
 constexpr std::size_t ParamCnt = (static_cast<std::size_t>(std::is_same_v<typename Cs::Table, void>) + ...);
+
+template <Col C>
+constexpr std::string makeColName() {
+    using T = decltype(C);
+    std::string res;
+    res += getTableName<typename T::Table>();
+    res += '.';
+    res += reflection::makeMemberPtrToNameMap<typename T::Table>().at(C._ptr);
+    return res;
+}
+
+template <Expression Expr>
+constexpr std::string ExprToString() noexcept {
+    std::string res{};
+    
+    return res;
+}
 
 } // namespace internal
 
@@ -51,7 +71,7 @@ struct LimitBuild : public SqlBuild<Db> {
 
     template <auto Offset, auto MaxCnt>
     void limit() {
-
+        log::hxLog.info("sql:", this->_sql);
     }
 };
 
@@ -119,6 +139,7 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
     
     template <Expression Expr>
     JoinOrWhereBuild<Db> on() && {
+
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -130,6 +151,9 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
 
     template <typename Table>
     constexpr OnBuild<Db> join() && {
+        this->_sql += "JOIN ";
+        this->_sql += reflection::getTypeName<Table>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -141,6 +165,9 @@ struct FromBuild : public SqlBuild<Db> {
 
     template <typename Table>
     constexpr JoinOrWhereBuild<Db> from() && {
+        this->_sql += "FROM ";
+        this->_sql += reflection::getTypeName<Table>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 
@@ -153,19 +180,24 @@ struct SelectBuild : public SqlBuild<Db> {
     using Base::Base;
 
     template <auto... Cs>
+        requires (sizeof...(Cs) > 0)
     constexpr FromBuild<Db> select() && {
-        ([](auto v) {
-            using U = decltype(v);
+        this->_sql += "SELECT ";
+        ([this] <auto C> (meta::ToTypeWrap<C>) {
+            using U = decltype(C);
             if constexpr (IsColTypeVal<U>) {
                 // select 不可使用占位符
                 static_assert(internal::ParamCnt<U> == 0, "Select cannot use placeholder");
+                this->_sql += internal::makeColName<C>();
             } else if constexpr (IsAggregateFuncVal<U>) {
-            
+                this->_sql += U::AggFunc::toSql(internal::makeColName<U::ColVal>());
             } else {
                 // 非法查询参数
                 static_assert(!sizeof(U), "Illegal query parameter");
             }
-        }(Cs), ...);
+            this->_sql += ',';
+        }(meta::ToTypeWrap<Cs>{}), ...);
+        this->_sql.back() = ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };

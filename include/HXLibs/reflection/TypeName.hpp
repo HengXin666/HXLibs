@@ -42,7 +42,7 @@ inline constexpr std::string_view getTypeName() noexcept {
     auto split = funcName.substr(funcName.rfind("T = ") + sizeof("T = ") - 1);
     auto pos = split.rfind(']');
     split = split.substr(0, pos);
-    pos = split.find("<");
+    pos = split.find('<');
     if (pos != std::string_view::npos) {
         split = split.substr(0, pos);
     }
@@ -64,7 +64,7 @@ inline constexpr std::string_view getTypeName() noexcept {
     }
 #elif defined(_MSC_VER)
     auto split = funcName.substr(funcName.rfind("getTypeName<") + sizeof("getTypeName<") - 1);
-    auto pos = split.find("<");
+    auto pos = split.find('<');
     if (pos != std::string_view::npos) {
         split = split.substr(0, pos);
     } else {
@@ -74,6 +74,72 @@ inline constexpr std::string_view getTypeName() noexcept {
     pos = split.rfind("::");
     if (pos != std::string_view::npos) {
         split = split.substr(pos + 2);
+    } else {
+        pos = split.find(' ');
+        if (pos != std::string_view::npos) {
+            split = split.substr(pos + 1);
+        }
+    }
+#else
+    static_assert(
+        false, 
+        "You are using an unsupported compiler. Please use GCC, Clang "
+        "or MSVC or switch to the rfl::Field-syntax."
+    );
+#endif
+    // 暂时不支持 Lambda 类型
+    // if (split.empty()) {
+    //     return "Lambda";
+    // }
+    return split;
+}
+
+/**
+ * @brief 获取类型名称(含命名空间)
+ * @tparam T 仅 enum / class / struct / union
+ * @return constexpr std::string_view 
+ */
+template <typename T>
+    requires(std::is_enum_v<T>
+          || std::is_class_v<T>
+          || std::is_union_v<T>)
+inline constexpr std::string_view getTypeNameAndNamespace() noexcept {
+#if defined(_MSC_VER)
+    constexpr std::string_view funcName = __FUNCSIG__;
+#else
+    constexpr std::string_view funcName = __PRETTY_FUNCTION__;
+#endif
+    // return funcName; // debug
+#if defined(__clang__)
+    auto split = funcName.substr(funcName.rfind("T = ") + sizeof("T = ") - 1);
+    auto pos = split.rfind(']');
+    split = split.substr(0, pos);
+    pos = split.find('<');
+    if (pos != std::string_view::npos) {
+        split = split.substr(0, pos);
+    }
+    pos = split.rfind("::");
+    if (pos != std::string_view::npos) {
+        pos = split.rfind(' ');
+        split = split.substr(pos + 1);
+    }
+#elif defined(__GNUC__)
+    auto split = funcName.substr(funcName.find("[with T = ") + sizeof("[with T = ") - 1);
+    auto pos = split.find(';');
+    split = split.substr(0, pos);
+#elif defined(_MSC_VER)
+    auto split = funcName.substr(funcName.rfind("getTypeName<") + sizeof("getTypeName<") - 1);
+    auto pos = split.find('<');
+    if (pos != std::string_view::npos) {
+        split = split.substr(0, pos);
+    } else {
+        pos = split.find('>');
+        split = split.substr(0, pos);
+    }
+    pos = split.rfind("::");
+    if (pos != std::string_view::npos) {
+        pos = split.rfind(' ');
+        split = split.substr(pos + 1);
     } else {
         pos = split.find(' ');
         if (pos != std::string_view::npos) {

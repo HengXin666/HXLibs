@@ -97,7 +97,7 @@ struct Col<MemberPtrType, ""> {
     template <meta::FixedString AsName>
         requires (AsName.size() > 0)
     constexpr Col<MemberPtrType, AsName> as() && noexcept {
-        return {};
+        return {_ptr};
     }
 
     template <auto... Vs>
