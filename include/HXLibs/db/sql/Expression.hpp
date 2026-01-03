@@ -103,18 +103,27 @@ struct Expression<Op, Expr, void> {
 // 实现 比较运算符, 支持 列的比较, 列与常量的比较
 #define HX_DB_3OP_COMP_IMPL(OP, OP_NAME)                                       \
     template <ColType C1, ColType C2>                                          \
+        requires(                                                              \
+            std::same_as<meta::RemoveOptionalWrapType<typename C1::Type>,      \
+                         meta::RemoveOptionalWrapType<typename C2::Type>>)     \
     constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
         return {};                                                             \
     }                                                                          \
     template <ColType C>                                                       \
     constexpr auto operator OP(C, auto v) noexcept                             \
-        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+        requires(                                                              \
+            IsSqlNumberTypeVal<decltype(v)>                                    \
+            && std::same_as<decltype(v),                                       \
+                            meta::RemoveOptionalWrapType<typename C::Type>>)   \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }                                                                          \
     template <ColType C>                                                       \
     constexpr auto operator OP(auto v, C) noexcept                             \
-        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+        requires(                                                              \
+            IsSqlNumberTypeVal<decltype(v)>                                    \
+            && std::same_as<decltype(v),                                       \
+                            meta::RemoveOptionalWrapType<typename C::Type>>)   \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }
@@ -129,18 +138,27 @@ HX_DB_3OP_COMP_IMPL(>=, op::Ge)
 // 实现 数学运算符, 支持 `列 eq/ne 列`, `列 op 字面量`, `列 op 数学运算符`
 #define HX_DB_3OP_NUMBER_IMPL(OP, OP_NAME)                                     \
     template <ColType C1, ColType C2>                                          \
+        requires(                                                              \
+            std::same_as<meta::RemoveOptionalWrapType<typename C1::Type>,      \
+                         meta::RemoveOptionalWrapType<typename C2::Type>>)     \
     constexpr Expression<C1, OP_NAME, C2> operator OP(C1, C2) noexcept {       \
         return {};                                                             \
     }                                                                          \
     template <ColType C>                                                       \
     constexpr auto operator OP(C, auto v) noexcept                             \
-        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+        requires(                                                              \
+            IsSqlNumberTypeVal<decltype(v)>                                    \
+            && std::same_as<decltype(v),                                       \
+                            meta::RemoveOptionalWrapType<typename C::Type>>)   \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }                                                                          \
     template <ColType C>                                                       \
     constexpr auto operator OP(auto v, C) noexcept                             \
-        requires(IsSqlNumberTypeVal<decltype(v)>)                              \
+        requires(                                                              \
+            IsSqlNumberTypeVal<decltype(v)>                                    \
+            && std::same_as<decltype(v),                                       \
+                            meta::RemoveOptionalWrapType<typename C::Type>>)   \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }                                                                          \
@@ -179,13 +197,17 @@ HX_DB_3OP_NUMBER_IMPL(%, op::Mod)
 #define HX_DB_3OP_STR_IMPL(OP, OP_NAME)                                        \
     template <ColType C>                                                       \
     constexpr auto operator OP(C, auto v) noexcept                             \
-        requires(meta::IsFixedStringVal<decltype(v)>)                          \
+        requires(                                                              \
+            meta::StringType<meta::RemoveOptionalWrapType<typename C::Type>>   \
+            && meta::IsFixedStringVal<decltype(v)>)                            \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }                                                                          \
     template <ColType C>                                                       \
     constexpr auto operator OP(auto v, C) noexcept                             \
-        requires(meta::IsFixedStringVal<decltype(v)>)                          \
+        requires(                                                              \
+            meta::StringType<meta::RemoveOptionalWrapType<typename C::Type>>   \
+            && meta::IsFixedStringVal<decltype(v)>)                            \
     {                                                                          \
         return Expression<C, OP_NAME, decltype(v), void>{std::move(v)};        \
     }
@@ -228,7 +250,7 @@ constexpr auto _1 = Col{&Table::id}.as<"tableId">() == Col{&Table::cd};
 constexpr auto _2 = Col{&Table::id} == Col{&Table::cd};
 constexpr auto _3 = _1 || (_2 && Col{&Table::name}.like<"">() && !Col{&Table::id});
 
-constexpr auto _4 = Col{&Table::id} == meta::fixed_string_literals::operator""_fs<"暂时">();
+constexpr auto _4 = Col{&Table::name} == meta::fixed_string_literals::operator""_fs<"暂时">();
 
 constexpr auto _5 = Col{&Table::id} == Col{&Table2::id} + 1;
 constexpr auto _6 = Col{&Table::id} - 1 == Col{&Table2::id};

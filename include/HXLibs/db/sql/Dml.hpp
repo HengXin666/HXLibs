@@ -21,9 +21,17 @@
 #include <string>
 
 #include <HXLibs/db/sql/Column.hpp>
+#include <HXLibs/db/sql/Aggregate.hpp>
 #include <HXLibs/db/sql/Expression.hpp>
 
 namespace HX::db {
+
+namespace internal {
+
+template <ColType... Cs>
+constexpr std::size_t ParamCnt = (static_cast<std::size_t>(std::is_same_v<typename Cs::Table, void>) + ...);
+
+} // namespace internal
 
 template <typename Db>
 struct SqlBuild {
@@ -59,17 +67,33 @@ struct OrderByBuild : public LimitBuild<Db> {
 };
 
 template <typename Db>
-struct GroupByBuild : public OrderByBuild<Db> {
+struct HavingBuild : public OrderByBuild<Db> {
     using Base = OrderByBuild<Db>;
     using Base::Base;
 
+    template <Expression Expr>
+    OrderByBuild<Db> having() && {
+        return {this->_dbRef, std::move(this->_sql)};
+    }
+};
+
+template <typename Db>
+struct GroupByBuild : public HavingBuild<Db> {
+    using Base = HavingBuild<Db>;
+    using Base::Base;
+
     template <auto... Ptrs>
-    OrderByBuild<Db> groupBy() && {
+    HavingBuild<Db> groupBy() && {
         return {this->_dbRef, std::move(this->_sql)};
     }
 
-    template <Col... Ptrs>
-    OrderByBuild<Db> groupBy() && {
+    template <Col... Cs>
+    HavingBuild<Db> groupBy() && {
+        return {this->_dbRef, std::move(this->_sql)};
+    }
+
+    template <Expression Expr>
+    HavingBuild<Db> groupBy() && {
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -128,8 +152,20 @@ struct SelectBuild : public SqlBuild<Db> {
     using Base = SqlBuild<Db>;
     using Base::Base;
 
-    template <Col... Cs>
+    template <auto... Cs>
     constexpr FromBuild<Db> select() && {
+        ([](auto v) {
+            using U = decltype(v);
+            if constexpr (IsColTypeVal<U>) {
+                // select 不可使用占位符
+                static_assert(internal::ParamCnt<U> == 0, "Select cannot use placeholder");
+            } else if constexpr (IsAggregateFuncVal<U>) {
+            
+            } else {
+                // 非法查询参数
+                static_assert(!sizeof(U), "Illegal query parameter");
+            }
+        }(Cs), ...);
         return {this->_dbRef, std::move(this->_sql)};
     }
 };

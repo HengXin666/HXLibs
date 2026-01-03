@@ -95,6 +95,7 @@ struct Col<MemberPtrType, ""> {
     using Type = RemoveConstraintToType<meta::GetMemberPtrType<MemberPtrType>>;
 
     template <meta::FixedString AsName>
+        requires (AsName.size() > 0)
     constexpr Col<MemberPtrType, AsName> as() && noexcept {
         return {};
     }
