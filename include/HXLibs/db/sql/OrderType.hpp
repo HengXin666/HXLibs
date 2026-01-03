@@ -22,7 +22,10 @@
 
 namespace HX::db {
 
-template <typename MemberPtrType, typename Op>
-struct OrderType {};
+template <typename MemberPtrType, auto Op>
+struct OrderType {
+    MemberPtrType _ptr;
+    decltype(Op) _op{Op};
+};
 
 } // namespace HX::db

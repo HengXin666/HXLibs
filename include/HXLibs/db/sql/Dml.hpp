@@ -45,9 +45,9 @@ constexpr std::string makeColName() {
 }
 
 template <Expression Expr>
-constexpr std::string ExprToString() noexcept {
+constexpr std::string ExprToString() {
     std::string res{};
-    
+
     return res;
 }
 

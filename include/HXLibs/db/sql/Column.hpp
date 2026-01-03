@@ -48,39 +48,39 @@ struct Col {
     using Type = RemoveConstraintToType<meta::GetMemberPtrType<MemberPtrType>>;
 
     template <auto... Vs>
-    constexpr Expression<Col, op::In, meta::ToTypeWrap<Vs...>> in() && noexcept {
-        return {};
+    constexpr Expression<Col, decltype(op::In), meta::ToTypeWrap<Vs...>> in() && noexcept {
+        return {std::move(*this), op::In, meta::ToTypeWrap<Vs...>{}};
     }
 
     template <auto... Vs>
-    constexpr Expression<Col, op::NotIn, meta::ToTypeWrap<Vs...>> notIn() && noexcept {
-        return {};
+    constexpr Expression<Col, decltype(op::NotIn), meta::ToTypeWrap<Vs...>> notIn() && noexcept {
+        return {std::move(*this), op::NotIn, meta::ToTypeWrap<Vs...>{}};
     }
 
-    constexpr Expression<Col, op::IsNull> isNull() && noexcept requires(meta::IsOptionalVal<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::IsNull)> isNull() && noexcept requires(meta::IsOptionalVal<Type>) {
+        return {std::move(*this), op::IsNull};
     }
 
-    constexpr Expression<Col, op::IsNotNull> isNotNull() && noexcept requires(meta::IsOptionalVal<Type>) {
-        return {};
-    }
-
-    template <meta::FixedString V>
-    constexpr Expression<Col, op::Like, meta::ToTypeWrap<V>> like() && noexcept requires(meta::StringType<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::IsNotNull)> isNotNull() && noexcept requires(meta::IsOptionalVal<Type>) {
+        return {std::move(*this), op::IsNotNull};
     }
 
     template <meta::FixedString V>
-    constexpr Expression<Col, op::NotLike, meta::ToTypeWrap<V>> notLike() && noexcept requires(meta::StringType<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::Like), meta::ToTypeWrap<V>> like() && noexcept requires(meta::StringType<Type>) {
+        return {std::move(*this), op::Like, meta::ToTypeWrap<V>{}};
+    }
+
+    template <meta::FixedString V>
+    constexpr Expression<Col, decltype(op::NotLike), meta::ToTypeWrap<V>> notLike() && noexcept requires(meta::StringType<Type>) {
+        return {std::move(*this), op::NotLike, meta::ToTypeWrap<V>{}};
     }
 
     constexpr OrderType<MemberPtrType, op::Asc> asc() && noexcept {
-        return {};
+        return {_ptr};
     }
 
     constexpr OrderType<MemberPtrType, op::Desc> desc() && noexcept {
-        return {};
+        return {_ptr};
     }
 };
 
@@ -101,43 +101,39 @@ struct Col<MemberPtrType, ""> {
     }
 
     template <auto... Vs>
-    constexpr Expression<Col, op::In, meta::ToTypeWrap<Vs...>> in() && noexcept {
-        return {};
+    constexpr Expression<Col, decltype(op::In), meta::ToTypeWrap<Vs...>> in() && noexcept {
+        return {std::move(*this), op::In, meta::ToTypeWrap<Vs...>{}};
     }
 
     template <auto... Vs>
-    constexpr Expression<Col, op::NotIn, meta::ToTypeWrap<Vs...>> notIn() && noexcept {
-        return {};
+    constexpr Expression<Col, decltype(op::NotIn), meta::ToTypeWrap<Vs...>> notIn() && noexcept {
+        return {std::move(*this), op::NotIn, meta::ToTypeWrap<Vs...>{}};
     }
 
-    constexpr Expression<Col, op::IsNull> isNull() && noexcept requires(meta::IsOptionalVal<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::IsNull)> isNull() && noexcept requires(meta::IsOptionalVal<Type>) {
+        return {std::move(*this), op::IsNull};
     }
 
-    constexpr Expression<Col, op::IsNotNull> isNotNull() && noexcept requires(meta::IsOptionalVal<Type>) {
-        return {};
-    }
-
-    template <meta::FixedString V>
-    constexpr Expression<Col, op::Like, meta::ToTypeWrap<V>> like() && noexcept requires(meta::StringType<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::IsNotNull)> isNotNull() && noexcept requires(meta::IsOptionalVal<Type>) {
+        return {std::move(*this), op::IsNotNull};
     }
 
     template <meta::FixedString V>
-    constexpr Expression<Col, op::NotLike, meta::ToTypeWrap<V>> notLike() && noexcept requires(meta::StringType<Type>) {
-        return {};
+    constexpr Expression<Col, decltype(op::Like), meta::ToTypeWrap<V>> like() && noexcept requires(meta::StringType<Type>) {
+        return {std::move(*this), op::Like, meta::ToTypeWrap<V>{}};
     }
 
-    constexpr Expression<op::Not, Col> operator!() && noexcept {
-        return {};
+    template <meta::FixedString V>
+    constexpr Expression<Col, decltype(op::NotLike), meta::ToTypeWrap<V>> notLike() && noexcept requires(meta::StringType<Type>) {
+        return {std::move(*this), op::NotLike, meta::ToTypeWrap<V>{}};
     }
 
     constexpr OrderType<MemberPtrType, op::Asc> asc() && noexcept {
-        return {};
+        return {_ptr};
     }
 
     constexpr OrderType<MemberPtrType, op::Desc> desc() && noexcept {
-        return {};
+        return {_ptr};
     }
 };
 

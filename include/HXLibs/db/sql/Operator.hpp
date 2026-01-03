@@ -23,9 +23,9 @@
 namespace HX::db::op {
 
 #define HX_DB_OP_IMPL(OP_NAME, SQL_STR)                                        \
-    struct OP_NAME {                                                           \
-        std::string_view Sql = SQL_STR;                                        \
-    };
+    inline constexpr struct hx_##OP_NAME##_impl {                              \
+        inline static constexpr std::string_view Sql = SQL_STR;                \
+    } OP_NAME;
 
 // 比较运算符
 HX_DB_OP_IMPL(Eq, "=")

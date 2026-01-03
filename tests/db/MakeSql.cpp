@@ -84,7 +84,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
               .where<((Col(&User::age) == 18) 
                   && Col(&User::name).like<"loli_%">())
                   || Col(&Role::id).notIn<1, 2, 3>()
-                  || (Col(&User::id) == Col(&Role::id) + 1ul)>()
+                  || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
               .groupBy<&User::name>()
               .having<Col(&User::id) == 3>()
               .orderBy<Col(&User::age).asc()>()
