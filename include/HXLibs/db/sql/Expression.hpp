@@ -41,8 +41,40 @@ concept ExprType = IsExpressionVal<T>;
 template <typename T>
 constexpr bool IsCalculateExprTypeVal = false;
 
+/**
+ * @brief 判断是否为「计算」表达式
+ */
 template <typename Expr, typename Op, typename VT>
 constexpr bool IsCalculateExprTypeVal<Expression<Expr, Op, VT, void>> = true;
+
+template <typename T>
+constexpr bool Is3OpExprVal = false;
+
+/**
+ * @brief 判断是否为「三操作数」表达式
+ */
+template <typename Expr1, typename Op, typename Expr2>
+    requires (!std::same_as<Expr2, void>)
+constexpr bool Is3OpExprVal<Expression<Expr1, Op, Expr2>> = true;
+
+template <typename T>
+constexpr bool IsTailOpExprVal = false;
+
+/**
+ * @brief 判断是否为「尾操作」表达式 (? op, 如 ? is null)
+ */
+template <typename Expr, typename Op>
+constexpr bool IsTailOpExprVal<Expression<Expr, Op>> = true;
+
+
+template <typename T>
+constexpr bool Is1OpExprVal = false;
+
+/**
+ * @brief 判断是否为「一操作数」表达式 (op(?), 如 not ?)
+ */
+template <typename Op, typename Expr>
+constexpr bool Is1OpExprVal<Expression<Op, Expr, void>> = true;
 
 // 计算中的表达式, 如 a.id + 1, 即 `字段 op 字面量`, op 为 +-*/%
 template <typename T>
@@ -58,11 +90,11 @@ concept CalculateExprType = IsCalculateExprTypeVal<T>;
 
 template <typename Expr, typename Op, typename VT>
 struct Expression<Expr, Op, VT, void> {
-    Expr _expr;
+    Expr _expr1;
     Op _op;
     // 可能是 A op B
     // 也可能是 A in <B>
-    VT _opVal; // 此处的 B 是具体的编译期常量
+    VT _expr2; // 此处的 B 是具体的编译期常量
 
     HX_DB_EXPR_OP_IMPL(||, op::Or)
     HX_DB_EXPR_OP_IMPL(&&, op::And)
@@ -81,7 +113,7 @@ struct Expression<Expr1, Op, Expr2> {
     HX_DB_EXPR_OP_IMPL(&&, op::And)
 };
 
-// is null, asc/desc
+// is null
 template <typename Expr, typename Op>
 struct Expression<Expr, Op> {
     Expr _expr;
@@ -240,7 +272,7 @@ HX_DB_3OP_STR_IMPL(>=, op::Ge)
 #define HX_DB_1OP_HEAD_IMPL(OP, OP_NAME)                                       \
     template <ColType C>                                                       \
     constexpr auto operator OP(C c) noexcept {                                 \
-        return Expression<decltype(OP_NAME), C>{OP_NAME, c};                   \
+        return Expression<decltype(OP_NAME), C, void>{OP_NAME, c};             \
     }
 
 HX_DB_1OP_HEAD_IMPL(!, op::Not)
@@ -272,6 +304,6 @@ constexpr auto _6 = Col{&Table::id} - 1 == Col{&Table2::id};
 constexpr auto _7 = Col{&Table::id} % 2 == 1;
 // constexpr auto _8 = Col{&Table::id} + Col{&Table2::id} == 1; // 不合法, 一边只能放一个`列`
 
-static_assert(_1._expr1._ptr != nullptr);;
+// static_assert(_1._expr1._ptr != nullptr);;
 
 } // namespace HX::db

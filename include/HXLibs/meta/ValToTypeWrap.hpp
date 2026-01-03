@@ -31,4 +31,10 @@ struct ToTypeWrap {
     inline static constexpr auto Datas = std::make_tuple(Vs...);
 };
 
+template <typename T>
+constexpr bool IsTypeWrapVal = false;
+
+template <auto... Vs>
+constexpr bool IsTypeWrapVal<ToTypeWrap<Vs...>> = true;
+
 } // namespace HX::meta

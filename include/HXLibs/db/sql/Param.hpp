@@ -51,4 +51,10 @@ struct Col<internal::Param<T>, ""> {
 template <typename T>
 inline constexpr Col<internal::Param<T>, ""> param{};
 
+template <typename T>
+constexpr bool IsParamVal = false;
+
+template <typename T, meta::FixedString AsName>
+constexpr bool IsParamVal<Col<internal::Param<T>, AsName>> = true;
+
 } // namespace HX::db

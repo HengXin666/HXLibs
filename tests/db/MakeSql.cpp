@@ -77,7 +77,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     // static_assert(c._ptr == nullptr);
 
-    DateBase{}.select<Col{&User::id}.as<"userId">()>()
+    DataBase{}.select<Col{&User::id}.as<"userId">()>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
@@ -87,10 +87,10 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
                   || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
               .groupBy<&User::name>()
               .having<Col(&User::id) == 3>()
-              .orderBy<Col(&User::age).asc()>()
+              .orderBy<Col(&User::age).asc(), Col(&User::id).desc()>()
               .limit<10, 50>();
 
-    DateBase{}.select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
+    DataBase{}.select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
@@ -98,7 +98,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
                   || Col(&User::age) == 2)>()
               .groupBy<&User::name>()
               .orderBy<Col(&User::age).asc()>()
-              .limit<10, 50>();
+              .limit<db::param<int>>();
 
     log::hxLog.info("table:", db::getTableName<Text>());
 }

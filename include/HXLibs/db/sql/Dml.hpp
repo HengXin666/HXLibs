@@ -20,8 +20,10 @@
 
 
 #include <HXLibs/reflection/MemberPtr.hpp>
+#include <HXLibs/log/serialize/ToString.hpp>
 #include <HXLibs/db/sql/Table.hpp>
 #include <HXLibs/db/sql/Column.hpp>
+#include <HXLibs/db/sql/Param.hpp>
 #include <HXLibs/db/sql/Aggregate.hpp>
 #include <HXLibs/db/sql/Expression.hpp>
 
@@ -45,10 +47,80 @@ constexpr std::string makeColName() {
 }
 
 template <Expression Expr>
+constexpr std::string ExprToString();
+
+template <auto Expr>
+constexpr void expandExpr(std::string& res) {
+    using T = decltype(Expr);
+    if constexpr (IsParamVal<T>) {
+        res += "?";
+    } else if constexpr (IsExpressionVal<T>) {
+        res += ExprToString<Expr>();
+    } else if constexpr (IsColTypeVal<T>) {
+        res += makeColName<Expr>();
+    } else if constexpr (meta::IsFixedStringVal<T>) {
+        res += '\"';
+        res += Expr;
+        res += '\"';
+    } else if constexpr (IsSqlNumberTypeVal<T>) {
+        res += log::toString(Expr);
+    } else if constexpr (IsParamVal<T>) {
+        res += "?";
+    } else if constexpr (meta::IsTypeWrapVal<T>) {
+        [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
+            if constexpr (sizeof...(Vs) > 1) {
+                res += '(';
+            }
+            ((expandExpr<Vs>(res), res += ','), ...);
+            if constexpr (sizeof...(Vs) > 1) {
+                res.back() = ')';
+            } else {
+                res.pop_back();
+            }
+        } (Expr);
+    }
+}
+
+template <Expression Expr>
 constexpr std::string ExprToString() {
     std::string res{};
-
+    using T = decltype(Expr);
+    if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
+        using Expr1 = decltype(Expr._expr1);
+        if constexpr (IsExpressionVal<Expr1>) {
+            res += ExprToString<Expr._expr1>();
+        } else if constexpr (IsColTypeVal<Expr1>) {
+            res += makeColName<Expr._expr1>();
+        } else {
+            // 非法表达式
+            static_assert(!sizeof(Expr), "illegal expression");
+        }
+        res += ' ';
+        res += Expr._op.Sql;
+        res += ' ';
+        expandExpr<Expr._expr2>(res);
+    } else if constexpr (IsTailOpExprVal<T>) {
+        res += makeColName<Expr._expr>();
+        res += ' ';
+        res += Expr._op.Sql;
+    } else if constexpr (Is1OpExprVal<T>) {
+        res += Expr._op.Sql;
+        res += ' ';
+        res += makeColName<Expr._expr>();
+    } else {
+        // 非法表达式
+        static_assert(!sizeof(Expr), "illegal expression");
+    }
     return res;
+}
+
+template <auto Val>
+constexpr void addLimitVal(std::string& res) {
+    if constexpr (std::is_integral_v<decltype(Val)>) {
+        res += log::toString(Val);
+    } else if constexpr (IsParamVal<decltype(Val)>) {
+        res += "?";
+    }
 }
 
 } // namespace internal
@@ -70,7 +142,21 @@ struct LimitBuild : public SqlBuild<Db> {
     using Base::Base;
 
     template <auto Offset, auto MaxCnt>
+        requires ((std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
+               && (std::is_integral_v<decltype(MaxCnt)> || IsParamVal<decltype(MaxCnt)>))
     void limit() {
+        this->_sql += "LIMIT ";
+        internal::addLimitVal<Offset>(this->_sql);
+        this->_sql += ',';
+        internal::addLimitVal<MaxCnt>(this->_sql);
+        log::hxLog.info("sql:", this->_sql);
+    }
+
+    template <auto Offset>
+        requires (std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
+    void limit() {
+        this->_sql += "LIMIT ";
+        internal::addLimitVal<Offset>(this->_sql);
         log::hxLog.info("sql:", this->_sql);
     }
 };
@@ -81,7 +167,16 @@ struct OrderByBuild : public LimitBuild<Db> {
     using Base::Base;
 
     template <OrderType... Orders>
+        requires (sizeof...(Orders) > 0)
     LimitBuild<Db> orderBy() && {
+        this->_sql += "ORDER BY ";
+        ([this] <OrderType Order> (meta::ToTypeWrap<Order>) {
+            this->_sql += internal::makeColName<Col{Order._ptr}>();
+            this->_sql += ' ';
+            this->_sql += Order._op.Sql;
+            this->_sql += ',';
+        } (meta::ToTypeWrap<Orders>{}), ...);
+        this->_sql.back() = ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -93,6 +188,9 @@ struct HavingBuild : public OrderByBuild<Db> {
 
     template <Expression Expr>
     OrderByBuild<Db> having() && {
+        this->_sql += "HAVING ";
+        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -103,17 +201,25 @@ struct GroupByBuild : public HavingBuild<Db> {
     using Base::Base;
 
     template <auto... Ptrs>
+        requires (sizeof...(Ptrs) > 0 && (meta::IsMemberPtrVal<decltype(Ptrs)> && ...))
     HavingBuild<Db> groupBy() && {
-        return {this->_dbRef, std::move(this->_sql)};
+        return std::move(*this).template groupBy<Col{Ptrs}...>();
     }
 
     template <Col... Cs>
+        requires (sizeof...(Cs) > 0)
     HavingBuild<Db> groupBy() && {
+        this->_sql += "GROUP BY ";
+        ((this->_sql += internal::makeColName<Cs>(), this->_sql += ','), ...);
+        this->_sql.back() = ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 
     template <Expression Expr>
     HavingBuild<Db> groupBy() && {
+        this->_sql += "GROUP BY ";
+        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -125,6 +231,9 @@ struct WhereBuild : public GroupByBuild<Db> {
     
     template <Expression Expr>
     GroupByBuild<Db> where() && {
+        this->_sql += "WHERE ";
+        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
@@ -139,7 +248,9 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
     
     template <Expression Expr>
     JoinOrWhereBuild<Db> on() && {
-
+        this->_sql += "ON ";
+        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
 };
