@@ -22,7 +22,7 @@
 #include <HXLibs/meta/FixedString.hpp>
 #include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
-#include <HXLibs/meta/ValToTypeWrap.hpp>
+#include <HXLibs/meta/Wrap.hpp>
  
 #include <HXLibs/db/sql/Operator.hpp>
 #include <HXLibs/db/sql/Constraint.hpp>

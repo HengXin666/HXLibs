@@ -47,7 +47,7 @@ constexpr std::string makeColName() {
 }
 
 template <Expression Expr>
-constexpr std::string ExprToString();
+constexpr std::string exprToString();
 
 template <auto Expr>
 constexpr void expandExpr(std::string& res) {
@@ -55,7 +55,7 @@ constexpr void expandExpr(std::string& res) {
     if constexpr (IsParamVal<T>) {
         res += "?";
     } else if constexpr (IsExpressionVal<T>) {
-        res += ExprToString<Expr>();
+        res += exprToString<Expr>();
     } else if constexpr (IsColTypeVal<T>) {
         res += makeColName<Expr>();
     } else if constexpr (meta::IsFixedStringVal<T>) {
@@ -64,8 +64,6 @@ constexpr void expandExpr(std::string& res) {
         res += '\"';
     } else if constexpr (IsSqlNumberTypeVal<T>) {
         res += log::toString(Expr);
-    } else if constexpr (IsParamVal<T>) {
-        res += "?";
     } else if constexpr (meta::IsTypeWrapVal<T>) {
         [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
             if constexpr (sizeof...(Vs) > 1) {
@@ -82,13 +80,13 @@ constexpr void expandExpr(std::string& res) {
 }
 
 template <Expression Expr>
-constexpr std::string ExprToString() {
+constexpr std::string exprToString() {
     std::string res{};
     using T = decltype(Expr);
     if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
         using Expr1 = decltype(Expr._expr1);
         if constexpr (IsExpressionVal<Expr1>) {
-            res += ExprToString<Expr._expr1>();
+            res += exprToString<Expr._expr1>();
         } else if constexpr (IsColTypeVal<Expr1>) {
             res += makeColName<Expr._expr1>();
         } else {
@@ -113,6 +111,81 @@ constexpr std::string ExprToString() {
     }
     return res;
 }
+
+template <Expression Expr>
+constexpr std::size_t exprParamCnt() noexcept;
+
+template <auto Expr>
+constexpr std::size_t expandExprParamCnt() noexcept {
+    using T = decltype(Expr);
+    if constexpr (IsParamVal<T>) {
+        return 1;
+    } else if constexpr (IsExpressionVal<T>) {
+        return exprParamCnt<Expr>();
+    } else if constexpr (meta::IsTypeWrapVal<T>) {
+        return [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
+            return (expandExprParamCnt<Vs>() + ...);
+        } (Expr);
+    } else {
+        return 0;
+    }
+}
+
+template <Expression Expr>
+constexpr std::size_t exprParamCnt() noexcept {
+    using T = decltype(Expr);
+    if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
+        std::size_t res{};
+        if constexpr (IsExpressionVal<decltype(Expr._expr1)>) {
+            res += exprParamCnt<Expr._expr1>();
+        }
+        return res + expandExprParamCnt<Expr._expr2>();
+    } else {
+        return 0;
+    }
+}
+
+template <Expression Expr>
+constexpr auto GetExprParamsTypeFunc() noexcept;
+
+template <auto Expr>
+constexpr auto expandGetExprParamsTypeFunc() noexcept {
+    using T = decltype(Expr);
+    if constexpr (IsParamVal<T>) {
+        return Expr;
+    } else if constexpr (IsExpressionVal<T>) {
+        return GetExprParamsTypeFunc<Expr>();
+    } else if constexpr (meta::IsTypeWrapVal<T>) {
+        return [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
+            return meta::JoinWrapType<decltype(expandGetExprParamsTypeFunc<Vs>())...>{};
+        } (Expr);
+    } else {
+        return meta::Wrap<>{};
+    }
+}
+
+/*
+    Expr -> std::tuple<Ts...>, [Ts = db::param<T>, ...]
+*/
+template <Expression Expr>
+constexpr auto GetExprParamsTypeFunc() noexcept {
+    using T = decltype(Expr);
+    if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
+        if constexpr (IsExpressionVal<decltype(Expr._expr1)>) {
+            return meta::JoinWrapType<
+                decltype(GetExprParamsTypeFunc<Expr._expr1>()),
+                decltype(expandGetExprParamsTypeFunc<Expr._expr2>())
+            >{};
+        } else {
+            return expandGetExprParamsTypeFunc<Expr._expr2>();
+        }
+    } else {
+        return meta::Wrap<>{};
+    }
+}
+
+template <Expression Expr>
+using GetExprParamsType = decltype(GetExprParamsTypeFunc<Expr>());
 
 template <auto Val>
 constexpr void addLimitVal(std::string& res) {
@@ -189,7 +262,7 @@ struct HavingBuild : public OrderByBuild<Db> {
     template <Expression Expr>
     OrderByBuild<Db> having() && {
         this->_sql += "HAVING ";
-        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += internal::exprToString<Expr>();
         this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -218,7 +291,7 @@ struct GroupByBuild : public HavingBuild<Db> {
     template <Expression Expr>
     HavingBuild<Db> groupBy() && {
         this->_sql += "GROUP BY ";
-        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += internal::exprToString<Expr>();
         this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -229,10 +302,14 @@ struct WhereBuild : public GroupByBuild<Db> {
     using Base = GroupByBuild<Db>;
     using Base::Base;
     
-    template <Expression Expr>
-    GroupByBuild<Db> where() && {
+    template <Expression Expr, typename... Ts>
+    GroupByBuild<Db> where(Ts&&... ts) && {
+        // 绑定参数个数不正确
+        static_assert(internal::exprParamCnt<Expr>() == sizeof...(ts),
+            "The number of binding parameters is incorrect");
+        // 确保类型正确
         this->_sql += "WHERE ";
-        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += internal::exprToString<Expr>();
         this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -249,7 +326,7 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
     template <Expression Expr>
     JoinOrWhereBuild<Db> on() && {
         this->_sql += "ON ";
-        this->_sql += internal::ExprToString<Expr>();
+        this->_sql += internal::exprToString<Expr>();
         this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -263,6 +340,22 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
     template <typename Table>
     constexpr OnBuild<Db> join() && {
         this->_sql += "JOIN ";
+        this->_sql += reflection::getTypeName<Table>();
+        this->_sql += ' ';
+        return {this->_dbRef, std::move(this->_sql)};
+    }
+
+    template <typename Table>
+    constexpr OnBuild<Db> leftJoin() && {
+        this->_sql += "LEFT JOIN ";
+        this->_sql += reflection::getTypeName<Table>();
+        this->_sql += ' ';
+        return {this->_dbRef, std::move(this->_sql)};
+    }
+
+    template <typename Table>
+    constexpr OnBuild<Db> rightJoin() && {
+        this->_sql += "RIGHT JOIN ";
         this->_sql += reflection::getTypeName<Table>();
         this->_sql += ' ';
         return {this->_dbRef, std::move(this->_sql)};

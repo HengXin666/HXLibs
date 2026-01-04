@@ -279,31 +279,4 @@ HX_DB_1OP_HEAD_IMPL(!, op::Not)
 
 #undef HX_DB_1OP_HEAD_IMPL
 
-/// test
-
-struct Table {
-    int id;
-    int cd;
-    std::string name;
-};
-
-struct Table2 {
-    int id;
-    int cd;
-    std::string name;
-};
-
-constexpr auto _1 = Col{&Table::id}.as<"tableId">() == Col{&Table::cd};
-constexpr auto _2 = Col{&Table::id} == Col{&Table::cd};
-constexpr auto _3 = _1 || (_2 && Col{&Table::name}.like<"">() && !Col{&Table::id});
-
-constexpr auto _4 = Col{&Table::name} == meta::fixed_string_literals::operator""_fs<"暂时">();
-
-constexpr auto _5 = Col{&Table::id} == Col{&Table2::id} + 1;
-constexpr auto _6 = Col{&Table::id} - 1 == Col{&Table2::id};
-constexpr auto _7 = Col{&Table::id} % 2 == 1;
-// constexpr auto _8 = Col{&Table::id} + Col{&Table2::id} == 1; // 不合法, 一边只能放一个`列`
-
-// static_assert(_1._expr1._ptr != nullptr);;
-
 } // namespace HX::db

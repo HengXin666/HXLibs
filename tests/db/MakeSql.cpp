@@ -77,6 +77,14 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     // static_assert(c._ptr == nullptr);
 
+    constexpr auto Expr = Col(&User::id) == db::param<int>
+        && Col(&User::id) == db::param<int>
+        || Col(&Role::id).notIn<1, db::param<int>, 3>();
+
+    using ExprParams = internal::GetExprParamsType<Expr>;
+
+    static_assert(sizeof(ExprParams));
+
     DataBase{}.select<Col{&User::id}.as<"userId">()>()
               .from<User>()
               .join<Role>()
@@ -95,7 +103,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
               .where<((Col(&User::age) == db::param<int>.bind<"?age">())
-                  || Col(&User::age) == 2)>()
+                  || Col(&User::age) == 2)>(1)
               .groupBy<&User::name>()
               .orderBy<Col(&User::age).asc()>()
               .limit<db::param<int>>();
