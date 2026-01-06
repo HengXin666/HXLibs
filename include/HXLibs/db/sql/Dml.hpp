@@ -64,8 +64,8 @@ constexpr void expandExpr(std::string& res) {
         res += '\"';
     } else if constexpr (IsSqlNumberTypeVal<T>) {
         res += log::toString(Expr);
-    } else if constexpr (meta::IsTypeWrapVal<T>) {
-        [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
+    } else if constexpr (meta::IsValueWrapVal<T>) {
+        [&] <auto... Vs> (meta::ValueWrap<Vs...>) {
             if constexpr (sizeof...(Vs) > 1) {
                 res += '(';
             }
@@ -122,8 +122,8 @@ constexpr std::size_t expandExprParamCnt() noexcept {
         return 1;
     } else if constexpr (IsExpressionVal<T>) {
         return exprParamCnt<Expr>();
-    } else if constexpr (meta::IsTypeWrapVal<T>) {
-        return [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
+    } else if constexpr (meta::IsValueWrapVal<T>) {
+        return [&] <auto... Vs> (meta::ValueWrap<Vs...>) {
             return (expandExprParamCnt<Vs>() + ...);
         } (Expr);
     } else {
@@ -155,9 +155,9 @@ constexpr auto expandGetExprParamsTypeFunc() noexcept {
         return Expr;
     } else if constexpr (IsExpressionVal<T>) {
         return GetExprParamsTypeFunc<Expr>();
-    } else if constexpr (meta::IsTypeWrapVal<T>) {
-        return [&] <auto... Vs> (meta::ToTypeWrap<Vs...>) {
-            return meta::JoinWrapType<decltype(expandGetExprParamsTypeFunc<Vs>())...>{};
+    } else if constexpr (meta::IsValueWrapVal<T>) {
+        return [&] <auto... Vs> (meta::ValueWrap<Vs...>) {
+            return meta::FlattenWrapType<decltype(expandGetExprParamsTypeFunc<Vs>())...>{};
         } (Expr);
     } else {
         return meta::Wrap<>{};
@@ -172,7 +172,7 @@ constexpr auto GetExprParamsTypeFunc() noexcept {
     using T = decltype(Expr);
     if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
         if constexpr (IsExpressionVal<decltype(Expr._expr1)>) {
-            return meta::JoinWrapType<
+            return meta::FlattenWrapType<
                 decltype(GetExprParamsTypeFunc<Expr._expr1>()),
                 decltype(expandGetExprParamsTypeFunc<Expr._expr2>())
             >{};
@@ -243,12 +243,12 @@ struct OrderByBuild : public LimitBuild<Db> {
         requires (sizeof...(Orders) > 0)
     LimitBuild<Db> orderBy() && {
         this->_sql += "ORDER BY ";
-        ([this] <OrderType Order> (meta::ToTypeWrap<Order>) {
+        ([this] <OrderType Order> (meta::ValueWrap<Order>) {
             this->_sql += internal::makeColName<Col{Order._ptr}>();
             this->_sql += ' ';
             this->_sql += Order._op.Sql;
             this->_sql += ',';
-        } (meta::ToTypeWrap<Orders>{}), ...);
+        } (meta::ValueWrap<Orders>{}), ...);
         this->_sql.back() = ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }
@@ -305,8 +305,17 @@ struct WhereBuild : public GroupByBuild<Db> {
     template <Expression Expr, typename... Ts>
     GroupByBuild<Db> where(Ts&&... ts) && {
         // 绑定参数个数不正确
-        static_assert(internal::exprParamCnt<Expr>() == sizeof...(ts),
+        using ParamWrap = internal::GetExprParamsType<Expr>;
+        constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
+        static_assert(ParamCnt == sizeof...(ts),
             "The number of binding parameters is incorrect");
+        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+            // Ts 类型 与 对应 占位参数 param 类型 不一致
+            static_assert((std::is_same_v<
+                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Ts>
+                > && ...),
+                "Ts type is inconsistent with the corresponding placeholder parameter param type");
+        } (std::make_index_sequence<ParamCnt>{});
         // 确保类型正确
         this->_sql += "WHERE ";
         this->_sql += internal::exprToString<Expr>();
@@ -387,7 +396,7 @@ struct SelectBuild : public SqlBuild<Db> {
         requires (sizeof...(Cs) > 0)
     constexpr FromBuild<Db> select() && {
         this->_sql += "SELECT ";
-        ([this] <auto C> (meta::ToTypeWrap<C>) {
+        ([this] <auto C> (meta::ValueWrap<C>) {
             using U = decltype(C);
             if constexpr (IsColTypeVal<U>) {
                 // select 不可使用占位符
@@ -400,7 +409,7 @@ struct SelectBuild : public SqlBuild<Db> {
                 static_assert(!sizeof(U), "Illegal query parameter");
             }
             this->_sql += ',';
-        }(meta::ToTypeWrap<Cs>{}), ...);
+        }(meta::ValueWrap<Cs>{}), ...);
         this->_sql.back() = ' ';
         return {this->_dbRef, std::move(this->_sql)};
     }

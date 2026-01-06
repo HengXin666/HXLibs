@@ -77,8 +77,8 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     // static_assert(c._ptr == nullptr);
 
-    constexpr auto Expr = Col(&User::id) == db::param<int>
-        && Col(&User::id) == db::param<int>
+    constexpr auto Expr = 
+        (Col(&User::id) == db::param<int> && Col(&User::id) == db::param<int>.bind<"sb">())
         || Col(&Role::id).notIn<1, db::param<int>, 3>();
 
     using ExprParams = internal::GetExprParamsType<Expr>;
@@ -91,19 +91,20 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
               .where<((Col(&User::age) == 18) 
                   && Col(&User::name).like<"loli_%">())
-                  || Col(&Role::id).notIn<1, 2, 3>()
+                  || Col(&Role::id).notIn<1, 2, 3, Col(&User::age)>()
                   || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
               .groupBy<&User::name>()
               .having<Col(&User::id) == 3>()
               .orderBy<Col(&User::age).asc(), Col(&User::id).desc()>()
               .limit<10, 50>();
 
+    int cinAge{};
     DataBase{}.select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
               .where<((Col(&User::age) == db::param<int>.bind<"?age">())
-                  || Col(&User::age) == 2)>(1)
+                  || Col(&User::age) == 2)>(cinAge)
               .groupBy<&User::name>()
               .orderBy<Col(&User::age).asc()>()
               .limit<db::param<int>>();

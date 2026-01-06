@@ -57,4 +57,10 @@ constexpr bool IsParamVal = false;
 template <typename T, meta::FixedString AsName>
 constexpr bool IsParamVal<Col<internal::Param<T>, AsName>> = true;
 
+template <typename T, meta::FixedString BindName = "">
+struct Bind {
+    T&& _data;
+    decltype(BindName) _bindName{BindName};
+};
+
 } // namespace HX::db
