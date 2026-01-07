@@ -24,19 +24,25 @@
 
 #include <sqlite3.h>
 
-#include <HXLibs/db/SQLiteMeta.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
 
-namespace HX::db {
+namespace HX::db::sqlite {
 
-class SQLiteStmt {
+class SqliteStmt {
 public:
-    SQLiteStmt(std::string_view sql, ::sqlite3* db)
-        : _stmt{nullptr}
+    SqliteStmt() = default;
+
+    SqliteStmt(SqliteStmt&) = delete;
+    SqliteStmt(SqliteStmt&& that) noexcept
+        : _stmt{that._stmt}
     {
+        that._stmt = nullptr;
+    }
+
+    void prepareSql(std::string_view sql, ::sqlite3* db) {
         // 预编译
         if (::sqlite3_prepare_v2(
-            db, sql.data(), sql.size(),
+            db, sql.data(), static_cast<int>(sql.size()),
             &_stmt, nullptr) != SQLITE_OK
         ) [[unlikely]] {
             throw std::runtime_error{
@@ -47,13 +53,10 @@ public:
         }
     }
 
-    SQLiteStmt(SQLiteStmt&) = delete;
-    SQLiteStmt(SQLiteStmt&& that) noexcept
-        : _stmt{that._stmt}
-    {
-        that._stmt = nullptr;
-    }
-
+    /**
+     * @brief 执行 stmt
+     * @return int 
+     */
     int step() const noexcept {
         return ::sqlite3_step(_stmt);
     }
@@ -101,35 +104,12 @@ public:
         return ::sqlite3_errmsg(::sqlite3_db_handle(_stmt));
     }
 
-    template <typename U>
-    U getColumnByIndex(std::size_t index) {
-        using T = RemovePrimaryKeyType<U>;
-        if constexpr (std::is_integral_v<T>) {
-            return U{static_cast<T>(::sqlite3_column_int64(_stmt, static_cast<int>(index)))};
-        } else if constexpr (std::is_floating_point_v<T>) {
-            return static_cast<T>(::sqlite3_column_double(_stmt, static_cast<int>(index)));
-        } else if constexpr (meta::StringType<T> || isSQLiteSqlTypeVal<T>) {
-            auto* str = reinterpret_cast<const char *>(
-                ::sqlite3_column_text(_stmt, static_cast<int>(index))
-            );
-            auto len = ::sqlite3_column_bytes(_stmt, static_cast<int>(index));
-            if constexpr (isSQLiteSqlTypeVal<T>) {
-                return SQLiteSqlType<T>::columnType({str, static_cast<std::size_t>(len)});
-            } else {
-                return T{str, static_cast<std::size_t>(len)};
-            }
-        } else {
-            // 不支持该类型
-            static_assert(!sizeof(T), "type is not sql type");
-        }
-    }
-
     operator ::sqlite3_stmt*() noexcept {
         return _stmt;
     }
 
-    SQLiteStmt& operator=(SQLiteStmt&) = delete;
-    SQLiteStmt& operator=(SQLiteStmt&& that) noexcept {
+    SqliteStmt& operator=(SqliteStmt&) = delete;
+    SqliteStmt& operator=(SqliteStmt&& that) noexcept {
         if (this == std::addressof(that)) {
             return *this;
         }
@@ -137,13 +117,13 @@ public:
         return *this;
     }
 
-    ~SQLiteStmt() noexcept {
+    ~SqliteStmt() noexcept {
         if (_stmt) [[likely]] {
             ::sqlite3_finalize(_stmt);
         }
     }
 private:
-    ::sqlite3_stmt* _stmt;
+    ::sqlite3_stmt* _stmt{};
 };
 
-} // namespace HX::db
+} // namespace HX::db::sqlite

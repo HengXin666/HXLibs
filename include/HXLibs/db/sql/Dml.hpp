@@ -200,19 +200,21 @@ constexpr void addLimitVal(std::string& res) {
 
 template <typename Db>
 struct SqlBuild {
-    SqlBuild(Db db, std::string sql)
+    SqlBuild(Db db, std::string& sql)
         : _dbRef{db}
-        , _sql{std::move(sql)}
+        , _sql{sql}
     {}
 
     Db _dbRef;
-    std::string _sql;
+    std::string& _sql;
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct LimitBuild : public SqlBuild<Db> {
     using Base = SqlBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp; // @todo
+    inline static constexpr auto N = sizeof...(Ts);
 
     template <auto Offset, auto MaxCnt>
         requires ((std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
@@ -234,140 +236,235 @@ struct LimitBuild : public SqlBuild<Db> {
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct OrderByBuild : public LimitBuild<Db> {
     using Base = LimitBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
 
     template <OrderType... Orders>
         requires (sizeof...(Orders) > 0)
-    LimitBuild<Db> orderBy() && {
-        this->_sql += "ORDER BY ";
-        ([this] <OrderType Order> (meta::ValueWrap<Order>) {
-            this->_sql += internal::makeColName<Col{Order._ptr}>();
-            this->_sql += ' ';
-            this->_sql += Order._op.Sql;
-            this->_sql += ',';
-        } (meta::ValueWrap<Orders>{}), ...);
-        this->_sql.back() = ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+    LimitBuild<Db, Ts&&...> orderBy() && {
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "ORDER BY ";
+            ([this] <OrderType Order> (meta::ValueWrap<Order>) {
+                this->_sql += internal::makeColName<Col{Order._ptr}>();
+                this->_sql += ' ';
+                this->_sql += Order._op.Sql;
+                this->_sql += ',';
+            } (meta::ValueWrap<Orders>{}), ...);
+            this->_sql.back() = ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return LimitBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct HavingBuild : public OrderByBuild<Db> {
     using Base = OrderByBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
 
-    template <Expression Expr>
-    OrderByBuild<Db> having() && {
-        this->_sql += "HAVING ";
-        this->_sql += internal::exprToString<Expr>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+    template <Expression Expr, typename... Us>
+    OrderByBuild<Db, Ts&&..., Us&&...> having(Us&&... us) && {
+        using ParamWrap = internal::GetExprParamsType<Expr>;
+        constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
+        // 绑定参数个数不正确
+        static_assert(ParamCnt == sizeof...(us),
+            "The number of binding parameters is incorrect");
+        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+            // Us 类型 与 对应 占位参数 param 类型 不一致
+            static_assert((std::is_same_v<
+                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                > && ...),
+                "Us type is inconsistent with the corresponding placeholder parameter param type");
+        } (std::make_index_sequence<ParamCnt>{});
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "HAVING ";
+            this->_sql += internal::exprToString<Expr>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return OrderByBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct GroupByBuild : public HavingBuild<Db> {
     using Base = HavingBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
 
+    GroupByBuild(Db db, std::string& sql, Ts&&... ts)
+        : HavingBuild<Db>{db, sql}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
+
+    // @todo
     template <auto... Ptrs>
         requires (sizeof...(Ptrs) > 0 && (meta::IsMemberPtrVal<decltype(Ptrs)> && ...))
     HavingBuild<Db> groupBy() && {
         return std::move(*this).template groupBy<Col{Ptrs}...>();
     }
 
+    // @todo
     template <Col... Cs>
         requires (sizeof...(Cs) > 0)
     HavingBuild<Db> groupBy() && {
         this->_sql += "GROUP BY ";
         ((this->_sql += internal::makeColName<Cs>(), this->_sql += ','), ...);
         this->_sql.back() = ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        return {this->_dbRef, this->_sql};
     }
 
-    template <Expression Expr>
-    HavingBuild<Db> groupBy() && {
-        this->_sql += "GROUP BY ";
-        this->_sql += internal::exprToString<Expr>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+    template <Expression Expr, typename... Us>
+    HavingBuild<Db, Ts&&..., Us&&...> groupBy(Us&&... us) && {
+        using ParamWrap = internal::GetExprParamsType<Expr>;
+        constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
+        // 绑定参数个数不正确
+        static_assert(ParamCnt == sizeof...(us),
+            "The number of binding parameters is incorrect");
+        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+            // Us 类型 与 对应 占位参数 param 类型 不一致
+            static_assert((std::is_same_v<
+                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                > && ...),
+                "Us type is inconsistent with the corresponding placeholder parameter param type");
+        } (std::make_index_sequence<ParamCnt>{});
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "GROUP BY ";
+            this->_sql += internal::exprToString<Expr>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct WhereBuild : public GroupByBuild<Db> {
     using Base = GroupByBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
+
+    WhereBuild(Db db, std::string& sql, Ts&&... ts)
+        : GroupByBuild<Db>{db, sql}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
     
-    template <Expression Expr, typename... Ts>
-    GroupByBuild<Db> where(Ts&&... ts) && {
-        // 绑定参数个数不正确
+    template <Expression Expr, typename... Us>
+    GroupByBuild<Db, Ts&&..., Us&&...> where(Us&&... us) && {
         using ParamWrap = internal::GetExprParamsType<Expr>;
         constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
-        static_assert(ParamCnt == sizeof...(ts),
+        // 绑定参数个数不正确
+        static_assert(ParamCnt == sizeof...(us),
             "The number of binding parameters is incorrect");
         [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            // Ts 类型 与 对应 占位参数 param 类型 不一致
+            // Us 类型 与 对应 占位参数 param 类型 不一致
             static_assert((std::is_same_v<
-                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Ts>
+                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
                 > && ...),
-                "Ts type is inconsistent with the corresponding placeholder parameter param type");
+                "Us type is inconsistent with the corresponding placeholder parameter param type");
         } (std::make_index_sequence<ParamCnt>{});
-        // 确保类型正确
-        this->_sql += "WHERE ";
-        this->_sql += internal::exprToString<Expr>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "WHERE ";
+            this->_sql += internal::exprToString<Expr>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) {
+            return GroupByBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct JoinOrWhereBuild;
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct OnBuild : public JoinOrWhereBuild<Db> {
     using Base = JoinOrWhereBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
     
-    template <Expression Expr>
-    JoinOrWhereBuild<Db> on() && {
-        this->_sql += "ON ";
-        this->_sql += internal::exprToString<Expr>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+    template <Expression Expr, typename... Us>
+    JoinOrWhereBuild<Db, Ts&&..., Us&&...> on(Us&&... us) && {
+        using ParamWrap = internal::GetExprParamsType<Expr>;
+        constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
+        // 绑定参数个数不正确
+        static_assert(ParamCnt == sizeof...(us),
+            "The number of binding parameters is incorrect");
+        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+            // Us 类型 与 对应 占位参数 param 类型 不一致
+            static_assert((std::is_same_v<
+                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                > && ...),
+                "Us type is inconsistent with the corresponding placeholder parameter param type");
+        } (std::make_index_sequence<ParamCnt>{});
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "ON ";
+            this->_sql += internal::exprToString<Expr>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return JoinOrWhereBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
-template <typename Db>
+template <typename Db, typename... Ts>
 struct JoinOrWhereBuild : public WhereBuild<Db> {
     using Base = WhereBuild<Db>;
     using Base::Base;
+    std::tuple<Ts&&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
 
     template <typename Table>
-    constexpr OnBuild<Db> join() && {
-        this->_sql += "JOIN ";
-        this->_sql += reflection::getTypeName<Table>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+    constexpr OnBuild<Db, Ts&&...> join() && {
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "JOIN ";
+            this->_sql += reflection::getTypeName<Table>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
     }
 
     template <typename Table>
     constexpr OnBuild<Db> leftJoin() && {
-        this->_sql += "LEFT JOIN ";
-        this->_sql += reflection::getTypeName<Table>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "LEFT JOIN ";
+            this->_sql += reflection::getTypeName<Table>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
     }
 
     template <typename Table>
     constexpr OnBuild<Db> rightJoin() && {
-        this->_sql += "RIGHT JOIN ";
-        this->_sql += reflection::getTypeName<Table>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "RIGHT JOIN ";
+            this->_sql += reflection::getTypeName<Table>();
+            this->_sql += ' ';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
     }
 };
 
@@ -378,10 +475,12 @@ struct FromBuild : public SqlBuild<Db> {
 
     template <typename Table>
     constexpr JoinOrWhereBuild<Db> from() && {
-        this->_sql += "FROM ";
-        this->_sql += reflection::getTypeName<Table>();
-        this->_sql += ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "FROM ";
+            this->_sql += reflection::getTypeName<Table>();
+            this->_sql += ' ';
+        }
+        return {this->_dbRef, this->_sql};
     }
 
     // op= 当使用这个的时候, 进行build
@@ -395,23 +494,25 @@ struct SelectBuild : public SqlBuild<Db> {
     template <auto... Cs>
         requires (sizeof...(Cs) > 0)
     constexpr FromBuild<Db> select() && {
-        this->_sql += "SELECT ";
-        ([this] <auto C> (meta::ValueWrap<C>) {
-            using U = decltype(C);
-            if constexpr (IsColTypeVal<U>) {
-                // select 不可使用占位符
-                static_assert(internal::ParamCnt<U> == 0, "Select cannot use placeholder");
-                this->_sql += internal::makeColName<C>();
-            } else if constexpr (IsAggregateFuncVal<U>) {
-                this->_sql += U::AggFunc::toSql(internal::makeColName<U::ColVal>());
-            } else {
-                // 非法查询参数
-                static_assert(!sizeof(U), "Illegal query parameter");
-            }
-            this->_sql += ',';
-        }(meta::ValueWrap<Cs>{}), ...);
-        this->_sql.back() = ' ';
-        return {this->_dbRef, std::move(this->_sql)};
+        if (!this->_dbRef._isInit) [[unlikely]] {
+            this->_sql += "SELECT ";
+            ([this] <auto C> (meta::ValueWrap<C>) {
+                using U = decltype(C);
+                if constexpr (IsColTypeVal<U>) {
+                    // select 不可使用占位符
+                    static_assert(internal::ParamCnt<U> == 0, "Select cannot use placeholder");
+                    this->_sql += internal::makeColName<C>();
+                } else if constexpr (IsAggregateFuncVal<U>) {
+                    this->_sql += U::AggFunc::toSql(internal::makeColName<U::ColVal>());
+                } else {
+                    // 非法查询参数
+                    static_assert(!sizeof(U), "Illegal query parameter");
+                }
+                this->_sql += ',';
+            }(meta::ValueWrap<Cs>{}), ...);
+            this->_sql.back() = ' ';
+        }
+        return {this->_dbRef, this->_sql};
     }
 };
 

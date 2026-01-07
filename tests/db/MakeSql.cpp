@@ -4,6 +4,7 @@
 #include <doctest.h>
 
 #include <HXLibs/db/sqlite3/MakeCreateDbSql.hpp>
+#include <HXLibs/db/sqlite3/SqliteDB.hpp>
 #include <HXLibs/db/sql/DataBase.hpp>
 #include <HXLibs/db/sql/Param.hpp>
 #include <HXLibs/meta/FixedString.hpp>
@@ -64,11 +65,11 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
         };
     } user{};
 
-    log::hxLog.warning("Role", sqlite3::CreateDbSql::createDatabase<Role>({}));
+    log::hxLog.warning("Role", sqlite::CreateDbSql::createDatabase<Role>({}));
 
-    auto sql = sqlite3::CreateDbSql::createDatabase(user);
+    auto sql = sqlite::CreateDbSql::createDatabase(user);
     log::hxLog.info(sql);
-    auto indexSql = sqlite3::CreateDbSql::createIndex(user);
+    auto indexSql = sqlite::CreateDbSql::createIndex(user);
     log::hxLog.info(indexSql);
 
     using db::Col;
@@ -85,7 +86,9 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     static_assert(sizeof(ExprParams));
 
-    DataBase{}.select<Col{&User::id}.as<"userId">()>()
+    db::sqlite::SqliteDB db{"./test.db"};
+
+    db.makeSql<1>().select<Col{&User::id}.as<"userId">()>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()
@@ -99,7 +102,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
               .limit<10, 50>();
 
     int cinAge{};
-    DataBase{}.select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
+    db.makeSql<2>().select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
               .from<User>()
               .join<Role>()
               .on<Col(&User::roleId) == Col(&Role::loliId)>()

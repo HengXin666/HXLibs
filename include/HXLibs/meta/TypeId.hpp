@@ -71,12 +71,12 @@ struct TypeId {
     using IdType = void const * const;
 
     template <auto Vs>
-    static consteval IdType make() noexcept {
+    static consteval auto make() noexcept {
         return static_cast<IdType>(&internal::StaticVal<Vs>::Val);
     }
 
     template <typename T>
-    static consteval IdType make() noexcept {
+    static consteval auto make() noexcept {
         return static_cast<IdType>(&reflection::internal::getStaticObj<T>());
     }
 };

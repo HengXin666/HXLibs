@@ -28,7 +28,7 @@
 #include <HXLibs/reflection/EnumName.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
 
-namespace HX::db::sqlite3 {
+namespace HX::db::sqlite {
 
 struct CreateDbSql {
     template <typename Type, typename Lambda>
@@ -320,4 +320,4 @@ struct CreateDbSql {
     }
 };
 
-} // namespace HX::db::sqlite3
+} // namespace HX::db::sqlite
