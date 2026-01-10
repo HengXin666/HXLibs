@@ -60,17 +60,29 @@ struct CountDistinct {
 
 } // namespace agg
 
-template <Col C, typename Func>
+template <Col C, typename Func, typename = void>
 struct AggregateFunc {
     using AggFunc = Func;
     inline static constexpr auto ColVal = C;
 };
 
+template <Col C, typename Func>
+struct AggregateFunc<C, Func, void> {
+    using AggFunc = Func;
+    inline static constexpr auto ColVal = C;
+
+    template <meta::FixedString AsName>
+        requires (AsName.size() > 0)
+    constexpr AggregateFunc<Col<decltype(C._ptr), AsName>{C._ptr}, Func, Func> as() const noexcept {
+        return {};
+    }
+};
+
 template <typename T>
 constexpr bool IsAggregateFuncVal = false;
 
-template <Col C, typename Func>
-constexpr bool IsAggregateFuncVal<AggregateFunc<C, Func>> = true;
+template <Col C, typename Func, typename T>
+constexpr bool IsAggregateFuncVal<AggregateFunc<C, Func, T>> = true;
 
 #define HX_DB_AGG_FUNC_IMPL(FUNC_NAME, AGG_NAME)                               \
     template <Col C>                                                           \

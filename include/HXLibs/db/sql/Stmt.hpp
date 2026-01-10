@@ -3,7 +3,7 @@
  * Copyright Heng_Xin. All rights reserved.
  *
  * @Author: Heng_Xin
- * @Date: 2026-01-01 23:31:22
+ * @Date: 2026-01-10 13:22:01
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,47 +18,20 @@
  * limitations under the License.
  */
 
-#include <map>
-
-#include <HXLibs/meta/TypeId.hpp>
-#include <HXLibs/db/sql/Column.hpp>
-#include <HXLibs/db/sql/Dml.hpp>
+#include <cstddef>
 
 namespace HX::db {
 
 template <typename CRTP>
-struct DataBase {
-    template <auto FuncPtr, auto... Feature>
-    auto& makeSql() {
-        constexpr auto Id = meta::TypeId::make<meta::ValueWrap<FuncPtr, Feature...>>();
-        if (auto it = _sqlMap.find(Id); it != _sqlMap.end()) {
-            return it->second;
-        }
-        auto [it, _] = _sqlMap.emplace(Id, static_cast<CRTP*>(this));
-        return it->second;
-    }
-
-private:
-    DataBase() = default;
-    friend CRTP;
-
-    std::map<meta::TypeId::IdType, DataBaseSqlBuild<CRTP>> _sqlMap{};
-};
-
-template <typename CRTP>
-struct DataBaseInterface {
-#define HX_DB_IMPL static_cast<CRTP>(this)
+struct Stmt {
+#define HX_DB_STMT_IMPL static_cast<CRTP>(this)
     /**
      * @brief 执行 SQL 语句
      * @return true 执行成功
      * @return false 执行失败
      */
     bool exec() noexcept {
-        return HX_DB_IMPL->exec();
-    }
-
-    auto& tryExec() {
-        return HX_DB_IMPL->tryExec();
+        return HX_DB_STMT_IMPL->exec();
     }
 
     /**
@@ -66,10 +39,27 @@ struct DataBaseInterface {
      * @return std::size_t 修改的行数
      */
     std::size_t getLastChanges() const noexcept {
-        return HX_DB_IMPL->getLastChanges();
+        return HX_DB_STMT_IMPL->getLastChanges();
     }
 
-#undef HX_DB_IMPL
+    /**
+     * @brief 绑定占位参数
+     * @tparam T 占位参数类型
+     * @tparam Idx 占位参数序号
+     * @param t 占位参数
+     */
+    template <std::size_t Idx, typename T>
+    void bind(T&& t) {
+        HX_DB_STMT_IMPL->template bind<Idx, T>(t);
+    }
+
+    /**
+     * @brief 清空绑定的占位参数
+     */
+    void clearBind() {
+        HX_DB_STMT_IMPL->clearBind();
+    }
+#undef HX_DB_STMT_IMPL
 };
 
 } // namespace HX::db

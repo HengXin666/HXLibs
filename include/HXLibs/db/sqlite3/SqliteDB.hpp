@@ -25,13 +25,14 @@
 
 namespace HX::db::sqlite {
 
-struct SqliteDB : public DataBase<SqliteDB>, public DataBaseInterface<SqliteDB> {
+struct SqliteDB : public DataBase<SqliteDB>, private DataBaseInterface<SqliteDB> {
     using StmtType = SqliteStmt;
     using Base = DataBase<SqliteDB>;
     using Base::Base;
 
     SqliteDB(std::string_view filePath)
         : DataBase{}
+        , DataBaseInterface{}
     {
         if (::sqlite3_open(filePath.data(), &_db) != SQLITE_OK) [[unlikely]] {
             throw std::runtime_error{
@@ -47,17 +48,12 @@ struct SqliteDB : public DataBase<SqliteDB>, public DataBaseInterface<SqliteDB> 
     std::size_t getLastChanges() const noexcept {
         return 0;
     }
-
-    template <typename T, std::size_t Idx>
-    void bind(T&& t) {
-        (void)t;
-    }
-
-    void clearBind() {
-
-    }
+    
 private:
     ::sqlite3* _db{};
+
+    template <typename Db, typename SelectT>
+    friend struct DataBaseSqlBuildView;
 };
 
 } // namespace HX::db::sqlite

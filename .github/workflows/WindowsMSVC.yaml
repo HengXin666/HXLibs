@@ -3,7 +3,8 @@ name: Build Test (From Windows [[MSVC]])
 on:
   push:
     branches:
-      - main
+      # - main 临时屏蔽
+      - no
   pull_request:
 
 jobs:

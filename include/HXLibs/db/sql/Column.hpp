@@ -87,6 +87,7 @@ struct Col {
 template <typename MemberPtrType>
 struct Col<MemberPtrType, ""> {
     MemberPtrType _ptr;
+    meta::FixedString<1> _asName{""};
 
     // 必须为成员指针
     static_assert(meta::IsMemberPtrVal<MemberPtrType>, "Must be a member pointer");

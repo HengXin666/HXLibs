@@ -26,10 +26,52 @@
 #include <HXLibs/db/sql/Param.hpp>
 #include <HXLibs/db/sql/Aggregate.hpp>
 #include <HXLibs/db/sql/Expression.hpp>
+#include <HXLibs/db/sql/ColumnResult.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
 
 namespace HX::db {
+
+template <typename Db>
+struct SelectBuild;
+
+template <typename Db, typename SelectT>
+struct DataBaseSqlBuildView {
+    using SelectType = SelectT;
+    Db* _db;
+
+    constexpr bool isInit() const noexcept {
+        return _db->_isInit;
+    }
+
+    constexpr std::string& sql() noexcept {
+        return _db->_sql;
+    }
+
+    void prepareSql() {
+        _db->_stmt.prepareSql(sql());
+        _db->_isInit = true;
+    }
+
+    template <typename... Ts>
+    void bind(Ts&&... ts) {
+        _db->_stmt.bind(std::forward<Ts>(ts)...);
+    }
+};
+
+template <typename Db>
+struct DataBaseSqlBuild {
+    template <auto... Cs>
+    auto select() {
+        using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, meta::ValueWrap<Cs...>>;
+        return SelectBuild<DbView>{DbView{this}}.template select<Cs...>();
+    }
+
+    Db* const _db{};
+    std::string _sql{};
+    Db::StmtType _stmt{};
+    bool _isInit{false};
+};
 
 namespace internal {
 
@@ -200,13 +242,25 @@ constexpr void addLimitVal(std::string& res) {
 
 template <typename Db>
 struct SqlBuild {
-    SqlBuild(Db db, std::string& sql)
+    SqlBuild(Db db)
         : _dbRef{db}
-        , _sql{sql}
     {}
 
+    template <typename... Ts>
+    auto exec(Ts&&... ts) {
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.prepareSql();
+        }
+        [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
+            (this->_dbRef.template bind<Idx>(std::forward<Ts>(ts)), ...);
+        }(std::make_index_sequence<sizeof...(Ts)>{});
+        this->_dbRef.exec();
+        using SelectT = meta::RemoveCvRefType<Db>::SelectType;
+        std::vector<ColumnResult<SelectT>> res;
+        return res;
+    }
+
     Db _dbRef;
-    std::string& _sql;
 };
 
 template <typename Db, typename... Ts>
@@ -216,23 +270,28 @@ struct LimitBuild : public SqlBuild<Db> {
     std::tuple<Ts&&...> _tp; // @todo
     inline static constexpr auto N = sizeof...(Ts);
 
+    LimitBuild(Db db, Ts&&... ts)
+        : SqlBuild<Db>{db}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
+
     template <auto Offset, auto MaxCnt>
         requires ((std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
                && (std::is_integral_v<decltype(MaxCnt)> || IsParamVal<decltype(MaxCnt)>))
     void limit() {
-        this->_sql += "LIMIT ";
-        internal::addLimitVal<Offset>(this->_sql);
-        this->_sql += ',';
-        internal::addLimitVal<MaxCnt>(this->_sql);
-        log::hxLog.info("sql:", this->_sql);
+        this->_dbRef.sql() += "LIMIT ";
+        internal::addLimitVal<Offset>(this->_dbRef.sql());
+        this->_dbRef.sql() += ',';
+        internal::addLimitVal<MaxCnt>(this->_dbRef.sql());
+        log::hxLog.info("sql:", this->_dbRef.sql());
     }
 
     template <auto Offset>
         requires (std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
     void limit() {
-        this->_sql += "LIMIT ";
-        internal::addLimitVal<Offset>(this->_sql);
-        log::hxLog.info("sql:", this->_sql);
+        this->_dbRef.sql() += "LIMIT ";
+        internal::addLimitVal<Offset>(this->_dbRef.sql());
+        log::hxLog.info("sql:", this->_dbRef.sql());
     }
 };
 
@@ -243,21 +302,26 @@ struct OrderByBuild : public LimitBuild<Db> {
     std::tuple<Ts&&...> _tp;
     inline static constexpr auto N = sizeof...(Ts);
 
+    OrderByBuild(Db db, Ts&&... ts)
+        : LimitBuild<Db>{db}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
+
     template <OrderType... Orders>
         requires (sizeof...(Orders) > 0)
     LimitBuild<Db, Ts&&...> orderBy() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "ORDER BY ";
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "ORDER BY ";
             ([this] <OrderType Order> (meta::ValueWrap<Order>) {
-                this->_sql += internal::makeColName<Col{Order._ptr}>();
-                this->_sql += ' ';
-                this->_sql += Order._op.Sql;
-                this->_sql += ',';
+                this->_dbRef.sql() += internal::makeColName<Col{Order._ptr}>();
+                this->_dbRef.sql() += ' ';
+                this->_dbRef.sql() += Order._op.Sql;
+                this->_dbRef.sql() += ',';
             } (meta::ValueWrap<Orders>{}), ...);
-            this->_sql.back() = ' ';
+            this->_dbRef.sql().back() = ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return LimitBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+            return LimitBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
 };
@@ -268,6 +332,11 @@ struct HavingBuild : public OrderByBuild<Db> {
     using Base::Base;
     std::tuple<Ts&&...> _tp;
     inline static constexpr auto N = sizeof...(Ts);
+
+    HavingBuild(Db db, Ts&&... ts)
+        : OrderByBuild<Db>{db}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
 
     template <Expression Expr, typename... Us>
     OrderByBuild<Db, Ts&&..., Us&&...> having(Us&&... us) && {
@@ -283,13 +352,13 @@ struct HavingBuild : public OrderByBuild<Db> {
                 > && ...),
                 "Us type is inconsistent with the corresponding placeholder parameter param type");
         } (std::make_index_sequence<ParamCnt>{});
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "HAVING ";
-            this->_sql += internal::exprToString<Expr>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "HAVING ";
+            this->_dbRef.sql() += internal::exprToString<Expr>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return OrderByBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+            return OrderByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
@@ -302,8 +371,8 @@ struct GroupByBuild : public HavingBuild<Db> {
     std::tuple<Ts&&...> _tp;
     inline static constexpr auto N = sizeof...(Ts);
 
-    GroupByBuild(Db db, std::string& sql, Ts&&... ts)
-        : HavingBuild<Db>{db, sql}
+    GroupByBuild(Db db, Ts&&... ts)
+        : HavingBuild<Db>{db}
         , _tp{std::forward<Ts>(ts)...}
     {}
 
@@ -318,10 +387,10 @@ struct GroupByBuild : public HavingBuild<Db> {
     template <Col... Cs>
         requires (sizeof...(Cs) > 0)
     HavingBuild<Db> groupBy() && {
-        this->_sql += "GROUP BY ";
-        ((this->_sql += internal::makeColName<Cs>(), this->_sql += ','), ...);
-        this->_sql.back() = ' ';
-        return {this->_dbRef, this->_sql};
+        this->_dbRef.sql() += "GROUP BY ";
+        ((this->_dbRef.sql() += internal::makeColName<Cs>(), this->_dbRef.sql() += ','), ...);
+        this->_dbRef.sql().back() = ' ';
+        return {this->_dbRef};
     }
 
     template <Expression Expr, typename... Us>
@@ -338,13 +407,13 @@ struct GroupByBuild : public HavingBuild<Db> {
                 > && ...),
                 "Us type is inconsistent with the corresponding placeholder parameter param type");
         } (std::make_index_sequence<ParamCnt>{});
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "GROUP BY ";
-            this->_sql += internal::exprToString<Expr>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "GROUP BY ";
+            this->_dbRef.sql() += internal::exprToString<Expr>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+            return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
@@ -357,8 +426,8 @@ struct WhereBuild : public GroupByBuild<Db> {
     std::tuple<Ts&&...> _tp;
     inline static constexpr auto N = sizeof...(Ts);
 
-    WhereBuild(Db db, std::string& sql, Ts&&... ts)
-        : GroupByBuild<Db>{db, sql}
+    WhereBuild(Db db, Ts&&... ts)
+        : GroupByBuild<Db>{db}
         , _tp{std::forward<Ts>(ts)...}
     {}
     
@@ -376,13 +445,13 @@ struct WhereBuild : public GroupByBuild<Db> {
                 > && ...),
                 "Us type is inconsistent with the corresponding placeholder parameter param type");
         } (std::make_index_sequence<ParamCnt>{});
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "WHERE ";
-            this->_sql += internal::exprToString<Expr>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "WHERE ";
+            this->_dbRef.sql() += internal::exprToString<Expr>();
+            this->_dbRef.sql() += ' ';
         }
-        return [&] <std::size_t... I> (std::index_sequence<I...>) {
-            return GroupByBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return GroupByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
@@ -412,13 +481,13 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
                 > && ...),
                 "Us type is inconsistent with the corresponding placeholder parameter param type");
         } (std::make_index_sequence<ParamCnt>{});
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "ON ";
-            this->_sql += internal::exprToString<Expr>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "ON ";
+            this->_dbRef.sql() += internal::exprToString<Expr>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return JoinOrWhereBuild<Db, Ts&&..., Us&&...>{this->_dbRef, this->_sql,
+            return JoinOrWhereBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
@@ -433,37 +502,37 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
 
     template <typename Table>
     constexpr OnBuild<Db, Ts&&...> join() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "JOIN ";
-            this->_sql += reflection::getTypeName<Table>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "JOIN ";
+            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+            return OnBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
 
     template <typename Table>
     constexpr OnBuild<Db> leftJoin() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "LEFT JOIN ";
-            this->_sql += reflection::getTypeName<Table>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "LEFT JOIN ";
+            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+            return OnBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
 
     template <typename Table>
     constexpr OnBuild<Db> rightJoin() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "RIGHT JOIN ";
-            this->_sql += reflection::getTypeName<Table>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "RIGHT JOIN ";
+            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return OnBuild<Db, Ts&&...>{this->_dbRef, this->_sql, std::get<I>(_tp)...};
+            return OnBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
 };
@@ -475,12 +544,12 @@ struct FromBuild : public SqlBuild<Db> {
 
     template <typename Table>
     constexpr JoinOrWhereBuild<Db> from() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "FROM ";
-            this->_sql += reflection::getTypeName<Table>();
-            this->_sql += ' ';
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "FROM ";
+            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += ' ';
         }
-        return {this->_dbRef, this->_sql};
+        return {this->_dbRef};
     }
 
     // op= 当使用这个的时候, 进行build
@@ -494,25 +563,25 @@ struct SelectBuild : public SqlBuild<Db> {
     template <auto... Cs>
         requires (sizeof...(Cs) > 0)
     constexpr FromBuild<Db> select() && {
-        if (!this->_dbRef._isInit) [[unlikely]] {
-            this->_sql += "SELECT ";
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += "SELECT ";
             ([this] <auto C> (meta::ValueWrap<C>) {
                 using U = decltype(C);
                 if constexpr (IsColTypeVal<U>) {
                     // select 不可使用占位符
                     static_assert(internal::ParamCnt<U> == 0, "Select cannot use placeholder");
-                    this->_sql += internal::makeColName<C>();
+                    this->_dbRef.sql() += internal::makeColName<C>();
                 } else if constexpr (IsAggregateFuncVal<U>) {
-                    this->_sql += U::AggFunc::toSql(internal::makeColName<U::ColVal>());
+                    this->_dbRef.sql() += U::AggFunc::toSql(internal::makeColName<U::ColVal>());
                 } else {
                     // 非法查询参数
                     static_assert(!sizeof(U), "Illegal query parameter");
                 }
-                this->_sql += ',';
+                this->_dbRef.sql() += ',';
             }(meta::ValueWrap<Cs>{}), ...);
-            this->_sql.back() = ' ';
+            this->_dbRef.sql().back() = ' ';
         }
-        return {this->_dbRef, this->_sql};
+        return {this->_dbRef};
     }
 };
 

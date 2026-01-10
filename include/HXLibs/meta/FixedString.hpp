@@ -105,6 +105,11 @@ constexpr auto operator+(
     return FixedString{lhs} + rhs;
 }
 
+template <std::size_t N, std::size_t M>
+constexpr bool operator==(FixedString<N>, FixedString<M>) noexcept {
+    return N == M;
+}
+
 namespace internal {
 
 // 把 FixedString<S> 编译期展开为 CharPack<S[0], S[1], ...>
@@ -130,6 +135,28 @@ constexpr bool IsFixedStringVal = false;
 
 template <std::size_t N>
 constexpr bool IsFixedStringVal<FixedString<N>> = true;
+
+/**
+ * @brief 查找第一个 FindName == Fs 的元素, 返回其索引 (idx 从 0 开始)
+ * @tparam FindName 
+ * @tparam Fs 
+ * @return constexpr std::size_t 
+ */
+template <meta::FixedString FindName, meta::FixedString... Fs>
+constexpr std::size_t find() noexcept {
+    return [] <std::size_t... I> (std::index_sequence<I...>) {
+        std::size_t res{};
+        ([&] {
+            if constexpr (FindName == Fs) {
+                res = I;
+                return true;
+            } else {
+                return false;
+            }
+        }() || ...);
+        return res;
+    }(std::make_index_sequence<sizeof...(Fs)>{});
+}
 
 } // namespace HX::meta
 

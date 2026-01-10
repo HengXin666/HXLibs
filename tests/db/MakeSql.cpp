@@ -88,29 +88,41 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     db::sqlite::SqliteDB db{"./test.db"};
 
-    db.makeSql<1>().select<Col{&User::id}.as<"userId">()>()
-              .from<User>()
-              .join<Role>()
-              .on<Col(&User::roleId) == Col(&Role::loliId)>()
-              .where<((Col(&User::age) == 18) 
-                  && Col(&User::name).like<"loli_%">())
-                  || Col(&Role::id).notIn<1, 2, 3, Col(&User::age)>()
-                  || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
-              .groupBy<&User::name>()
-              .having<Col(&User::id) == 3>()
-              .orderBy<Col(&User::age).asc(), Col(&User::id).desc()>()
-              .limit<10, 50>();
+    db.makeSql<1>()
+      .select<Col{&User::id}.as<"userId">()>()
+      .from<User>()
+      .join<Role>()
+      .on<Col(&User::roleId) == Col(&Role::loliId)>()
+      .where<((Col(&User::age) == 18) 
+          && Col(&User::name).like<"loli_%">())
+          || Col(&Role::id).notIn<1, 2, 3, Col(&User::age)>()
+          || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
+      .groupBy<&User::name>()
+      .having<Col(&User::id) == 3>()
+      .orderBy<Col(&User::age).asc(), Col(&User::id).desc()>()
+      .limit<10, 50>();
 
     int cinAge{};
-    db.makeSql<2>().select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>>()
-              .from<User>()
-              .join<Role>()
-              .on<Col(&User::roleId) == Col(&Role::loliId)>()
-              .where<((Col(&User::age) == db::param<int>.bind<"?age">())
-                  || Col(&User::age) == 2)>(cinAge)
-              .groupBy<&User::name>()
-              .orderBy<Col(&User::age).asc()>()
-              .limit<db::param<int>>();
+    db.makeSql<2>()
+      .select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>.as<"1">()>()
+      .from<User>()
+      .join<Role>()
+      .on<Col(&User::roleId) == Col(&Role::loliId)>()
+      .where<((Col(&User::age) == db::param<int>.bind<"?age">())
+          || Col(&User::age) == 2)>(cinAge)
+      .groupBy<&User::name>()
+      .orderBy<Col(&User::age).asc()>()
+      .limit<db::param<int>>();
 
     log::hxLog.info("table:", db::getTableName<Text>());
+
+    db::ColumnResult<meta::ValueWrap<
+        Col(&User::id).as<"userId">(),
+        Col(&User::name).as<"user1d">(),
+        sum<Col(&User::age)>.as<"the sum">()
+    >> res{};
+    [[maybe_unused]] auto& [_1, _2, _3] = res.gets();
+    [[maybe_unused]] auto& g1 = res.get<"userId">();
+    [[maybe_unused]] auto& g2 = res.get<"user1d">();
+    [[maybe_unused]] auto& g3 = res.get<"the sum">();
 }

@@ -25,10 +25,12 @@
 #include <sqlite3.h>
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/db/sql/Stmt.hpp>
 
 namespace HX::db::sqlite {
 
-class SqliteStmt {
+class SqliteStmt : Stmt<SqliteStmt> {
+#define HX_DB_STMT_IMPL
 public:
     SqliteStmt() = default;
 
@@ -57,8 +59,14 @@ public:
      * @brief 执行 stmt
      * @return int 
      */
-    int step() const noexcept {
+    int step() noexcept {
         return ::sqlite3_step(_stmt);
+    }
+
+    HX_DB_STMT_IMPL bool exec() noexcept {
+        bool res = step() == SQLITE_DONE;
+        reset();
+        return res;
     }
 
     /**
@@ -74,7 +82,7 @@ public:
      * @brief 获取最后一次成功的操作修改的行数
      * @return auto (int) 修改的行数
      */
-    auto getLastChanges() const noexcept {
+    HX_DB_STMT_IMPL auto getLastChanges() const noexcept {
         return ::sqlite3_changes(::sqlite3_db_handle(_stmt));
     }
 
@@ -87,13 +95,19 @@ public:
         }
     }
 
+    template <std::size_t Idx, typename T>
+    HX_DB_STMT_IMPL void bind() {
+
+    }
+
     /**
      * @brief 清除绑定值
      */
-    void clearBind() {
+    HX_DB_STMT_IMPL void clearBind() {
         if (::sqlite3_clear_bindings(_stmt) != SQLITE_OK) [[unlikely]] {
             throw std::runtime_error{"clearBind: " + getErrMsg()};
         }
+        _bindCnt = 1;
     }
 
     /**
@@ -124,6 +138,8 @@ public:
     }
 private:
     ::sqlite3_stmt* _stmt{};
+    int _bindCnt{1};
+#undef HX_DB_STMT_IMPL
 };
 
 } // namespace HX::db::sqlite
