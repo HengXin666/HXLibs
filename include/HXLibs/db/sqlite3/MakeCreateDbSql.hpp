@@ -33,20 +33,23 @@ namespace HX::db::sqlite {
 struct CreateDbSql {
     template <typename Type, typename Lambda>
     static constexpr std::string_view getSqlTypeStrImpl(Lambda&& doNotTypeFunc) {
+        using namespace std::string_view_literals;
         using T = meta::RemoveOptionalWrapType<Type>;
         if constexpr (std::is_integral_v<T>) {
-            return "INTEGER";
+            return "INTEGER"sv;
         } else if constexpr (std::is_floating_point_v<T>) {
-            return "REAL";
+            return "REAL"sv;
         } else if constexpr (meta::StringType<T>) {
-            return "TEXT";
+            return "TEXT"sv;
         } else if constexpr (std::is_same_v<T, db::Date>) {
-            return "DATE";
+            return "DATE"sv;
         } else if constexpr (std::is_same_v<T, db::Time>) {
-            return "TIME";
+            return "TIME"sv;
         } else if constexpr (std::is_same_v<T, db::Timestamp>) {
             static_assert(!sizeof(T), "type is not sql type");
-        } else {
+        } else if constexpr (std::is_same_v<T, db::Blob>) {
+            return "BLOB"sv;
+        } {
             return std::forward<Lambda>(doNotTypeFunc)();
         }
     }
@@ -63,7 +66,8 @@ struct CreateDbSql {
         requires (IsCustomTypeVal<T>)
     static constexpr std::string_view getSqlTypeStr() noexcept {
         return getSqlTypeStrImpl<T>([] {
-            return "TEXT";
+            using namespace std::string_view_literals;
+            return "TEXT"sv;
         });
     }
 

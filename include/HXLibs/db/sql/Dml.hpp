@@ -49,13 +49,18 @@ struct DataBaseSqlBuildView {
     }
 
     void prepareSql() {
-        _db->_stmt.prepareSql(sql());
+        _db->_db->prepareSql(sql(), _db->_stmt);
         _db->_isInit = true;
     }
 
-    template <typename... Ts>
-    void bind(Ts&&... ts) {
-        _db->_stmt.bind(std::forward<Ts>(ts)...);
+    template <auto... Vs>
+    void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
+        _db->_stmt.selectForEach(resArr);
+    }
+
+    template <typename T>
+    bool bind(std::size_t idx, T&& t) {
+        return _db->_stmt.bind(idx, std::forward<T>(t));
     }
 };
 
@@ -247,16 +252,20 @@ struct SqlBuild {
     {}
 
     template <typename... Ts>
-    auto exec(Ts&&... ts) {
+    auto exec(std::tuple<Ts...>& ts) {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.prepareSql();
         }
         [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
-            (this->_dbRef.template bind<Idx>(std::forward<Ts>(ts)), ...);
+            ([&]() constexpr {
+                if (!this->_dbRef.bind(Idx + 1, std::forward<Ts>(std::get<Idx>(ts)))) [[unlikely]] {
+                    throw std::runtime_error{"Bind idx = " + std::to_string(Idx) + " failure"};
+                }
+            }(), ...);
         }(std::make_index_sequence<sizeof...(Ts)>{});
-        this->_dbRef.exec();
         using SelectT = meta::RemoveCvRefType<Db>::SelectType;
         std::vector<ColumnResult<SelectT>> res;
+        this->_dbRef.selectForEach(res);
         return res;
     }
 
@@ -416,6 +425,10 @@ struct GroupByBuild : public HavingBuild<Db> {
             return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
+    }
+
+    auto exec() {
+        return SqlBuild<Db>::exec(_tp);
     }
 };
 

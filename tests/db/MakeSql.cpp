@@ -120,9 +120,29 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
         Col(&User::id).as<"userId">(),
         Col(&User::name).as<"user1d">(),
         sum<Col(&User::age)>.as<"the sum">()
-    >> res{};
+    >> res{1, "2", 3};
     [[maybe_unused]] auto& [_1, _2, _3] = res.gets();
     [[maybe_unused]] auto& g1 = res.get<"userId">();
     [[maybe_unused]] auto& g2 = res.get<"user1d">();
     [[maybe_unused]] auto& g3 = res.get<"the sum">();
+
+    for (auto const& sql : {sqlite::CreateDbSql::createDatabase<User>({}), 
+                                        sqlite::CreateDbSql::createDatabase<Role>({})}) {
+
+        db.exec(sql);
+    }
+    auto resArr = db.makeSql<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
+                    .select<Col(&User::id).as<"userId">(), 
+                            sum<Col(&User::age)>.as<"sum">()>()
+                    .from<User>()
+                    .join<Role>()
+                    .on<Col(&User::roleId) == Col(&Role::loliId)>()
+                    .where<((Col(&User::age) == db::param<int>.bind<"?age">())
+                          || Col(&User::age) == 2)>(cinAge)
+                    .exec();
+
+    for (auto&& v : resArr) {
+        log::hxLog.info("UserId:", v.get<"userId">(),
+                        "AgeSum:", v.get<"sum">());
+    }
 }

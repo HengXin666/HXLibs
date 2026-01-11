@@ -21,8 +21,10 @@
 #include <map>
 
 #include <HXLibs/meta/TypeId.hpp>
+#include <HXLibs/container/Try.hpp>
 #include <HXLibs/db/sql/Column.hpp>
 #include <HXLibs/db/sql/Dml.hpp>
+#include <HXLibs/db/sql/Stmt.hpp>
 
 namespace HX::db {
 
@@ -53,12 +55,20 @@ struct DataBaseInterface {
      * @return true 执行成功
      * @return false 执行失败
      */
-    bool exec() noexcept {
-        return HX_DB_IMPL->exec();
+    container::Try<> exec(std::string_view sql) noexcept {
+        return HX_DB_IMPL->exec(sql);
     }
 
-    auto& tryExec() {
-        return HX_DB_IMPL->tryExec();
+    auto& tryExec(std::string_view sql) {
+        return HX_DB_IMPL->tryExec(sql);
+    }
+
+    /**
+     * @brief 预编译 SQL
+     * @param sql 
+     */
+    void prepareSql(std::string_view sql, auto& stmt) {
+        HX_DB_IMPL->prepareSql(sql, stmt);
     }
 
     /**

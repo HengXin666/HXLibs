@@ -29,6 +29,8 @@ using Date = std::chrono::sys_days;
 using Timestamp = std::chrono::sys_time<std::chrono::microseconds>;
 using Time = std::chrono::microseconds;
 
+using Blob = std::vector<char>;
+
 template <typename T>
 constexpr bool IsSqlNumberTypeVal = std::is_integral_v<T>
     || std::is_floating_point_v<T>;
@@ -36,6 +38,7 @@ constexpr bool IsSqlNumberTypeVal = std::is_integral_v<T>
 template <typename T>
 constexpr bool IsSqlTypeVal = IsSqlNumberTypeVal<T>
     || meta::StringType<T>
-    || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>;
+    || !meta::IsTypeNotInTypesVal<T, db::Date, db::Time>
+    || std::is_same_v<T, Blob>;
 
 } // namespace HX::db

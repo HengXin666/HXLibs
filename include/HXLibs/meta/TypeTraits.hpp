@@ -53,6 +53,9 @@ constexpr bool IsOptionalVal = false;
 template <typename T>
 constexpr bool IsOptionalVal<std::optional<T>> = true;
 
+template <typename T>
+constexpr bool IsInt64Val = std::is_integral_v<T> && sizeof(T) == 8;
+
 namespace internal {
 
 template <typename T>

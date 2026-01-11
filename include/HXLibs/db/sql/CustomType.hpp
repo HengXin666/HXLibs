@@ -25,45 +25,24 @@ namespace HX::db {
 
 /**
  * @brief 自定义SQL类型
- * @tparam T 注册的自定义 C++ 类型
+ * @tparam T 注册的自定义 C++ 类型, T 不应该为 std::optional
+ * @note 如果实现了CustomType<U> 那么 默认支持 optional<U> 和 U
  * @tparam SqlStrType 对应的 Sql 存储的类型
  */
 template <typename T>
 struct CustomType {
     using Type = T;
 
-    static_assert(IsSqlTypeVal<T>); // 屏蔽主模板
+    static_assert(IsSqlTypeVal<T>); // 默认支持类型不报错
 
-    // Type 序列化为 std::string
-    // static std::string toSql(Type const&) noexcept {
-    //     return {};
-    // }
-
+    // Type 序列化为 std::string    
+    static std::string const& toSql(Type const& t) noexcept {
+        return t;
+    }
+    
     // std::string_view 反序列化为 Type
-    // static Type fromSql(std::string_view) noexcept {
-    //     return {};
-    // }
-
-    static Type const& toSql(Type const& t) noexcept {
+    static Type const& fromSql(std::string_view t) noexcept {
         return t;
-    }
-
-    static Type const& fromSql(Type const& t) noexcept {
-        return t;
-    }
-};
-
-template <typename T>
-    requires (IsSqlTypeVal<T>)
-struct CustomType<std::optional<T>> {
-    using Type = std::optional<T>;
-
-    static Type toSql(Type t) noexcept {
-        return std::move(t);
-    }
-
-    static Type fromSql(Type t) noexcept {
-        return std::move(t);
     }
 };
 

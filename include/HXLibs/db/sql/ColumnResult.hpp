@@ -46,6 +46,16 @@ template <auto... Cs>
 struct ColumnResult<meta::ValueWrap<Cs...>> {
     using Type = std::tuple<typename decltype(internal::toCol<Cs>())::Type...>;
 
+    constexpr ColumnResult() = default;
+
+    template <typename... Ts>
+        requires (requires {
+            { Type {Ts{}...} } -> std::same_as<Type>;
+        })
+    constexpr ColumnResult(Ts&&... ts)
+        : _tp{std::forward<Ts>(ts)...}
+    {}
+
     constexpr Type& gets() noexcept {
         return _tp;
     }

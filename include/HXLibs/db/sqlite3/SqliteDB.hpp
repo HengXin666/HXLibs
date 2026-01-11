@@ -41,12 +41,27 @@ struct SqliteDB : public DataBase<SqliteDB>, private DataBaseInterface<SqliteDB>
         }
     }
 
-    bool exec() noexcept {
-        return true;
+    container::Try<> exec(std::string_view sql) noexcept {
+        container::Try<> res{container::NonVoidHelper<>{}};
+        try {
+            char* errMsg = nullptr;
+            if (::sqlite3_exec(_db, sql.data(), nullptr, nullptr, &errMsg) != SQLITE_OK) [[unlikely]] {
+                std::string err = errMsg ? errMsg : "unknown error";
+                ::sqlite3_free(errMsg);
+                throw std::runtime_error{err};
+            }
+        } catch (...) {
+            res.setException(std::current_exception());
+        }
+        return res;
     }
 
     std::size_t getLastChanges() const noexcept {
         return 0;
+    }
+
+    void prepareSql(std::string_view sql, auto& stmt) {
+        stmt.prepareSql(sql, _db);
     }
     
 private:
