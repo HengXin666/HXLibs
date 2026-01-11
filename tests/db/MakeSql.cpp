@@ -88,7 +88,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     db::sqlite::SqliteDB db{"./test.db"};
 
-    db.makeSql<1>()
+    db.sqlTemplate<1>()
       .select<Col{&User::id}.as<"userId">()>()
       .from<User>()
       .join<Role>()
@@ -103,7 +103,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
       .limit<10, 50>();
 
     int cinAge{};
-    db.makeSql<2>()
+    db.sqlTemplate<2>()
       .select<Col(&User::id).as<"userId">(), sum<Col(&User::age)>.as<"1">()>()
       .from<User>()
       .join<Role>()
@@ -112,7 +112,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
           || Col(&User::age) == 2)>(cinAge)
       .groupBy<&User::name>()
       .orderBy<Col(&User::age).asc()>()
-      .limit<db::param<int>>();
+      .limit<db::param<int>>(50);
 
     log::hxLog.info("table:", db::getTableName<Text>());
 
@@ -126,12 +126,10 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     [[maybe_unused]] auto& g2 = res.get<"user1d">();
     [[maybe_unused]] auto& g3 = res.get<"the sum">();
 
-    for (auto const& sql : {sqlite::CreateDbSql::createDatabase<User>({}), 
-                                        sqlite::CreateDbSql::createDatabase<Role>({})}) {
-
-        db.exec(sql);
-    }
-    auto resArr = db.makeSql<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
+    db.createDatabase<User>();
+    db.createDatabase<Role>();
+    auto resArr 
+                = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::id).as<"userId">(), 
                             sum<Col(&User::age)>.as<"sum">()>()
                     .from<User>()

@@ -175,15 +175,6 @@ public:
     }
 
     /**
-     * @brief 清除绑定值
-     */
-    HX_DB_STMT_IMPL void clearBind() {
-        if (::sqlite3_clear_bindings(_stmt) != SQLITE_OK) [[unlikely]] {
-            throw std::runtime_error{"clearBind: " + getErrMsg()};
-        }
-    }
-
-    /**
      * @brief 获取错误字符串
      * @return std::string 
      */

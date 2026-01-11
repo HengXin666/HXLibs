@@ -22,6 +22,7 @@
 
 #include <HXLibs/db/sql/DataBase.hpp>
 #include <HXLibs/db/sqlite3/SqliteStmt.hpp>
+#include <HXLibs/db/sqlite3/MakeCreateDbSql.hpp>
 
 namespace HX::db::sqlite {
 
@@ -41,15 +42,21 @@ struct SqliteDB : public DataBase<SqliteDB>, private DataBaseInterface<SqliteDB>
         }
     }
 
-    container::Try<> exec(std::string_view sql) noexcept {
-        container::Try<> res{container::NonVoidHelper<>{}};
+    void exec(std::string_view sql) {
+        char* errMsg = nullptr;
+        if (::sqlite3_exec(_db, sql.data(), nullptr, nullptr, &errMsg) != SQLITE_OK) [[unlikely]] {
+            std::string err = errMsg ? errMsg : "unknown error";
+            ::sqlite3_free(errMsg);
+            throw std::runtime_error{err};
+        }
+    }
+
+    template <typename Table, bool IsNotExists = true>
+    container::Try<> createDatabase() noexcept {
+        container::Try<> res{container::NonVoidType<>{}};
         try {
-            char* errMsg = nullptr;
-            if (::sqlite3_exec(_db, sql.data(), nullptr, nullptr, &errMsg) != SQLITE_OK) [[unlikely]] {
-                std::string err = errMsg ? errMsg : "unknown error";
-                ::sqlite3_free(errMsg);
-                throw std::runtime_error{err};
-            }
+            auto sql = sqlite::CreateDbSql::createDatabase<Table, IsNotExists>({});
+            exec(sql);
         } catch (...) {
             res.setException(std::current_exception());
         }

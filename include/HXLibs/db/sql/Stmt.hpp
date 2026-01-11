@@ -66,13 +66,6 @@ struct Stmt {
     void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
         HX_DB_STMT_IMPL->selectForEach(resArr);
     }
-
-    /**
-     * @brief 清空绑定的占位参数
-     */
-    void clearBind() {
-        HX_DB_STMT_IMPL->clearBind();
-    }
 #undef HX_DB_STMT_IMPL
 };
 

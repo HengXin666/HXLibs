@@ -30,8 +30,15 @@ namespace HX::db {
 
 template <typename CRTP>
 struct DataBase {
+    /**
+     * @brief 创建一个 SQL 模板, 内部的 SQL 字符串仅会被构建一次. 之后会复用缓存
+     * @tparam FuncPtr 当前函数的函数指针等, 表示处境唯一的编译期常量
+     * @tparam Feature 更多可选的特征
+     * @note <FuncPtr, Feature...> 注册为唯一的编译期 Id
+     * @return auto& 
+     */
     template <auto FuncPtr, auto... Feature>
-    auto& makeSql() {
+    auto& sqlTemplate() {
         constexpr auto Id = meta::TypeId::make<meta::ValueWrap<FuncPtr, Feature...>>();
         if (auto it = _sqlMap.find(Id); it != _sqlMap.end()) {
             return it->second;
@@ -52,23 +59,46 @@ struct DataBaseInterface {
 #define HX_DB_IMPL static_cast<CRTP>(this)
     /**
      * @brief 执行 SQL 语句
-     * @return true 执行成功
-     * @return false 执行失败
+     * @param sql 
+     * @throw SQL 执行出错
      */
-    container::Try<> exec(std::string_view sql) noexcept {
+    void exec(std::string_view sql) {
         return HX_DB_IMPL->exec(sql);
     }
 
-    auto& tryExec(std::string_view sql) {
-        return HX_DB_IMPL->tryExec(sql);
+    /**
+     * @brief 执行 SQL 语句
+     * @param sql 
+     * @return container::Try<> 包裹异常
+     */
+    container::Try<> execNoThrow(std::string_view sql) noexcept {
+        container::Try<> res{container::NonVoidType<>{}};
+        try {
+            HX_DB_IMPL->exec(sql);
+        } catch (...) {
+            res.setException(std::current_exception());
+        }
+        return res;
     }
 
     /**
      * @brief 预编译 SQL
      * @param sql 
+     * @param stmt 
      */
     void prepareSql(std::string_view sql, auto& stmt) {
         HX_DB_IMPL->prepareSql(sql, stmt);
+    }
+
+    /**
+     * @brief 创建数据表
+     * @tparam Table 表
+     * @tparam IsNotExists 是否仅在不存在时候创建
+     * @return container::Try<> 
+     */
+    template <typename Table, bool IsNotExists = true>
+    container::Try<> createDatabase() noexcept {
+        return HX_DB_IMPL->template createDatabase<Table, IsNotExists>();
     }
 
     /**

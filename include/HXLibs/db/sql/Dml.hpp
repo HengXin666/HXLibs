@@ -21,6 +21,7 @@
 
 #include <HXLibs/reflection/MemberPtr.hpp>
 #include <HXLibs/log/serialize/ToString.hpp>
+#include <HXLibs/container/Try.hpp>
 #include <HXLibs/db/sql/Table.hpp>
 #include <HXLibs/db/sql/Column.hpp>
 #include <HXLibs/db/sql/Param.hpp>
@@ -70,6 +71,35 @@ struct DataBaseSqlBuild {
     auto select() {
         using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, meta::ValueWrap<Cs...>>;
         return SelectBuild<DbView>{DbView{this}}.template select<Cs...>();
+    }
+
+    template <typename T>
+    auto insert(T&& t) {
+        if (!_isInit) [[unlikely]] {
+            _sql = "INSERT INTO ";
+            _sql += getTableName<T>();
+            _sql += " (";
+            std::string param = " VALUES (";
+            reflection::forEach(t, [&](auto, std::string_view name, auto&) {
+                // @todo 判断主键
+                _sql += name;
+                _sql += ',';
+                param += "?,";
+            });
+            _sql.back() = ')';
+            param.back() = ')';
+            _sql += std::move(param);
+            _sql += ';';
+
+            _db->prepareSql(_sql, _db->_stmt);
+            _isInit = true;
+        }
+        reflection::forEach(std::forward<T>(t), [&] <std::size_t Idx> (
+            std::index_sequence<Idx>, std::string_view, auto&& v
+        ) {
+            _stmt.bind(Idx, std::forward<decltype(v)>(v));
+        });
+        _stmt.exec();
     }
 
     Db* const _db{};
@@ -160,39 +190,6 @@ constexpr std::string exprToString() {
 }
 
 template <Expression Expr>
-constexpr std::size_t exprParamCnt() noexcept;
-
-template <auto Expr>
-constexpr std::size_t expandExprParamCnt() noexcept {
-    using T = decltype(Expr);
-    if constexpr (IsParamVal<T>) {
-        return 1;
-    } else if constexpr (IsExpressionVal<T>) {
-        return exprParamCnt<Expr>();
-    } else if constexpr (meta::IsValueWrapVal<T>) {
-        return [&] <auto... Vs> (meta::ValueWrap<Vs...>) {
-            return (expandExprParamCnt<Vs>() + ...);
-        } (Expr);
-    } else {
-        return 0;
-    }
-}
-
-template <Expression Expr>
-constexpr std::size_t exprParamCnt() noexcept {
-    using T = decltype(Expr);
-    if constexpr (IsCalculateExprTypeVal<T> || Is3OpExprVal<T>) {
-        std::size_t res{};
-        if constexpr (IsExpressionVal<decltype(Expr._expr1)>) {
-            res += exprParamCnt<Expr._expr1>();
-        }
-        return res + expandExprParamCnt<Expr._expr2>();
-    } else {
-        return 0;
-    }
-}
-
-template <Expression Expr>
 constexpr auto GetExprParamsTypeFunc() noexcept;
 
 template <auto Expr>
@@ -247,12 +244,14 @@ constexpr void addLimitVal(std::string& res) {
 
 template <typename Db>
 struct SqlBuild {
+    using ColumnResType = ColumnResult<typename meta::RemoveCvRefType<Db>::SelectType>;
+
     SqlBuild(Db db)
         : _dbRef{db}
     {}
 
     template <typename... Ts>
-    auto exec(std::tuple<Ts...>& ts) {
+    std::vector<ColumnResType> exec(std::tuple<Ts...>& ts) {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.prepareSql();
         }
@@ -263,13 +262,47 @@ struct SqlBuild {
                 }
             }(), ...);
         }(std::make_index_sequence<sizeof...(Ts)>{});
-        using SelectT = meta::RemoveCvRefType<Db>::SelectType;
-        std::vector<ColumnResult<SelectT>> res;
+        std::vector<ColumnResType> res{};
         this->_dbRef.selectForEach(res);
         return res;
     }
 
+    template <typename... Ts>
+    container::Try<std::vector<ColumnResType>> execNoThrow(std::tuple<Ts...>& ts) noexcept {
+        container::Try<std::vector<ColumnResType>> res{};
+        try {
+            res.setVal(exec(ts));
+        } catch (...) {
+            res.setException(std::current_exception());
+        }
+        return res;
+    }
+
     Db _dbRef;
+};
+
+#define HX_DB_DML_EXEC_IMPL                                                    \
+    std::vector<typename SqlBuild<Db>::ColumnResType> exec() && {              \
+        return SqlBuild<Db>::exec(_tp);                                        \
+    }                                                                          \
+                                                                               \
+    container::Try<std::vector<typename SqlBuild<Db>::ColumnResType>>          \
+    execNoThrow() && noexcept {                                                \
+        return SqlBuild<Db>::execNoThrow(_tp);                                 \
+    }
+
+template <typename Db, typename... Ts>
+struct SelectEndBuild : public SqlBuild<Db> {
+    using Base = SqlBuild<Db>;
+    using Base::Base;
+    std::tuple<Ts&&...> _tp;
+
+    SelectEndBuild(Db db, Ts&&... ts)
+        : SqlBuild<Db>{db}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -284,24 +317,38 @@ struct LimitBuild : public SqlBuild<Db> {
         , _tp{std::forward<Ts>(ts)...}
     {}
 
-    template <auto Offset, auto MaxCnt>
+    template <auto Offset, auto MaxCnt, typename... Us>
         requires ((std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
                && (std::is_integral_v<decltype(MaxCnt)> || IsParamVal<decltype(MaxCnt)>))
-    void limit() {
+    SelectEndBuild<Db, Ts&&..., Us&&...> limit(Us&&... us) && {
+        // 绑定参数个数不正确
+        static_assert(IsParamVal<decltype(Offset)> + IsParamVal<decltype(MaxCnt)> == sizeof...(us),
+            "The number of binding parameters is incorrect");
         this->_dbRef.sql() += "LIMIT ";
         internal::addLimitVal<Offset>(this->_dbRef.sql());
         this->_dbRef.sql() += ',';
         internal::addLimitVal<MaxCnt>(this->_dbRef.sql());
-        log::hxLog.info("sql:", this->_dbRef.sql());
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return SelectEndBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
 
-    template <auto Offset>
+    template <auto Offset, typename... Us>
         requires (std::is_integral_v<decltype(Offset)> || IsParamVal<decltype(Offset)>)
-    void limit() {
+    SelectEndBuild<Db, Ts&&..., Us&&...> limit(Us&&... us) && {
+        // 绑定参数个数不正确
+        static_assert(IsParamVal<decltype(Offset)> == sizeof...(us),
+            "The number of binding parameters is incorrect");
         this->_dbRef.sql() += "LIMIT ";
         internal::addLimitVal<Offset>(this->_dbRef.sql());
-        log::hxLog.info("sql:", this->_dbRef.sql());
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return SelectEndBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
+                std::get<I>(_tp)..., std::forward<Us>(us)...};
+        }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -333,6 +380,8 @@ struct OrderByBuild : public LimitBuild<Db> {
             return LimitBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -371,6 +420,8 @@ struct HavingBuild : public OrderByBuild<Db> {
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -385,21 +436,21 @@ struct GroupByBuild : public HavingBuild<Db> {
         , _tp{std::forward<Ts>(ts)...}
     {}
 
-    // @todo
     template <auto... Ptrs>
         requires (sizeof...(Ptrs) > 0 && (meta::IsMemberPtrVal<decltype(Ptrs)> && ...))
-    HavingBuild<Db> groupBy() && {
+    HavingBuild<Db, Ts&&...> groupBy() && {
         return std::move(*this).template groupBy<Col{Ptrs}...>();
     }
 
-    // @todo
     template <Col... Cs>
         requires (sizeof...(Cs) > 0)
-    HavingBuild<Db> groupBy() && {
+    HavingBuild<Db, Ts&&...> groupBy() && {
         this->_dbRef.sql() += "GROUP BY ";
         ((this->_dbRef.sql() += internal::makeColName<Cs>(), this->_dbRef.sql() += ','), ...);
         this->_dbRef.sql().back() = ' ';
-        return {this->_dbRef};
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return HavingBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
     }
 
     template <Expression Expr, typename... Us>
@@ -427,9 +478,7 @@ struct GroupByBuild : public HavingBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    auto exec() {
-        return SqlBuild<Db>::exec(_tp);
-    }
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -468,6 +517,8 @@ struct WhereBuild : public GroupByBuild<Db> {
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -504,6 +555,8 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
                 std::get<I>(_tp)..., std::forward<Us>(us)...};
         }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -548,6 +601,8 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
             return OnBuild<Db, Ts&&...>{this->_dbRef, std::get<I>(_tp)...};
         }(std::make_index_sequence<N>{});
     }
+
+    HX_DB_DML_EXEC_IMPL
 };
 
 template <typename Db>
@@ -564,8 +619,6 @@ struct FromBuild : public SqlBuild<Db> {
         }
         return {this->_dbRef};
     }
-
-    // op= 当使用这个的时候, 进行build
 };
 
 template <typename Db>

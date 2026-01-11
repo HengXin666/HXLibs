@@ -141,11 +141,14 @@ struct CreateDbSql {
         return primaryKeyCnt;
     }
 
-    template <typename T>
+    template <typename T, bool IsNotExists = true>
     static std::string createDatabase(T&& t) {
         using Table = meta::RemoveCvRefType<T>;
         std::size_t primaryKeyCnt = 0;
         std::string sql = "CREATE TABLE ";
+        if constexpr (IsNotExists) {
+            sql += "IF NOT EXISTS ";
+        }
         std::string foreignKeySql{};
         sql += reflection::getTypeName<Table>();
         sql += " (";

@@ -35,7 +35,7 @@ struct CoTest {
 };
 
 TEST_CASE("测试普通请求") {
-    HttpServer ser{28205,};
+    HttpServer ser{28205};
     ser.addEndpoint<GET, POST>("/", [](
         Request& req,
         Response& res
