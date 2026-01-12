@@ -73,7 +73,7 @@ struct DataBaseSqlBuild {
         return SelectBuild<DbView>{DbView{this}}.template select<Cs...>();
     }
 
-    template <typename T>
+    template <typename T, bool InsertPK = false>
     auto insert(T&& t) {
         if (!_isInit) [[unlikely]] {
             _sql = "INSERT INTO ";

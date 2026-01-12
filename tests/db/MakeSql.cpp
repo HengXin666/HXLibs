@@ -28,20 +28,26 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
             attr::PrimaryKey<&Role::id, &Role::loliId> pk;
         };
     };
+
+    // attr::IsPrimaryKeyVal<attr::PrimaryKey<&Role::id, &Role::loliId>>;
+    // auto _ = &Role::id == &Role::loliId;
+
+    auto mp = reflection::makeMemberPtrToNameMap<Role>();
+    CHECK(mp.at(&Role::id) == "id");
     
     struct User {
-        Constraint<int,
-            attr::PrimaryKey<>,
-            attr::AutoIncrement,
-            attr::NotNull
-        > id;
-
         Constraint<std::string,
             attr::NotNull,
             attr::Unique,
             attr::DescIndex,
             attr::DefaultVal<"loli"_fs>
         > name;
+
+        Constraint<int,
+            attr::PrimaryKey<>,
+            attr::AutoIncrement,
+            attr::NotNull
+        > id;
 
         Constraint<int,
             attr::Foreign<&Role::loliId>,
@@ -64,6 +70,10 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
             attr::UnionForeign<attr::ForeignMap<&User::id, &Role::loliId>> f_1;
         };
     } user{};
+
+    using Key1 = GetTablePrimaryKeyIdxType<Role>;
+    using Key2 = GetTablePrimaryKeyIdxType<User>;
+    static_assert(!std::is_same_v<Key1, Key2>);
 
     log::hxLog.warning("Role", sqlite::CreateDbSql::createDatabase<Role>({}));
 

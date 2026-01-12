@@ -114,7 +114,7 @@ inline constexpr auto makeMemberPtrToNameMap() noexcept {
     constexpr auto& t = internal::getStaticObj<T>();
     constexpr auto tp = internal::getObjTie(t);
     return [&] <std::size_t... Is> (std::index_sequence<Is...>) constexpr {
-        return container::CHashMap<internal::MemberPtrType<U>, std::string_view, Cnt> {
+        return container::CHashMap<internal::MemberPtrType<U>, std::string_view, Cnt>{
             std::array<std::pair<internal::MemberPtrType<U>, std::string_view>, Cnt>{
                 std::pair<internal::MemberPtrType<U>, std::string_view>{
                     internal::MemberPtrType<U>{internal::_ptr_diff_type{

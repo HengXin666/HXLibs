@@ -22,6 +22,8 @@
 
 #include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/meta/MemberPtrType.hpp>
+#include <HXLibs/meta/Wrap.hpp>
+#include <HXLibs/reflection/MemberName.hpp>
 
 namespace HX::db {
 
@@ -230,6 +232,66 @@ struct RemoveConstraintToTypeImpl<Constraint<T, ConstraintTypes...>> {
     using Type = T;
 };
 
+template <typename Table>
+constexpr auto getTablePrimaryKeyIdxImpl() noexcept {
+    std::size_t idx{};
+    reflection::forEach(Table{}, [&] <std::size_t Idx, typename T> (
+        std::index_sequence<Idx>, auto, T v
+    ) {
+        if constexpr (attr::IsPrimaryKeyVal<T>) {
+            idx = Idx + 1;
+        } else if constexpr (IsConstraintVal<T>) {
+            [&] <typename... Attr> (Constraint<typename T::Type, Attr...>) {
+                 idx = (attr::IsPrimaryKeyVal<Attr> || ...) ? Idx + 1 : idx;
+            }(v);
+        }
+    });
+    return idx;
+}
+
+template <auto Ptr, typename Table>
+constexpr std::size_t getTablePrimaryKeyIdxTool() noexcept {
+    std::size_t res{};
+    constexpr auto N = reflection::membersCountVal<Table>;
+    constexpr auto& t = reflection::internal::getStaticObj<Table>();
+    constexpr auto tp = reflection::internal::getStaticObjPtrTuple<Table>();
+    [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
+        ([&]() constexpr {
+            using T1 = meta::RemoveCvRefType<decltype(&(t.*Ptr))>;
+            using T2 = meta::RemoveCvRefType<decltype(std::get<Idx>(tp))>;
+            if constexpr (std::is_same_v<T1, T2>) {
+                if constexpr (&(t.*Ptr) == std::get<Idx>(tp)) {
+                    res = Idx;
+                }
+            }
+        }(), ...);
+    }(std::make_index_sequence<N>{});
+    return res;
+}
+
+template <typename Table>
+constexpr auto getTablePrimaryKeyIdx() noexcept {
+    if constexpr (constexpr auto Idx = getTablePrimaryKeyIdxImpl<Table>(); Idx) {
+        // 1. 如果类中有定义
+        return meta::ValueWrap<Idx - 1>{};
+    } else if constexpr (attr::HasUnionAttr<Table>) {
+        // 2. 没有, 则看复合属性
+        if constexpr (constexpr auto Idx = getTablePrimaryKeyIdxImpl<typename Table::UnionAttr>(); Idx) {
+            constexpr auto Ptr = std::get<Idx - 1>(
+                reflection::internal::getStaticObjPtrTuple<typename Table::UnionAttr>());
+            using PtrType = meta::RemoveCvRefType<decltype(*Ptr)>;
+            return [] <auto... Ptrs> (attr::PrimaryKey<Ptrs...>) constexpr {
+                return meta::ValueWrap<getTablePrimaryKeyIdxTool<Ptrs, Table>()...>{};
+            }(PtrType{});
+        } else {
+            // 复合属性也没有定义复合主键
+            return meta::ValueWrap<>{};
+        }
+    } else { // 3. 没有主键
+        return meta::ValueWrap<>{};
+    }
+}
+
 } // namespace internal
 
 /**
@@ -237,6 +299,9 @@ struct RemoveConstraintToTypeImpl<Constraint<T, ConstraintTypes...>> {
  */
 template <typename T>
 using RemoveConstraintToType = typename internal::RemoveConstraintToTypeImpl<T>::Type;
+
+template <typename Table>
+using GetTablePrimaryKeyIdxType = decltype(internal::getTablePrimaryKeyIdx<Table>());
 
 namespace attr {
 
