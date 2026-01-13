@@ -69,15 +69,19 @@ struct Stmt {
 #undef HX_DB_STMT_IMPL
 };
 
-template <typename T, typename AnyFunc, typename NullFunc>
-    requires (std::is_invocable_v<AnyFunc, T>
+template <
+    typename T,
+    typename AnyFunc,
+    typename NullFunc,
+    typename Type = RemoveConstraintToType<meta::RemoveCvRefType<T>>
+>
+    requires (std::is_invocable_v<AnyFunc, Type&>
            && std::is_invocable_v<NullFunc>)
 constexpr bool stmtBind(T&& t, AnyFunc&& anyFunc, NullFunc&& nullFunc) noexcept(
-    noexcept(std::forward<AnyFunc>(anyFunc)(std::declval<T&&>()))
+    noexcept(std::forward<AnyFunc>(anyFunc)(std::declval<Type&>()))
  && noexcept(std::forward<NullFunc>(nullFunc)())
 ) {
-    using Type = RemoveConstraintToType<meta::RemoveCvRefType<T>>;
-    auto& data = static_cast<Type&>(t);
+    auto const& data = static_cast<Type const&>(t);
     if constexpr (IsCustomTypeVal<Type>) {
         return std::forward<AnyFunc>(anyFunc)(data);
     } else if constexpr (meta::IsOptionalVal<Type>) {

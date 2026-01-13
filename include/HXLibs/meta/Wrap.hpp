@@ -37,6 +37,17 @@ constexpr bool IsValueWrapVal = false;
 template <auto... Vs>
 constexpr bool IsValueWrapVal<ValueWrap<Vs...>> = true;
 
+template <auto V, typename T>
+constexpr bool NotInValueWrapVal = true;
+
+/**
+ * @brief 判断 V 是否不等于 Vs...
+ * @tparam V 
+ * @tparam Vs 
+ */
+template <auto V, auto... Vs>
+constexpr bool NotInValueWrapVal<V, ValueWrap<Vs...>> = ((V != Vs) && ...);
+
 namespace internal {
 
 template <std::size_t Idx, typename T>

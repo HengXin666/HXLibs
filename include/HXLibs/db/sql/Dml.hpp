@@ -73,31 +73,52 @@ struct DataBaseSqlBuild {
         return SelectBuild<DbView>{DbView{this}}.template select<Cs...>();
     }
 
-    template <typename T, bool InsertPK = false>
+    template <typename T, bool InsertPrimaryKey = false>
     auto insert(T&& t) {
         if (!_isInit) [[unlikely]] {
             _sql = "INSERT INTO ";
             _sql += getTableName<T>();
             _sql += " (";
             std::string param = " VALUES (";
-            reflection::forEach(t, [&](auto, std::string_view name, auto&) {
-                // @todo 判断主键
-                _sql += name;
-                _sql += ',';
-                param += "?,";
+            reflection::forEach(t, [&] <std::size_t Idx> (
+                std::index_sequence<Idx>, std::string_view name, auto&
+            ) {
+                // 判断主键
+                if constexpr (InsertPrimaryKey) {
+                    _sql += name;
+                    _sql += ',';
+                    param += "?,";
+                } else if constexpr (meta::NotInValueWrapVal<Idx, GetTablePrimaryKeyIdxType<T>>) {
+                    _sql += name;
+                    _sql += ',';
+                    param += "?,";
+                }
             });
-            _sql.back() = ')';
-            param.back() = ')';
-            _sql += std::move(param);
-            _sql += ';';
+            if (_sql.back() != '(') [[likely]] {
+                _sql.back() = ')';
+                param.back() = ')';
+                _sql += std::move(param);
+                _sql += ';';
+            } else {
+                _sql.back() = 'D';
+                _sql += "EFAULT VALUES;";
+            }
 
-            _db->prepareSql(_sql, _db->_stmt);
+            _db->prepareSql(_sql, _stmt);
             _isInit = true;
+
+            log::hxLog.warning(_sql);
         }
+
+        std::size_t cnt{}; // 注意从 1 开始
         reflection::forEach(std::forward<T>(t), [&] <std::size_t Idx> (
             std::index_sequence<Idx>, std::string_view, auto&& v
         ) {
-            _stmt.bind(Idx, std::forward<decltype(v)>(v));
+            if constexpr (InsertPrimaryKey) {
+                _stmt.bind(++cnt, std::forward<decltype(v)>(v));
+            } else if constexpr (meta::NotInValueWrapVal<Idx, GetTablePrimaryKeyIdxType<T>>) {
+                _stmt.bind(++cnt, std::forward<decltype(v)>(v));
+            }
         });
         _stmt.exec();
     }
@@ -492,7 +513,7 @@ struct WhereBuild : public GroupByBuild<Db> {
         : GroupByBuild<Db>{db}
         , _tp{std::forward<Ts>(ts)...}
     {}
-    
+
     template <Expression Expr, typename... Us>
     GroupByBuild<Db, Ts&&..., Us&&...> where(Us&&... us) && {
         using ParamWrap = internal::GetExprParamsType<Expr>;
@@ -530,7 +551,7 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
     using Base::Base;
     std::tuple<Ts&&...> _tp;
     inline static constexpr auto N = sizeof...(Ts);
-    
+
     template <Expression Expr, typename... Us>
     JoinOrWhereBuild<Db, Ts&&..., Us&&...> on(Us&&... us) && {
         using ParamWrap = internal::GetExprParamsType<Expr>;

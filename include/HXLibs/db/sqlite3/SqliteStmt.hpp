@@ -127,6 +127,8 @@ public:
      * @return auto 
      */
     auto getLastInsertPrimaryKeyId() const noexcept {
+        // @todo 不应该使用这个 应该在 语句中指定 RETURNING, 返回.
+        // 这 api 得到的是 内部 rowid_id 不通用
         return ::sqlite3_last_insert_rowid(::sqlite3_db_handle(_stmt));;
     }
 
@@ -150,7 +152,7 @@ public:
     template <typename T>
     HX_DB_STMT_IMPL bool bind(std::size_t idx, T&& t) {
         auto i = static_cast<int>(idx);
-        return stmtBind(std::forward<T>(t), [&] <typename Type> (Type& data) {
+        return stmtBind(std::forward<T>(t), [&] <typename Type> (Type const& data) {
             using SqlType = meta::RemoveCvRefType<Type>;
             if constexpr (std::is_integral_v<SqlType> && !meta::IsInt64Val<SqlType>) {
                 return SQLITE_OK == ::sqlite3_bind_int(_stmt, i, data);

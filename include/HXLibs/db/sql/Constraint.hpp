@@ -204,11 +204,15 @@ struct Constraint {
 
     using Type = T;
     using Constraints = std::tuple<ConstraintTypes...>;
-    
+
     T val;
 
-    operator T&() noexcept { return val; }
-    operator T const&() const noexcept { return val; }
+    constexpr operator T&() noexcept { return get(); }
+    constexpr operator T const&() const noexcept { return get(); }
+
+    constexpr T& get() & noexcept { return val; }
+    constexpr T const& get() const & noexcept { return val; }
+    constexpr T&& get() && noexcept { return std::move(val); }
 };
 
 /**

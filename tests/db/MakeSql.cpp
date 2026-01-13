@@ -38,7 +38,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     struct User {
         Constraint<std::string,
             attr::NotNull,
-            attr::Unique,
+            // attr::Unique,
             attr::DescIndex,
             attr::DefaultVal<"loli"_fs>
         > name;
@@ -50,13 +50,13 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
         > id;
 
         Constraint<int,
-            attr::Foreign<&Role::loliId>,
             attr::DefaultVal<18>
         > age;
 
         Constraint<int,
-            attr::Index<>,
-            attr::NotNull
+            attr::Index<>
+            // ,
+            // attr::NotNull
         > roleId;
 
         struct UnionAttr {
@@ -67,7 +67,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
             // attr::Index<> idx_2;
 
-            attr::UnionForeign<attr::ForeignMap<&User::id, &Role::loliId>> f_1;
+            // attr::UnionForeign<attr::ForeignMap<&User::id, &Role::loliId>> f_1;
         };
     } user{};
 
@@ -138,15 +138,17 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     db.createDatabase<User>();
     db.createDatabase<Role>();
-    auto resArr 
-                = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
-                    .select<Col(&User::id).as<"userId">(), 
+
+    db.sqlTemplate<"插入1"_fs>()
+      .insert<Role>({{}, {}});
+    db.sqlTemplate<"插入2"_fs>()
+      .insert<User>({{"张三"}, {}, {24}, {1}});
+    auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
+                    .select<Col(&User::name).as<"userId">(), 
                             sum<Col(&User::age)>.as<"sum">()>()
                     .from<User>()
-                    .join<Role>()
-                    .on<Col(&User::roleId) == Col(&Role::loliId)>()
                     .where<((Col(&User::age) == db::param<int>.bind<"?age">())
-                          || Col(&User::age) == 2)>(cinAge)
+                          || Col(&User::age) > 2)>(cinAge)
                     .exec();
 
     for (auto&& v : resArr) {
