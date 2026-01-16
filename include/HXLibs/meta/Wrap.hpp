@@ -29,6 +29,7 @@ namespace HX::meta {
 template <auto... Vs>
 struct ValueWrap {
     inline static constexpr auto Datas = std::make_tuple(Vs...);
+    inline static constexpr auto Size = sizeof...(Vs);
 };
 
 template <typename T>

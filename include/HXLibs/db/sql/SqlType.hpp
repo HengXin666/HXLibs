@@ -31,8 +31,9 @@ using Time = std::chrono::microseconds;
 
 using Blob = std::vector<char>;
 
+// 不支持无符号类型
 template <typename T>
-constexpr bool IsSqlNumberTypeVal = std::is_integral_v<T>
+constexpr bool IsSqlNumberTypeVal = (std::is_integral_v<T> && !std::is_unsigned_v<T>)
     || std::is_floating_point_v<T>;
 
 template <typename T>

@@ -66,6 +66,16 @@ struct Stmt {
     void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
         HX_DB_STMT_IMPL->selectForEach(resArr);
     }
+
+    /**
+     * @brief 返回已修改/插入行的数据
+     * @tparam Vs 需要返回 字段
+     * @return ColumnResult<meta::ValueWrap<Vs...>> 
+     */
+    template <auto... Vs>
+    ColumnResult<meta::ValueWrap<Vs...>> returning() {
+        return HX_DB_STMT_IMPL->template returning<Vs...>();
+    }
 #undef HX_DB_STMT_IMPL
 };
 

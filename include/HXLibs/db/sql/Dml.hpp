@@ -33,8 +33,29 @@
 
 namespace HX::db {
 
+namespace internal {
+
+template <std::size_t... I, typename ValWrap>
+    requires (meta::IsValueWrapVal<ValWrap>)
+constexpr auto removeNumInValueWarp(std::index_sequence<I...>, ValWrap) noexcept {
+    return meta::FlattenWrapType<meta::Wrap<decltype([]{
+        if constexpr (meta::NotInValueWrapVal<I, ValWrap>) {
+            return meta::ValueWrap<I>{};
+        } else {
+            return meta::Wrap<>{};
+        }
+    }())...>>{};
+}
+
+constexpr auto _ = removeNumInValueWarp(std::make_index_sequence<3>{}, meta::ValueWrap<1>{});
+
+} // namespace internal
+
 template <typename Db>
 struct SelectBuild;
+
+template <typename Db, typename... Ts>
+struct ReturningBuild;
 
 template <typename Db, typename SelectT>
 struct DataBaseSqlBuildView {
@@ -54,6 +75,10 @@ struct DataBaseSqlBuildView {
         _db->_isInit = true;
     }
 
+    bool exec() {
+        return _db->_stmt.exec();
+    }
+
     template <auto... Vs>
     void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
         _db->_stmt.selectForEach(resArr);
@@ -62,6 +87,11 @@ struct DataBaseSqlBuildView {
     template <typename T>
     bool bind(std::size_t idx, T&& t) {
         return _db->_stmt.bind(idx, std::forward<T>(t));
+    }
+
+    template <auto... Vs>
+    ColumnResult<meta::ValueWrap<Vs...>> returning() {
+        return _db->_stmt.template returning<Vs...>();
     }
 };
 
@@ -98,29 +128,27 @@ struct DataBaseSqlBuild {
                 _sql.back() = ')';
                 param.back() = ')';
                 _sql += std::move(param);
-                _sql += ';';
             } else {
                 _sql.back() = 'D';
-                _sql += "EFAULT VALUES;";
+                _sql += "EFAULT VALUES";
             }
-
-            _db->prepareSql(_sql, _stmt);
-            _isInit = true;
-
-            log::hxLog.warning(_sql);
         }
 
-        std::size_t cnt{}; // 注意从 1 开始
-        reflection::forEach(std::forward<T>(t), [&] <std::size_t Idx> (
-            std::index_sequence<Idx>, std::string_view, auto&& v
-        ) {
-            if constexpr (InsertPrimaryKey) {
-                _stmt.bind(++cnt, std::forward<decltype(v)>(v));
-            } else if constexpr (meta::NotInValueWrapVal<Idx, GetTablePrimaryKeyIdxType<T>>) {
-                _stmt.bind(++cnt, std::forward<decltype(v)>(v));
-            }
-        });
-        _stmt.exec();
+        using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, void>;
+        auto tp = reflection::internal::getObjTie(t);
+
+        if constexpr (InsertPrimaryKey) {
+            return [&] <std::size_t... I> (std::index_sequence<I...>) {
+                return ReturningBuild<DbView, decltype(std::get<I>(tp))...>{DbView{this}, std::get<I>(tp)...};
+            }(std::make_index_sequence<reflection::membersCountVal<T>>{});
+        } else {        
+            return [&] <std::size_t... I> (meta::Wrap<meta::ValueWrap<I>...>) {
+                return ReturningBuild<DbView, decltype(std::get<I>(tp))...>{DbView{this}, std::get<I>(tp)...};
+            }(internal::removeNumInValueWarp(
+                std::make_index_sequence<reflection::membersCountVal<T>>{},
+                GetTablePrimaryKeyIdxType<T>{}
+            ));
+        }
     }
 
     Db* const _db{};
@@ -264,10 +292,10 @@ constexpr void addLimitVal(std::string& res) {
 } // namespace internal
 
 template <typename Db>
-struct SqlBuild {
+struct SelectSqlBuild {
     using ColumnResType = ColumnResult<typename meta::RemoveCvRefType<Db>::SelectType>;
 
-    SqlBuild(Db db)
+    SelectSqlBuild(Db db)
         : _dbRef{db}
     {}
 
@@ -302,39 +330,39 @@ struct SqlBuild {
     Db _dbRef;
 };
 
-#define HX_DB_DML_EXEC_IMPL                                                    \
-    std::vector<typename SqlBuild<Db>::ColumnResType> exec() && {              \
-        return SqlBuild<Db>::exec(_tp);                                        \
+#define HX_DB_DML_SELECT_EXEC_IMPL                                             \
+    std::vector<typename SelectSqlBuild<Db>::ColumnResType> exec() && {        \
+        return SelectSqlBuild<Db>::exec(_tp);                                  \
     }                                                                          \
                                                                                \
-    container::Try<std::vector<typename SqlBuild<Db>::ColumnResType>>          \
+    container::Try<std::vector<typename SelectSqlBuild<Db>::ColumnResType>>    \
     execNoThrow() && noexcept {                                                \
-        return SqlBuild<Db>::execNoThrow(_tp);                                 \
+        return SelectSqlBuild<Db>::execNoThrow(_tp);                           \
     }
 
 template <typename Db, typename... Ts>
-struct SelectEndBuild : public SqlBuild<Db> {
-    using Base = SqlBuild<Db>;
+struct SelectEndBuild : public SelectSqlBuild<Db> {
+    using Base = SelectSqlBuild<Db>;
     using Base::Base;
     std::tuple<Ts&&...> _tp;
 
     SelectEndBuild(Db db, Ts&&... ts)
-        : SqlBuild<Db>{db}
+        : SelectSqlBuild<Db>{db}
         , _tp{std::forward<Ts>(ts)...}
     {}
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
-struct LimitBuild : public SqlBuild<Db> {
-    using Base = SqlBuild<Db>;
+struct LimitBuild : public SelectSqlBuild<Db> {
+    using Base = SelectSqlBuild<Db>;
     using Base::Base;
     std::tuple<Ts&&...> _tp; // @todo
     inline static constexpr auto N = sizeof...(Ts);
 
     LimitBuild(Db db, Ts&&... ts)
-        : SqlBuild<Db>{db}
+        : SelectSqlBuild<Db>{db}
         , _tp{std::forward<Ts>(ts)...}
     {}
 
@@ -369,7 +397,7 @@ struct LimitBuild : public SqlBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -402,7 +430,7 @@ struct OrderByBuild : public LimitBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -442,7 +470,7 @@ struct HavingBuild : public OrderByBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -499,7 +527,7 @@ struct GroupByBuild : public HavingBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -539,7 +567,7 @@ struct WhereBuild : public GroupByBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -577,7 +605,7 @@ struct OnBuild : public JoinOrWhereBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
 template <typename Db, typename... Ts>
@@ -623,12 +651,14 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
         }(std::make_index_sequence<N>{});
     }
 
-    HX_DB_DML_EXEC_IMPL
+    HX_DB_DML_SELECT_EXEC_IMPL
 };
 
+#undef HX_DB_DML_SELECT_EXEC_IMPL
+
 template <typename Db>
-struct FromBuild : public SqlBuild<Db> {
-    using Base = SqlBuild<Db>;
+struct FromBuild : public SelectSqlBuild<Db> {
+    using Base = SelectSqlBuild<Db>;
     using Base::Base;
 
     template <typename Table>
@@ -643,8 +673,8 @@ struct FromBuild : public SqlBuild<Db> {
 };
 
 template <typename Db>
-struct SelectBuild : public SqlBuild<Db> {
-    using Base = SqlBuild<Db>;
+struct SelectBuild : public SelectSqlBuild<Db> {
+    using Base = SelectSqlBuild<Db>;
     using Base::Base;
 
     template <auto... Cs>
@@ -669,6 +699,119 @@ struct SelectBuild : public SqlBuild<Db> {
             this->_dbRef.sql().back() = ' ';
         }
         return {this->_dbRef};
+    }
+};
+
+template <typename Db, Col... Cs>
+struct InsertSqlBuild {
+    using ColumnResType = std::conditional_t<(sizeof...(Cs) > 0), ColumnResult<meta::ValueWrap<Cs...>>, void>;
+
+    InsertSqlBuild(Db db)
+        : _dbRef{db}
+    {}
+
+    template <typename... Us>
+    ColumnResType exec(std::tuple<Us...>& ts) {
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.prepareSql();
+        }
+        [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
+            ([&]() constexpr {
+                if (!this->_dbRef.bind(Idx + 1, std::forward<Us>(std::get<Idx>(ts)))) [[unlikely]] {
+                    throw std::runtime_error{"Bind idx = " + std::to_string(Idx) + " failure"};
+                }
+            }(), ...);
+        }(std::make_index_sequence<sizeof...(Us)>{});
+        this->_dbRef.exec();
+        if constexpr (!std::is_same_v<ColumnResType, void>) {
+            return this->_dbRef.template returning<Cs...>();
+        }
+    }
+
+    template <typename... Us>
+    container::Try<ColumnResType> execNoThrow(std::tuple<Us...>& ts) noexcept {
+        container::Try<ColumnResType> res{};
+        try {
+            res.setVal(exec(ts));
+            if constexpr (std::is_same_v<ColumnResType, void>) {
+                res.setVal(container::NonVoidType<>{});
+            }
+        } catch (...) {
+            res.setException(std::current_exception());
+        }
+        return res;
+    }
+
+    Db _dbRef;
+};
+
+template <typename Db, typename Col, typename... Ts>
+struct ReturningImplBuild;
+
+template <typename Db, Col... Cs, typename... Ts>
+struct ReturningImplBuild<Db, meta::ValueWrap<Cs...>, Ts...> : public InsertSqlBuild<Db, Cs...> {
+    using Base = InsertSqlBuild<Db, Cs...>;
+    using Base::Base;
+
+    std::tuple<Ts&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
+
+    ReturningImplBuild(Db db, Ts&... ts)
+        : Base{db}
+        , _tp{std::forward<Ts>(ts)...}
+    {}
+
+    Base::ColumnResType exec() && {
+        return Base::exec(_tp);
+    }
+    
+    container::Try<typename Base::ColumnResType> execNoThrow() && noexcept {
+        return Base::execNoThrow(_tp);
+    }
+};
+
+template <typename Db, typename... Ts>
+struct ReturningBuild : public InsertSqlBuild<Db> {
+    using Base = InsertSqlBuild<Db>;
+
+    std::tuple<Ts&...> _tp;
+    inline static constexpr auto N = sizeof...(Ts);
+
+    ReturningBuild(Db db, Ts&... ts)
+        : Base{db}
+        , _tp{ts...}
+    {}
+
+    template <auto... Cs>
+        requires (sizeof...(Cs) > 0 && (meta::IsMemberPtrVal<decltype(Cs)> && ...))
+    constexpr auto returning() && {
+        return std::move(*this).template returning<Col{Cs}...>();
+    }
+
+    template <Col... Cs>
+        requires (sizeof...(Cs) > 0)
+    constexpr ReturningImplBuild<Db, meta::ValueWrap<Cs...>, Ts&&...> returning() && {
+        if (!this->_dbRef.isInit()) [[unlikely]] {
+            this->_dbRef.sql() += " RETURNING ";
+            auto mp = reflection::makeMemberPtrToNameMap<
+                meta::GetMemberPtrsClassType<decltype(Cs._ptr)...>>();
+            [&]() constexpr {
+                ((this->_dbRef.sql() += mp.at(Cs._ptr), this->_dbRef.sql() += ','), ...);
+            }();
+            this->_dbRef.sql().back() = ';';
+        }
+        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            return ReturningImplBuild<Db, meta::ValueWrap<Cs...>, Ts&...>{
+                this->_dbRef, std::get<I>(_tp)...};
+        }(std::make_index_sequence<N>{});
+    }
+
+    void exec() && {
+        return Base::exec(_tp);
+    }
+    
+    container::Try<> execNoThrow() && noexcept {
+        return Base::execNoThrow(_tp);
     }
 };
 

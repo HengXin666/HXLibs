@@ -122,17 +122,6 @@ public:
     }
 
     /**
-     * @brief 获取最后一次成功插入的 主键 Id
-     * @param db 
-     * @return auto 
-     */
-    auto getLastInsertPrimaryKeyId() const noexcept {
-        // @todo 不应该使用这个 应该在 语句中指定 RETURNING, 返回.
-        // 这 api 得到的是 内部 rowid_id 不通用
-        return ::sqlite3_last_insert_rowid(::sqlite3_db_handle(_stmt));;
-    }
-
-    /**
      * @brief 获取最后一次成功的操作修改的行数
      * @return auto (int) 修改的行数
      */
@@ -174,6 +163,29 @@ public:
         }, [&] {
             return SQLITE_OK == ::sqlite3_bind_null(_stmt, i);
         });
+    }
+
+    /**
+     * @brief 返回已修改/插入行的数据
+     * @tparam Vs 需要返回 字段
+     * @return ColumnResult<meta::ValueWrap<Vs...>> 
+     */
+    template <auto... Vs>
+    HX_DB_STMT_IMPL ColumnResult<meta::ValueWrap<Vs...>> returning() {
+        return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
+            return ColumnResult<meta::ValueWrap<Vs...>>([&]() constexpr {
+                using Res = typename decltype(internal::toCol<Vs>())::Type;
+                using Type = meta::RemoveOptionalWrapType<Res>;
+                if constexpr (meta::IsOptionalVal<Type>) {
+                    if (sqlite3_column_type(_stmt, static_cast<int>(Idx)) == SQLITE_NULL) {
+                        return Res{};
+                    }
+                    return Res{selectForEachBuild<Type>(static_cast<int>(Idx))};
+                } else {
+                    return selectForEachBuild<Type>(static_cast<int>(Idx));
+                }
+            }()...);
+        }(std::make_index_sequence<sizeof...(Vs)>{});
     }
 
     /**

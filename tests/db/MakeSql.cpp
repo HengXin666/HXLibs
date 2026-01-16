@@ -21,7 +21,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     using namespace meta::fixed_string_literals;
 
     struct Role {
-        uint64_t id;
+        int64_t id;
         int loliId;
 
         struct UnionAttr {
@@ -106,7 +106,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
       .where<((Col(&User::age) == 18) 
           && Col(&User::name).like<"loli_%">())
           || Col(&Role::id).notIn<1, 2, 3, Col(&User::age)>()
-          || (Col(&User::id) == Col(&Role::id) + static_cast<uint64_t>(1))>()
+          || (Col(&User::id) == Col(&Role::id) + static_cast<int64_t>(1))>()
       .groupBy<&User::name>()
       .having<Col(&User::id) == 3>()
       .orderBy<Col(&User::age).asc(), Col(&User::id).desc()>()
@@ -139,10 +139,18 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
     db.createDatabase<User>();
     db.createDatabase<Role>();
 
-    db.sqlTemplate<"插入1"_fs>()
-      .insert<Role>({{}, {}});
+    auto insertRes1 =
+        db.sqlTemplate<"插入1"_fs>()
+          .insert<Role, true>({2233, 666})
+          .returning<&Role::id, &Role::loliId>()
+          .exec();
+
+    log::hxLog.info("insert: data =", insertRes1.gets());
+    
     db.sqlTemplate<"插入2"_fs>()
-      .insert<User>({{"张三"}, {}, {24}, {1}});
+      .insert<User>({{"张三"}, {}, {24}, {1}})
+      .exec();
+
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 
                             sum<Col(&User::age)>.as<"sum">()>()
