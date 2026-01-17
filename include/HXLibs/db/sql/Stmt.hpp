@@ -40,6 +40,13 @@ struct Stmt {
     }
 
     /**
+     * @brief 重置 Smtm 状态
+     */
+    void reset() {
+        HX_DB_STMT_IMPL->reset();
+    }
+
+    /**
      * @brief 获取最后一次成功的操作修改的行数
      * @return std::size_t 修改的行数
      */

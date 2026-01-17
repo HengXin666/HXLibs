@@ -33,6 +33,13 @@ template <typename T>
 using RemoveCvRefType = std::remove_cv_t<std::remove_reference_t<T>>;
 
 /**
+ * @brief 将 T 类型变为 T const&
+ * @tparam T 
+ */
+template <typename T>
+using ToConstRefType = RemoveCvRefType<T> const&;
+
+/**
  * @brief 判断`variant<Ts...>`中是否含有`T`类型
  * @tparam T 
  * @tparam Ts 

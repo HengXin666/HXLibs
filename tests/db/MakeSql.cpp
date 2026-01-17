@@ -141,15 +141,18 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     auto insertRes1 =
         db.sqlTemplate<"插入1"_fs>()
-          .insert<Role, true>({2233, 666})
+          .insert<Role>({})
           .returning<&Role::id, &Role::loliId>()
           .exec();
 
-    log::hxLog.info("insert: data =", insertRes1.gets());
+    log::hxLog.info("insertRes1: data =", insertRes1.gets());
     
-    db.sqlTemplate<"插入2"_fs>()
+    auto insertRes2 = db.sqlTemplate<"插入2"_fs>()
       .insert<User>({{"张三"}, {}, {24}, {1}})
+      .returning<&User::id>()
       .exec();
+
+    log::hxLog.info("insertRes2: data =", insertRes2.gets());
 
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 

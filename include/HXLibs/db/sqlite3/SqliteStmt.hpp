@@ -116,9 +116,8 @@ public:
     }
 
     HX_DB_STMT_IMPL bool exec() noexcept {
-        bool res = step() == SQLITE_DONE;
-        reset();
-        return res;
+        int res = step();
+        return res == SQLITE_DONE || res == SQLITE_ROW;
     }
 
     /**
@@ -132,7 +131,7 @@ public:
     /**
      * @brief 重置 stmt
      */
-    void reset() {
+    HX_DB_STMT_IMPL void reset() {
         if (::sqlite3_reset(_stmt) != SQLITE_OK) [[unlikely]] {
             throw std::runtime_error{"reset: " + getErrMsg()};
         }
