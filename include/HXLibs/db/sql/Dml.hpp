@@ -116,8 +116,6 @@ struct DataBaseSqlBuild {
      * @brief 插入语句
      * @tparam T 插入的表类型
      * @tparam InsertPrimaryKey 是否插入主键 (默认: false, 不插入, 使用自增主键)
-     * @param t 
-     * @return auto 
      */
     template <typename Table, bool InsertPrimaryKey = false>
     auto insert(Table const& t) {
@@ -151,21 +149,50 @@ struct DataBaseSqlBuild {
         }
 
         using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, void>;
-        auto tp = reflection::internal::getObjTie(t);
+        auto const tp = reflection::internal::getObjTie(t);
         if constexpr (InsertPrimaryKey) {
-            return [&] <std::size_t... I> (std::index_sequence<I...>) {
-                return ReturningBuild<DbView, meta::ToConstRefType<decltype(std::get<I>(tp))>...>{
+            return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+                return ReturningBuild<DbView, decltype(std::get<I>(tp))...>{
                     DbView{this}, std::get<I>(tp)...};
             }(std::make_index_sequence<reflection::membersCountVal<Table>>{});
         } else {        
-            return [&] <std::size_t... I> (meta::Wrap<meta::ValueWrap<I>...>) {
-                return ReturningBuild<DbView, meta::ToConstRefType<decltype(std::get<I>(tp))>...>{
+            return [&] <std::size_t... I> (meta::Wrap<meta::ValueWrap<I>...>) constexpr {
+                return ReturningBuild<DbView, decltype(std::get<I>(tp))...>{
                     DbView{this}, std::get<I>(tp)...};
             }(internal::removeNumInValueWarp(
                 std::make_index_sequence<reflection::membersCountVal<Table>>{},
                 GetTablePrimaryKeyIdxType<Table>{}
             ));
         }
+    }
+
+    template <
+        auto... Ptrs, 
+        typename... Ts,
+        typename Table = meta::GetMemberPtrsClassType<decltype(Ptrs)...>
+    >
+        requires (sizeof...(Ptrs) > 0 && !std::is_void_v<Table>)
+    auto insert(Ts const&... ts) {
+        // 参数数量不匹配
+        static_assert(sizeof...(Ptrs) == sizeof...(Ts), "The number of parameters does not match");
+        if (!_isInit) [[unlikely]] {
+            _sql = "INSERT INTO ";
+            _sql += getTableName<Table>();
+            _sql += " (";
+            std::string param = " VALUES (";
+            auto mp = reflection::makeMemberPtrToNameMap<Table>();
+            ((_sql += mp.at(Ptrs), _sql += ',', param += "?,"), ...);
+            if (_sql.back() != '(') [[likely]] {
+                _sql.back() = ')';
+                param.back() = ')';
+                _sql += std::move(param);
+            } else {
+                _sql.back() = 'D';
+                _sql += "EFAULT VALUES";
+            }
+        }
+        using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, void>;
+        return ReturningBuild<DbView, Ts const&...>{DbView{this}, ts...};
     }
 
     Db* const _db{};
@@ -740,7 +767,10 @@ struct InsertSqlBuild {
                 }
             }(), ...);
         }(std::make_index_sequence<sizeof...(Us)>{});
-        this->_dbRef.exec();
+        if (!this->_dbRef.exec()) [[unlikely]] {
+            // 执行失败
+            std::runtime_error{"SQL execution failed: exec()"};
+        }
         if constexpr (!std::is_same_v<ColumnResType, void>) {
             return this->_dbRef.template returning<Cs...>();
         }

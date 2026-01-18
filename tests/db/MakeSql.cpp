@@ -154,6 +154,14 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     log::hxLog.info("insertRes2: data =", insertRes2.gets());
 
+    auto insertRes3 =
+        db.sqlTemplate<"插入3"_fs>()
+          .insert<&User::name>(std::string_view{"理事"})
+          .returning<&User::id, &User::age, &User::name>()
+          .exec();
+
+    log::hxLog.info("insertRes3: data =", insertRes3.gets());
+
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 
                             sum<Col(&User::age)>.as<"sum">()>()

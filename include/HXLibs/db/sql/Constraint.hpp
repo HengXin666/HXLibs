@@ -20,6 +20,7 @@
 
 #include <tuple>
 
+#include <HXLibs/log/serialize/CustomToString.hpp>
 #include <HXLibs/meta/TypeTraits.hpp>
 #include <HXLibs/meta/MemberPtrType.hpp>
 #include <HXLibs/meta/Wrap.hpp>
@@ -325,3 +326,21 @@ struct ForeignMap {
 } // namespace attr
 
 } // namespace HX::db
+
+namespace HX::log {
+
+template <typename T, typename... Ts, typename FormatType>
+struct CustomToString<db::Constraint<T, Ts...>, FormatType> {
+    FormatType* self;
+    
+    constexpr std::string make(db::Constraint<T, Ts...> const& t) {
+        return self->make(t.get());
+    }
+
+    template <typename Stream>
+    constexpr void make(db::Constraint<T, Ts...> const& t, Stream& s) {
+        self->make(t.get(), s);
+    }
+};
+
+} // namespace HX::log
