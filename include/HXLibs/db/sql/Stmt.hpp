@@ -48,9 +48,9 @@ struct Stmt {
 
     /**
      * @brief 获取最后一次成功的操作修改的行数
-     * @return std::size_t 修改的行数
+     * @return std::uint64_t 修改的行数
      */
-    std::size_t getLastChanges() const noexcept {
+    std::uint64_t getLastChanges() const noexcept {
         return HX_DB_STMT_IMPL->getLastChanges();
     }
 
@@ -72,6 +72,14 @@ struct Stmt {
     template <auto... Vs>
     void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
         HX_DB_STMT_IMPL->selectForEach(resArr);
+    }
+
+    /**
+     * @brief 执行 stmt, 获取每一个 returning 结果
+     */
+    template <auto... Vs>
+    void returningForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
+        HX_DB_STMT_IMPL->returningForEach(resArr);
     }
 
     /**

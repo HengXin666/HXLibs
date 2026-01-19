@@ -162,6 +162,16 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     log::hxLog.info("insertRes3: data =", insertRes3.gets());
 
+    auto updateRes1 =
+        db.sqlTemplate<"update_01"_fs>()
+           .update<User>({{"萝莉"}, {}, {14}, {}})
+           .where<Col(&User::name) == "理事"_fs>()
+           .returning<&User::id, &User::name>()
+           .execGetChanges();
+
+    log::hxLog.info("updateRes1: datas =", updateRes1.columnRes, 
+                    ", changes =", updateRes1.changes);
+
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 
                             sum<Col(&User::age)>.as<"sum">()>()

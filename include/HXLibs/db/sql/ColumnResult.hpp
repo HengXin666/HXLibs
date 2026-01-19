@@ -18,6 +18,7 @@
  * limitations under the License.
  */
 
+#include <HXLibs/log/serialize/CustomToString.hpp>
 #include <HXLibs/db/sql/Column.hpp>
 #include <HXLibs/db/sql/Aggregate.hpp>
 
@@ -94,3 +95,21 @@ private:
 };
 
 } // namespace HX::db
+
+namespace HX::log {
+
+template <auto... Cs, typename FormatType>
+struct CustomToString<db::ColumnResult<meta::ValueWrap<Cs...>>, FormatType> {
+    FormatType* self;
+
+    constexpr std::string make(db::ColumnResult<meta::ValueWrap<Cs...>> const& t) {
+        return self->make(t.gets());
+    }
+
+    template <typename Stream>
+    constexpr void make(db::ColumnResult<meta::ValueWrap<Cs...>> const& t, Stream& s) {
+        self->make(t.gets(), s);
+    }
+};
+
+} // namespace HX::log

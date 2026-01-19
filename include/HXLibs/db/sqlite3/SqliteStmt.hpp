@@ -97,7 +97,8 @@ public:
 
     template <auto... Vs>
     HX_DB_STMT_IMPL void selectForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
-        for (int rc = step(); rc == SQLITE_ROW; rc = step()) {
+        int rc = step();
+        while (rc == SQLITE_ROW) {
             [&] <std::size_t... Idx> (std::index_sequence<Idx...>) {
                 resArr.emplace_back([&] {
                     using Res = typename decltype(internal::toCol<Vs>())::Type;
@@ -112,6 +113,22 @@ public:
                     }
                 }()...);
             }(std::make_index_sequence<sizeof...(Vs)>{});
+            rc = step();
+        }
+        if (rc != SQLITE_DONE) [[unlikely]] {
+            throw getErrMsg();
+        }
+    }
+
+    template <auto... Vs>
+    HX_DB_STMT_IMPL void returningForEach(std::vector<ColumnResult<meta::ValueWrap<Vs...>>>& resArr) {
+        int rc = step();
+        while (rc == SQLITE_ROW) {
+            resArr.emplace_back(returning<Vs...>());
+            rc = step();
+        }
+        if (rc != SQLITE_DONE) [[unlikely]] {
+            throw getErrMsg();
         }
     }
 
@@ -122,10 +139,10 @@ public:
 
     /**
      * @brief 获取最后一次成功的操作修改的行数
-     * @return auto (int) 修改的行数
+     * @return std::uint64_t 修改的行数
      */
-    HX_DB_STMT_IMPL auto getLastChanges() const noexcept {
-        return ::sqlite3_changes(::sqlite3_db_handle(_stmt));
+    HX_DB_STMT_IMPL std::uint64_t getLastChanges() const noexcept {
+        return static_cast<std::uint64_t>(::sqlite3_changes(::sqlite3_db_handle(_stmt)));
     }
 
     /**

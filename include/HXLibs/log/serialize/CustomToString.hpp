@@ -33,13 +33,13 @@ struct CustomToString;
     要求偏特化实现:
     template <typename T, typename FormatType>
     struct CustomToString<T, FormatType> {
-        FormatType* _self;
+        FormatType* self;
 
         constexpr std::string make(T const& t) {}
 
         template <typename Stream>
         constexpr void make(T const& t, Stream& s) {}
-    }
+    };
 */
 
 template <typename T, typename FormatType>
