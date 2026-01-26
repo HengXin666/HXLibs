@@ -255,6 +255,33 @@ struct DataBaseSqlBuild {
         }
     }
 
+    /**
+     * @brief 更新语句
+     * @tparam Ptrs 插入的字段 (类成员指针)
+     * @tparam Ts 对应的值
+     * @tparam Table
+     */
+    template <
+        auto... Ptrs,
+        typename... Ts,
+        typename Table = meta::GetMemberPtrsClassType<decltype(Ptrs)...>
+    >
+        requires (sizeof...(Ptrs) > 0 && !std::is_void_v<Table>)
+    auto update(Ts const&... ts) {
+        // 参数数量不匹配
+        static_assert(sizeof...(Ptrs) == sizeof...(Ts), "The number of parameters does not match");
+        if (!_isInit) [[unlikely]] {
+            _sql = "UPDATE ";
+            _sql += getTableName<Table>();
+            _sql += " SET ";
+            auto mp = reflection::makeMemberPtrToNameMap<Table>();
+            ((_sql += mp.at(Ptrs), _sql += "=?,"), ...);
+            _sql.back() = ' ';
+        }
+        using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, void>;
+        return WhereMutationBuild<DbView, Ts const&...>{DbView{this}, ts...};
+    }
+
     Db* const _db{};
     std::string _sql{};
     Db::StmtType _stmt{};

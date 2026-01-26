@@ -159,7 +159,6 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
           .insert<&User::name>(std::string_view{"理事"})
           .returning<&User::id, &User::age, &User::name>()
           .exec();
-
     log::hxLog.info("insertRes3: data =", insertRes3.gets());
 
     auto updateRes1 =
@@ -168,9 +167,16 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
            .where<Col(&User::name) == "理事"_fs>()
            .returning<&User::id, &User::name>()
            .execGetChanges();
-
     log::hxLog.info("updateRes1: datas =", updateRes1.columnRes, 
                     ", changes =", updateRes1.changes);
+
+    auto updateRes2 =
+        db.sqlTemplate<"update_02"_fs>()
+          .update<&User::name>(std::string_view{"妹妹"})
+          .where<Col(&User::name) == "萝莉"_fs>()
+          .returning<&User::id, &User::name>()
+          .execGetChanges();
+    log::hxLog.info("updateRes2:", updateRes2);
 
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 
@@ -179,7 +185,6 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
                     .where<((Col(&User::age) == db::param<int>.bind<"?age">())
                           || Col(&User::age) > 2)>(cinAge)
                     .exec();
-
     for (auto&& v : resArr) {
         log::hxLog.info("UserId:", v.get<"userId">(),
                         "AgeSum:", v.get<"sum">());
