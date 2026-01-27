@@ -282,6 +282,17 @@ struct DataBaseSqlBuild {
         return WhereMutationBuild<DbView, Ts const&...>{DbView{this}, ts...};
     }
 
+    template <typename Table>
+    auto deleteForm() {
+        if (!_isInit) [[unlikely]] {
+            _sql = "DELETE FROM ";
+            _sql += getTableName<Table>();
+            _sql += ' ';
+        }
+        using DbView = DataBaseSqlBuildView<DataBaseSqlBuild<Db>, void>;
+        return WhereMutationBuild<DbView>{DbView{this}};
+    }
+
     Db* const _db{};
     std::string _sql{};
     Db::StmtType _stmt{};

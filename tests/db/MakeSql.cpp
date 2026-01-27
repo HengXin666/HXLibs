@@ -176,7 +176,17 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
           .where<Col(&User::name) == "萝莉"_fs>()
           .returning<&User::id, &User::name>()
           .execGetChanges();
-    log::hxLog.info("updateRes2:", updateRes2);
+    log::hxLog.info("updateRes2: datas =", updateRes2.columnRes,
+                    ", changes =", updateRes2.changes);
+
+    auto delRes1 =
+        db.sqlTemplate<"del_01"_fs>()
+          .deleteForm<User>()
+          .where<Col(&User::name) == "张三"_fs>()
+          .returning<&User::name, &User::id>()
+          .execGetChanges();
+    log::hxLog.info("delRes1: datas =", delRes1.columnRes,
+                    ", changes =", delRes1.changes);
 
     auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
                     .select<Col(&User::name).as<"userId">(), 
@@ -184,6 +194,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
                     .from<User>()
                     .where<((Col(&User::age) == db::param<int>.bind<"?age">())
                           || Col(&User::age) > 2)>(cinAge)
+                    .groupBy<&User::name>()
                     .exec();
     for (auto&& v : resArr) {
         log::hxLog.info("UserId:", v.get<"userId">(),
