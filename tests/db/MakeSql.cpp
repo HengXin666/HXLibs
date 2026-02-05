@@ -96,7 +96,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     static_assert(sizeof(ExprParams));
 
-    db::sqlite::SqliteDB db{"./test.db"};
+    auto db = db::DataBase<db::DbType::Sqlite3>{"./test.db"};
 
     db.sqlTemplate<1>()
       .select<Col{&User::id}.as<"userId">()>()

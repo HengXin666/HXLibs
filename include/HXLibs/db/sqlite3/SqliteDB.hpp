@@ -26,20 +26,40 @@
 
 namespace HX::db::sqlite {
 
-struct SqliteDB : public DataBase<SqliteDB>, private DataBaseInterface<SqliteDB> {
+struct SqliteDB : public DataBaseCrtp<SqliteDB>, private DataBaseInterface<SqliteDB> {
     using StmtType = SqliteStmt;
-    using Base = DataBase<SqliteDB>;
+    using Base = DataBaseCrtp<SqliteDB>;
     using Base::Base;
 
     SqliteDB(std::string_view filePath)
-        : DataBase{}
+        : DataBaseCrtp{}
         , DataBaseInterface{}
     {
+        open(filePath);
+    }
+
+    SqliteDB& operator=(SqliteDB&& that) noexcept {
+        static_cast<DataBaseCrtp<SqliteDB>&>(*this) = std::move(that);
+        std::swap(that._db, _db);
+        return *this;
+    }
+
+    void open(std::string_view filePath) {
+        close();
         if (::sqlite3_open(filePath.data(), &_db) != SQLITE_OK) [[unlikely]] {
             throw std::runtime_error{
                 "Failed to open database: " + std::string{::sqlite3_errmsg(_db)}
             };
         }
+    }
+
+    void close() noexcept {
+        ::sqlite3_free(_db);
+        _db = nullptr;
+    }
+
+    ~SqliteDB() noexcept {
+        close();
     }
 
     void exec(std::string_view sql) {
@@ -57,14 +77,14 @@ struct SqliteDB : public DataBase<SqliteDB>, private DataBaseInterface<SqliteDB>
         try {
             auto sql = sqlite::CreateDbSql::createDatabase<Table, IsNotExists>({});
             exec(sql);
+            auto index = sqlite::CreateDbSql::createIndex<Table>({});
+            for (auto const& idxSql : index) {
+                exec(idxSql);
+            }
         } catch (...) {
             res.setException(std::current_exception());
         }
         return res;
-    }
-
-    std::size_t getLastChanges() const noexcept {
-        return 0;
     }
 
     void prepareSql(std::string_view sql, auto& stmt) {
@@ -79,3 +99,12 @@ private:
 };
 
 } // namespace HX::db::sqlite
+
+namespace HX::db::internal {
+
+template <>
+struct GetDataBaseType<DbType::Sqlite3> {
+    using Type = sqlite::SqliteDB;
+};
+
+} // namespace HX::db::internal

@@ -282,6 +282,10 @@ struct DataBaseSqlBuild {
         return WhereMutationBuild<DbView, Ts const&...>{DbView{this}, ts...};
     }
 
+    /**
+     * @brief 删除语句
+     * @tparam Table
+     */
     template <typename Table>
     auto deleteForm() {
         if (!_isInit) [[unlikely]] {

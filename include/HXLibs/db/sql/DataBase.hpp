@@ -29,7 +29,7 @@
 namespace HX::db {
 
 template <typename CRTP>
-struct DataBase {
+struct DataBaseCrtp {
     /**
      * @brief 创建一个 SQL 模板, 内部的 SQL 字符串仅会被构建一次. 之后会复用缓存
      * @tparam FuncPtr 当前函数的函数指针等, 表示处境唯一的编译期常量
@@ -47,12 +47,30 @@ struct DataBase {
         return it->second;
     }
 
+    DataBaseCrtp& operator=(DataBaseCrtp const&) = delete;
+    DataBaseCrtp& operator=(DataBaseCrtp&& that) noexcept {
+        _sqlMap.swap(that._sqlMap);
+        return *this;
+    }
+
 private:
-    DataBase() = default;
+    DataBaseCrtp() = default;
     friend CRTP;
 
     std::map<meta::TypeId::IdType, DataBaseSqlBuild<CRTP>> _sqlMap{};
 };
+
+namespace internal {
+
+template <DbType TypeVal>
+struct GetDataBaseType {
+    using Type = void;
+};
+
+} // namespace internal
+
+template <DbType TypeVal>
+using DataBase = internal::GetDataBaseType<TypeVal>::Type;
 
 template <typename CRTP>
 struct DataBaseInterface {
