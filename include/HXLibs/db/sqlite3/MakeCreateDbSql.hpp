@@ -150,7 +150,7 @@ struct CreateDbSql {
             sql += "IF NOT EXISTS ";
         }
         std::string foreignKeySql{};
-        sql += reflection::getTypeName<Table>();
+        sql += getTableName<Table>();
         sql += " (";
         reflection::forEach(t, [&] (auto, auto name, auto&& val) {
             sql += name;

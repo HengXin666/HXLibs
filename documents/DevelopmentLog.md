@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2026-02-12 22:14:51] : 修复创建表、生成语句时候, 应该是 getTable, 而不是 getTypeName; 另外新增`AutoIncrementPrimaryKey`, `NotNullPrimaryKey`, `PrimaryKey` 模板, 快速定义属性
+
 - [2026-02-05 23:30:36] : 封装支持`DataBase<数据库类型>`进行创建, 目前 Sqlite3 支持 `Sqlite3::open(filePath)` 进行连接
 
 - [2026-01-28 00:55:26] : 新增 delectFrom 方法, 以删除元素

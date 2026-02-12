@@ -13,7 +13,7 @@
 using namespace HX;
 using namespace db;
 
-struct Text {
+struct TestSelect {
     inline static constexpr std::string_view TableName = "TextLoLi";
 };
 
@@ -124,7 +124,7 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
       .orderBy<Col(&User::age).asc()>()
       .limit<db::param<int>>(50);
 
-    log::hxLog.info("table:", db::getTableName<Text>());
+    log::hxLog.info("table:", db::getTableName<TestSelect>());
 
     db::ColumnResult<meta::ValueWrap<
         Col(&User::id).as<"userId">(),

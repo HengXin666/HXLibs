@@ -766,7 +766,7 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
     constexpr OnBuild<Db, Ts&&...> join() && {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "JOIN ";
-            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += getTableName<Table>();
             this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
@@ -778,7 +778,7 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
     constexpr OnBuild<Db> leftJoin() && {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "LEFT JOIN ";
-            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += getTableName<Table>();
             this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
@@ -790,7 +790,7 @@ struct JoinOrWhereBuild : public WhereBuild<Db> {
     constexpr OnBuild<Db> rightJoin() && {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "RIGHT JOIN ";
-            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += getTableName<Table>();
             this->_dbRef.sql() += ' ';
         }
         return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
@@ -812,7 +812,7 @@ struct FromBuild : public SelectSqlBuild<Db> {
     constexpr JoinOrWhereBuild<Db> from() && {
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "FROM ";
-            this->_dbRef.sql() += reflection::getTypeName<Table>();
+            this->_dbRef.sql() += getTableName<Table>();
             this->_dbRef.sql() += ' ';
         }
         return {this->_dbRef};

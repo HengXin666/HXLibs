@@ -216,6 +216,20 @@ struct Constraint {
     constexpr T&& get() && noexcept { return std::move(val); }
 };
 
+// 定义常用的属性组合
+
+/// @brief 普通主键
+template <typename T>
+using PrimaryKey = Constraint<T, attr::PrimaryKey<>>;
+
+/// @brief 非空主键
+template <typename T>
+using NotNullPrimaryKey = Constraint<T, attr::PrimaryKey<>, attr::NotNull>;
+
+/// @brief 自增非空主键
+template <typename T>
+using AutoIncrementPrimaryKey = Constraint<T, attr::PrimaryKey<>, attr::AutoIncrement>;
+
 /**
  * @brief 判断是否是约束包类型
  */
