@@ -79,6 +79,12 @@ constexpr T get(internal::WrapHead<Idx, T> const&) noexcept {
     static_assert(!sizeof(T));
 }
 
+// 获取该索引位置, 返回 T 的默认构造的值
+template <std::size_t Idx, typename T>
+constexpr T getDefault(internal::WrapHead<Idx, T> const&) noexcept {
+    return T{};
+}
+
 template <typename T>
 constexpr std::size_t WrapSizeVal = 0;
 

@@ -57,10 +57,41 @@ constexpr bool IsParamVal = false;
 template <typename T, meta::FixedString AsName>
 constexpr bool IsParamVal<Col<internal::Param<T>, AsName>> = true;
 
-template <typename T, meta::FixedString BindName = "">
+namespace internal {
+
+template <meta::FixedString BindName, typename T = void>
 struct Bind {
-    T&& _data;
+    // using Type = T&&;
     decltype(BindName) _bindName{BindName};
+    T data{};
+
+    constexpr Bind() = default;
+
+    template <typename U>
+        requires (std::convertible_to<U, T>)
+    constexpr Bind(U&& u) : data(std::forward<U>(u)) {}
 };
+
+template <meta::FixedString BindName>
+struct Bind<BindName, void> {
+    template <typename T>
+    Bind<BindName, T> link(T&& t) const noexcept {
+        return Bind<BindName, T>(std::forward<T>(t));
+    }
+};
+
+} // namespace internal
+
+template <meta::FixedString BindName>
+inline constexpr internal::Bind<BindName> bind{};
+
+template <typename T>
+inline constexpr bool IsBindVal = false;
+
+template <meta::FixedString BindName, typename T>
+inline constexpr bool IsBindVal<internal::Bind<BindName, T>> = true;
+
+template <typename... Ts>
+inline constexpr bool HasAllTypeIsBindVal = sizeof...(Ts) && (IsBindVal<Ts> && ...);
 
 } // namespace HX::db

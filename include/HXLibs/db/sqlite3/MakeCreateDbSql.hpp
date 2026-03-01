@@ -20,6 +20,7 @@
 
 #include <HXLibs/meta/ContainerConcepts.hpp>
 #include <HXLibs/db/sql/SqlType.hpp>
+#include <HXLibs/db/sql/Table.hpp>
 #include <HXLibs/db/sql/Constraint.hpp>
 #include <HXLibs/db/sql/CustomType.hpp>
 #include <HXLibs/reflection/MemberName.hpp>

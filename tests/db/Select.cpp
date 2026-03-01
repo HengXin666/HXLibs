@@ -33,12 +33,36 @@ auto test_init = []() {
     return 0;
 }();
 
-TEST_CASE("sqlite3/select: *") {
+TEST_CASE("sqlite3/select: *id") {
     auto db = db::DataBase<DbType::Sqlite3>();
     db.open("./select_test.db");
-    auto res = db.sqlTemplate<"sqlite3/select: *"_fs>()
+    auto res = db.sqlTemplate<"sqlite3/select: *id"_fs>()
       .select<Col(&TestSelect::id)>()
       .from<TestSelect>()
       .exec();
     hxLog.info(res);
+}
+
+TEST_CASE("sqlite3/select: bind") {
+    auto db = db::DataBase<DbType::Sqlite3>();
+    db.open("./select_test.db");
+
+    auto tp = std::make_tuple(bind<"?loli">.link(2233));
+    auto&& tpRes = db::internal::atParamBindName(
+        param<int32_t>.bind<"?loli">(),
+        tp
+    );
+    hxLog.debug(tpRes);
+
+    auto res = db.sqlTemplate<"sqlite3/select: bind"_fs>()
+      .select<Col(&TestSelect::id)>()
+      .from<TestSelect>()
+      .where<Col(&TestSelect::loliCnt) != param<int32_t>.bind<"?loli">()>(bind<"?loli">.link(2233))
+      .exec();
+    auto ans = db.sqlTemplate<"sqlite3/select: bind"_fs>()
+      .select<Col(&TestSelect::id)>()
+      .from<TestSelect>()
+      .where<Col(&TestSelect::loliCnt) != 2233>()
+      .exec();
+    hxLog.info(res, ans);
 }

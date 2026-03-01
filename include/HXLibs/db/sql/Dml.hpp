@@ -391,7 +391,7 @@ template <auto Expr>
 constexpr auto expandGetExprParamsTypeFunc() noexcept {
     using T = decltype(Expr);
     if constexpr (IsParamVal<T>) {
-        return Expr;
+        return meta::Wrap<T>{};
     } else if constexpr (IsExpressionVal<T>) {
         return GetExprParamsTypeFunc<Expr>();
     } else if constexpr (meta::IsValueWrapVal<T>) {
@@ -425,6 +425,26 @@ constexpr auto GetExprParamsTypeFunc() noexcept {
 
 template <Expression Expr>
 using GetExprParamsType = decltype(GetExprParamsTypeFunc<Expr>());
+
+template <typename P, typename... Us>
+    requires (IsParamVal<P>)
+constexpr auto&& atParamBindName(P const&, std::tuple<Us...>& us) noexcept {
+    constexpr auto Idx = [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+        std::size_t res = static_cast<std::size_t>(-1);
+        ([&]() -> bool {
+            if constexpr (P{}._asName == Us{}._bindName) {
+                res = I;
+                return true;
+            } else {
+                return false;
+            }
+        }() || ...);
+        return res;
+    }(std::make_index_sequence<sizeof...(Us)>{});
+    // 绑定名称不存在
+    static_assert(Idx != static_cast<std::size_t>(-1), "The binding name does not exist");
+    return std::get<Idx>(us).data;
+}
 
 template <auto Val>
 constexpr void addLimitVal(std::string& res) {
@@ -690,28 +710,38 @@ struct WhereBuild : public GroupByBuild<Db> {
     {}
 
     template <Expression Expr, typename... Us>
-    GroupByBuild<Db, Ts&&..., Us&&...> where(Us&&... us) && {
+    auto where(Us&&... us) && {
         using ParamWrap = internal::GetExprParamsType<Expr>;
         constexpr auto ParamCnt = meta::WrapSizeVal<ParamWrap>;
         // 绑定参数个数不正确
         static_assert(ParamCnt == sizeof...(us),
             "The number of binding parameters is incorrect");
-        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            // Us 类型 与 对应 占位参数 param 类型 不一致
-            static_assert((std::is_same_v<
-                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
-                > && ...),
-                "Us type is inconsistent with the corresponding placeholder parameter param type");
-        } (std::make_index_sequence<ParamCnt>{});
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "WHERE ";
             this->_dbRef.sql() += internal::exprToString<Expr>();
             this->_dbRef.sql() += ' ';
         }
-        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return GroupByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
-                std::get<I>(_tp)..., std::forward<Us>(us)...};
-        }(std::make_index_sequence<N>{});
+        if constexpr (HasAllTypeIsBindVal<Us...>) {
+            auto tp = std::make_tuple(std::forward<Us>(us)...);
+            constexpr auto ps = ParamWrap{};
+            // 确保表达式绑定的类型都是被us一一绑定的
+            return [&] <std::size_t... I, std::size_t... PIdx> (std::index_sequence<I...>, std::index_sequence<PIdx...>) constexpr {
+                return GroupByBuild<Db, Ts&&..., decltype(internal::atParamBindName(meta::getDefault<PIdx>(ps), tp))...>{this->_dbRef,
+                    std::get<I>(_tp)..., internal::atParamBindName(meta::getDefault<PIdx>(ps), tp)...};
+            }(std::make_index_sequence<N>{}, std::make_index_sequence<ParamCnt>{});
+        } else {
+            [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+                // Us 类型 与 对应 占位参数 param 类型 不一致
+                static_assert((std::is_same_v<
+                        typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                    > && ...),
+                    "Us type is inconsistent with the corresponding placeholder parameter param type");
+            } (std::make_index_sequence<ParamCnt>{});
+            return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+                return GroupByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
+                    std::get<I>(_tp)..., std::forward<Us>(us)...};
+            }(std::make_index_sequence<N>{});
+        }
     }
 
     HX_DB_DML_SELECT_EXEC_IMPL
