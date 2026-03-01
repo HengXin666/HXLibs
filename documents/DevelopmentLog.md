@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2026-03-01 15:34:08] : 修复悬垂引用问题; 完全支持 乱序 bind 参数
+
 - [2026-03-01 12:38:59] : 修复头文件未导入bug; 初步支持 bind 在 参数字符串情况进行乱序传入而绑定
 
 - [2026-02-12 22:14:51] : 修复创建表、生成语句时候, 应该是 getTable, 而不是 getTypeName; 另外新增`AutoIncrementPrimaryKey`, `NotNullPrimaryKey`, `PrimaryKey` 模板, 快速定义属性

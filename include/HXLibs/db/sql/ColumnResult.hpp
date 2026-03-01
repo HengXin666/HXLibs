@@ -78,16 +78,16 @@ struct ColumnResult<meta::ValueWrap<Cs...>> {
     template <meta::FixedString AsName>
     constexpr auto& get() noexcept {
         // 判断是否存在这个别名
-        static_assert(((AsName == internal::toCol<Cs>()._asName)|| ...), "Alias does not exist");
-        constexpr auto Pos = meta::find<AsName, internal::toCol<Cs>()._asName...>();
+        static_assert(((AsName == internal::toCol<Cs>().AsName)|| ...), "Alias does not exist");
+        constexpr auto Pos = meta::find<AsName, internal::toCol<Cs>().AsName...>();
         return std::get<Pos>(_tp);
     }
 
     template <meta::FixedString AsName>
     constexpr auto const& get() const noexcept {
         // 判断是否存在这个别名
-        static_assert(((AsName == internal::toCol<Cs>()._asName)|| ...), "Alias does not exist");
-        constexpr auto Pos = meta::find<AsName, internal::toCol<Cs>()._asName...>();
+        static_assert(((AsName == internal::toCol<Cs>().AsName)|| ...), "Alias does not exist");
+        constexpr auto Pos = meta::find<AsName, internal::toCol<Cs>().AsName...>();
         return std::get<Pos>(_tp);
     }
 private:

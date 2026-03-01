@@ -33,10 +33,10 @@ namespace HX::db {
 template <typename... Ts>
 struct Expression;
 
-template <typename MemberPtrType, meta::FixedString AsName = "">
+template <typename MemberPtrType, meta::FixedString AsNameVal = "">
 struct Col {
     MemberPtrType _ptr;
-    decltype(AsName) _asName{AsName};
+    inline static constexpr decltype(AsNameVal) AsName{AsNameVal};
 
     // 必须为成员指针
     static_assert(meta::IsMemberPtrVal<MemberPtrType>, "Must be a member pointer");
@@ -87,7 +87,7 @@ struct Col {
 template <typename MemberPtrType>
 struct Col<MemberPtrType, ""> {
     MemberPtrType _ptr;
-    meta::FixedString<1> _asName{""};
+    inline static constexpr meta::FixedString<1> AsName{""};
 
     // 必须为成员指针
     static_assert(meta::IsMemberPtrVal<MemberPtrType>, "Must be a member pointer");

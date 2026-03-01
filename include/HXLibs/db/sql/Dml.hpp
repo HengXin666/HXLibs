@@ -428,11 +428,11 @@ using GetExprParamsType = decltype(GetExprParamsTypeFunc<Expr>());
 
 template <typename P, typename... Us>
     requires (IsParamVal<P>)
-constexpr auto&& atParamBindName(P const&, std::tuple<Us...>& us) noexcept {
+constexpr auto& atParamBindName(P const&, std::tuple<Us...>& us) noexcept {
     constexpr auto Idx = [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
         std::size_t res = static_cast<std::size_t>(-1);
         ([&]() -> bool {
-            if constexpr (P{}._asName == Us{}._bindName) {
+            if constexpr (P::AsName == meta::RemoveCvRefType<Us>::BindName) {
                 res = I;
                 return true;
             } else {
@@ -619,22 +619,36 @@ struct HavingBuild : public OrderByBuild<Db> {
         // 绑定参数个数不正确
         static_assert(ParamCnt == sizeof...(us),
             "The number of binding parameters is incorrect");
-        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            // Us 类型 与 对应 占位参数 param 类型 不一致
-            static_assert((std::is_same_v<
-                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
-                > && ...),
-                "Us type is inconsistent with the corresponding placeholder parameter param type");
-        } (std::make_index_sequence<ParamCnt>{});
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "HAVING ";
             this->_dbRef.sql() += internal::exprToString<Expr>();
             this->_dbRef.sql() += ' ';
         }
-        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return OrderByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
-                std::get<I>(_tp)..., std::forward<Us>(us)...};
-        }(std::make_index_sequence<N>{});
+        if constexpr (HasAllTypeIsBindVal<Us...>) {
+            auto tp = std::tie(us...);
+            constexpr auto ps = ParamWrap{};
+            // 确保表达式绑定的类型都是被us一一绑定的
+            return [&] <std::size_t... I, std::size_t... PIdx> (
+                std::index_sequence<I...>, std::index_sequence<PIdx...>
+            ) constexpr {
+                return OrderByBuild<Db, Ts&&..., decltype(internal::atParamBindName(
+                    meta::getDefault<PIdx>(ps), tp))...>{
+                        this->_dbRef, std::get<I>(_tp)...,
+                        internal::atParamBindName(meta::getDefault<PIdx>(ps), tp)...};
+            }(std::make_index_sequence<N>{}, std::make_index_sequence<ParamCnt>{});
+        } else {
+            [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+                // Us 类型 与 对应 占位参数 param 类型 不一致
+                static_assert((std::is_same_v<
+                        typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                    > && ...),
+                    "Us type is inconsistent with the corresponding placeholder parameter param type");
+            } (std::make_index_sequence<ParamCnt>{});
+            return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+                return OrderByBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
+                    std::get<I>(_tp)..., std::forward<Us>(us)...};
+            }(std::make_index_sequence<N>{});
+        }
     }
 
     HX_DB_DML_SELECT_EXEC_IMPL
@@ -676,22 +690,36 @@ struct GroupByBuild : public HavingBuild<Db> {
         // 绑定参数个数不正确
         static_assert(ParamCnt == sizeof...(us),
             "The number of binding parameters is incorrect");
-        [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
-            // Us 类型 与 对应 占位参数 param 类型 不一致
-            static_assert((std::is_same_v<
-                    typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
-                > && ...),
-                "Us type is inconsistent with the corresponding placeholder parameter param type");
-        } (std::make_index_sequence<ParamCnt>{});
         if (!this->_dbRef.isInit()) [[unlikely]] {
             this->_dbRef.sql() += "GROUP BY ";
             this->_dbRef.sql() += internal::exprToString<Expr>();
             this->_dbRef.sql() += ' ';
         }
-        return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
-            return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
-                std::get<I>(_tp)..., std::forward<Us>(us)...};
-        }(std::make_index_sequence<N>{});
+        if constexpr (HasAllTypeIsBindVal<Us...>) {
+            auto tp = std::tie(us...);
+            constexpr auto ps = ParamWrap{};
+            // 确保表达式绑定的类型都是被us一一绑定的
+            return [&] <std::size_t... I, std::size_t... PIdx> (
+                std::index_sequence<I...>, std::index_sequence<PIdx...>
+            ) constexpr {
+                return HavingBuild<Db, Ts&&..., decltype(internal::atParamBindName(
+                    meta::getDefault<PIdx>(ps), tp))...>{
+                        this->_dbRef, std::get<I>(_tp)...,
+                        internal::atParamBindName(meta::getDefault<PIdx>(ps), tp)...};
+            }(std::make_index_sequence<N>{}, std::make_index_sequence<ParamCnt>{});
+        } else {
+            [] <std::size_t... Idx> (std::index_sequence<Idx...>) {
+                // Us 类型 与 对应 占位参数 param 类型 不一致
+                static_assert((std::is_same_v<
+                        typename decltype(meta::get<Idx>(ParamWrap{}))::Type, meta::RemoveCvRefType<Us>
+                    > && ...),
+                    "Us type is inconsistent with the corresponding placeholder parameter param type");
+            } (std::make_index_sequence<ParamCnt>{});
+            return [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+                return HavingBuild<Db, Ts&&..., Us&&...>{this->_dbRef,
+                    std::get<I>(_tp)..., std::forward<Us>(us)...};
+            }(std::make_index_sequence<N>{});
+        }
     }
 
     HX_DB_DML_SELECT_EXEC_IMPL
@@ -722,12 +750,16 @@ struct WhereBuild : public GroupByBuild<Db> {
             this->_dbRef.sql() += ' ';
         }
         if constexpr (HasAllTypeIsBindVal<Us...>) {
-            auto tp = std::make_tuple(std::forward<Us>(us)...);
+            auto tp = std::tie(us...);
             constexpr auto ps = ParamWrap{};
             // 确保表达式绑定的类型都是被us一一绑定的
-            return [&] <std::size_t... I, std::size_t... PIdx> (std::index_sequence<I...>, std::index_sequence<PIdx...>) constexpr {
-                return GroupByBuild<Db, Ts&&..., decltype(internal::atParamBindName(meta::getDefault<PIdx>(ps), tp))...>{this->_dbRef,
-                    std::get<I>(_tp)..., internal::atParamBindName(meta::getDefault<PIdx>(ps), tp)...};
+            return [&] <std::size_t... I, std::size_t... PIdx> (
+                std::index_sequence<I...>, std::index_sequence<PIdx...>
+            ) constexpr {
+                return GroupByBuild<Db, Ts&&..., decltype(internal::atParamBindName(
+                    meta::getDefault<PIdx>(ps), tp))...>{
+                        this->_dbRef, std::get<I>(_tp)...,
+                        internal::atParamBindName(meta::getDefault<PIdx>(ps), tp)...};
             }(std::make_index_sequence<N>{}, std::make_index_sequence<ParamCnt>{});
         } else {
             [] <std::size_t... Idx> (std::index_sequence<Idx...>) {

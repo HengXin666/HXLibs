@@ -29,11 +29,11 @@ struct Param {};
 
 } // namespace internal
 
-template <typename T, meta::FixedString AsName>
-struct Col<internal::Param<T>, AsName> {
+template <typename T, meta::FixedString AsNameVal>
+struct Col<internal::Param<T>, AsNameVal> {
     using Table = void; // 表示不能放在 select, 仅可作为表达式
     using Type = T;
-    decltype(AsName) _asName{AsName};
+    inline static constexpr decltype(AsNameVal) AsName{AsNameVal};
 };
 
 template <typename T>
@@ -59,10 +59,10 @@ constexpr bool IsParamVal<Col<internal::Param<T>, AsName>> = true;
 
 namespace internal {
 
-template <meta::FixedString BindName, typename T = void>
+template <meta::FixedString BindNameVal, typename T = void>
 struct Bind {
     // using Type = T&&;
-    decltype(BindName) _bindName{BindName};
+    inline static constexpr decltype(BindNameVal) BindName{BindNameVal};
     T data{};
 
     constexpr Bind() = default;

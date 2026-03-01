@@ -26,9 +26,16 @@ auto test_init = []() {
         hxLog.error(res.what());
         res.rethrow();
     }
-    db.sqlTemplate<"test_init"_fs>()
-      .insert<&TestSelect::name, &TestSelect::loliCnt>(std::string{"loli"}, 2233)
-      .exec();
+    if (db.sqlTemplate<"test_check"_fs>()
+          .select<Col(&TestSelect::id)>()
+          .from<TestSelect>()
+          .exec()
+          .empty()
+    ) {
+      db.sqlTemplate<"test_init"_fs>()
+        .insert<&TestSelect::name, &TestSelect::loliCnt>(std::string{"loli"}, 2233)
+        .exec();
+    }
     hxLog.warning("inited...");
     return 0;
 }();
@@ -52,17 +59,16 @@ TEST_CASE("sqlite3/select: bind") {
         param<int32_t>.bind<"?loli">(),
         tp
     );
-    hxLog.debug(tpRes);
+    CHECK(tpRes == 2233);
 
-    auto res = db.sqlTemplate<"sqlite3/select: bind"_fs>()
+    auto res = db.sqlTemplate<"sqlite3/select: bind 1"_fs>()
       .select<Col(&TestSelect::id)>()
       .from<TestSelect>()
-      .where<Col(&TestSelect::loliCnt) != param<int32_t>.bind<"?loli">()>(bind<"?loli">.link(2233))
-      .exec();
-    auto ans = db.sqlTemplate<"sqlite3/select: bind"_fs>()
-      .select<Col(&TestSelect::id)>()
-      .from<TestSelect>()
-      .where<Col(&TestSelect::loliCnt) != 2233>()
-      .exec();
-    hxLog.info(res, ans);
+      .where<Col(&TestSelect::loliCnt) == param<int32_t>.bind<"?loli">()
+          && Col(&TestSelect::name) == param<std::string>.bind<"?name">()
+      >(
+        bind<"?name">.link(std::string{"loli"}),
+        bind<"?loli">.link(2233)
+     ).exec();
+    hxLog.info(res);
 }
