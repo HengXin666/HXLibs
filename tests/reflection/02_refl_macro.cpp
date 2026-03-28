@@ -15,6 +15,10 @@ private:
     std::vector<TestCase01> c;
 public:
     HX_REFL(a, b, c)
+
+    bool operator==(TestCase01 const& that) const noexcept {
+        return a == that.a && b == that.b && c == that.c;
+    }
 };
 
 TEST_CASE("测试宏反射私有变量") {
