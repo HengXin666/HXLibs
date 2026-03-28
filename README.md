@@ -20,6 +20,7 @@ HXLibs 是一个现代 C++ 库. 目前集合了:
 - 网络库
 - 反射库
     - Json序列化库 (基于反射)
+    - ORM 数据库操作 (目前仅实现了 sqlite3)
 - 日志库
 
 > 更多介绍 `@todo` ...
@@ -459,6 +460,61 @@ struct EventLoop {
 
 > [!TIP]
 > 如果你的类有 EventLoop, 那么你可以轻易的在析构的时候通过调用`_eventLoop.sync(this->close(...))`来实现所谓 **RAII协程**
+
+### 3.2.6 协程中挂起等待线程池 (简单示例)
+
+- [demo.cpp](tests/execution/demo.cpp)
+
+包含协程和线程的混用. 可在协程中挂起等待线程池的任务:
+
+```cpp
+#include <HXLibs/coroutine/loop/EventLoop.hpp>
+#include <HXLibs/coroutine/loop/ThreadLoop.hpp>
+#include <HXLibs/container/ThreadPool.hpp>
+#include <HXLibs/container/FutureResult.hpp>
+#include <HXLibs/coroutine/task/Task.hpp>
+#include <HXLibs/coroutine/awaiter/WhenAny.hpp>
+#include <HXLibs/log/Log.hpp>
+
+using namespace HX;
+
+int main() {
+    using namespace std::chrono;
+    // 线程池
+    container::ThreadPool threadPool{};
+    threadPool.run<container::ThreadPool::Model::FixedSizeAndNoCheck>();
+
+    // 协程调度器
+    coroutine::EventLoop loop{};
+    loop.sync([&]() -> coroutine::Task<> {
+        log::hxLog.info("Hello Wow");
+        // 简单协程任务
+        auto twoTask = co_await ([&]() -> coroutine::Task<> {
+            log::hxLog.info("萌萌滴干活!");
+            co_await loop.makeTimer().sleepFor(3s);
+        }() || loop.makeTimer().sleepFor(1s));
+        log::hxLog.info("第", twoTask.index() + 1, "个任务完成了!");
+
+        // 简单线程池任务
+        auto res = co_await threadPool.addTask([]{
+            log::hxLog.info("sleep: 3s [begin]~");
+            std::this_thread::sleep_for(3s);
+            return 233;
+        }).thenTry([](container::Try<int> t) {
+            if (!t) {
+                t.rethrow();
+            }
+            return 2233 + t.move();
+        }).thenTry([](auto&& t) {
+            if (!t) {
+                t.rethrow();
+            }
+            return 2233 + t.move();
+        }).via(loop);
+        log::hxLog.info("sleep: 3s [end], val =", res);
+    }());
+}
+```
 
 ### 3.3 HX::reflection (反射模块)
 #### 3.3.1 反射模板
@@ -911,6 +967,128 @@ TEST_CASE("测试类型反射: struct") {
 > 输出自带格式化, 特别是对于键值对和聚合类, 默认带空格 (类似于 `QDebug()`)
 
 @todo
+
+### 3.5 HX::db (ORM数据库操作)
+#### 3.5.1 sqlite3
+
+> [!TIP]
+> WIP: 未完成, 未进行详细介绍
+
+```cpp
+#include <HXLibs/db/sqlite3/MakeCreateDbSql.hpp>
+#include <HXLibs/db/sqlite3/SqliteDB.hpp>
+#include <HXLibs/db/sql/DataBase.hpp>
+#include <HXLibs/db/sql/Param.hpp>
+
+TEST_CASE("sqlite3/MakeCreateDbSql") {
+    using namespace meta::fixed_string_literals;
+
+    struct Role {
+        int64_t id;
+        int loliId;
+
+        struct UnionAttr {
+            attr::PrimaryKey<&Role::id, &Role::loliId> pk;
+        };
+    };
+
+    struct User {
+        Constraint<std::string,
+            attr::NotNull,
+            attr::DescIndex,
+            attr::DefaultVal<"loli"_fs>
+        > name;
+
+        Constraint<int,
+            attr::PrimaryKey<>,
+            attr::AutoIncrement,
+            attr::NotNull
+        > id;
+
+        Constraint<int,
+            attr::DefaultVal<18>
+        > age;
+
+        Constraint<int,
+            attr::Index<>
+        > roleId;
+
+        struct UnionAttr {
+            attr::Index<
+                attr::IndexOrder<&User::age, attr::Order::Desc>,
+                attr::IndexOrder<&User::roleId>
+            > index_1;
+        };
+    };
+
+    auto db = db::DataBase<db::DbType::Sqlite3>{"./test.db"};
+
+    // 建表
+    db.createDatabase<User>();
+    db.createDatabase<Role>();
+
+    // 插入
+    auto insertRes1 =
+        db.sqlTemplate<"插入1"_fs>()
+          .insert<Role>({})
+          .returning<&Role::id, &Role::loliId>()
+          .exec();
+    log::hxLog.info("insertRes1: data =", insertRes1.gets());
+
+    // 更新
+    auto updateRes2 =
+        db.sqlTemplate<"update_02"_fs>()
+          .update<&User::name>(std::string_view{"妹妹"})
+          .where<Col(&User::name) == "萝莉"_fs>()
+          .returning<&User::id, &User::name>()
+          .execGetChanges();
+    log::hxLog.info("updateRes2: datas =", updateRes2.columnRes,
+                    ", changes =", updateRes2.changes);
+
+    // 删除
+    auto delRes1 =
+        db.sqlTemplate<"del_01"_fs>()
+          .deleteForm<User>()
+          .where<Col(&User::name) == "张三"_fs>()
+          .returning<&User::name, &User::id>()
+          .execGetChanges();
+    log::hxLog.info("delRes1: datas =", delRes1.columnRes,
+                    ", changes =", delRes1.changes);
+
+    // 查找
+    auto resArr = db.sqlTemplate<"仅注册一次, 一般使用 &本函数, 即函数指针实例化一次"_fs>()
+                    .select<Col(&User::name).as<"userId">(), 
+                            sum<Col(&User::age)>.as<"sum">()>()
+                    .from<User>()
+                    .where<((Col(&User::age) == db::param<int>.bind<"?age">())
+                          || Col(&User::age) > 2)>(cinAge)
+                    .groupBy<&User::name>()
+                    .exec();
+    for (auto&& v : resArr) {
+        log::hxLog.info("UserId:", v.get<"userId">(),
+                        "AgeSum:", v.get<"sum">());
+    }
+}
+```
+
+对于传入参数, 支持基于`名称绑定`, 再也不需要数参数位置了:
+
+```cpp
+TEST_CASE("sqlite3/select: bind") {
+    auto db = db::DataBase<DbType::Sqlite3>();
+    db.open("./select_test.db");
+
+    auto res = db.sqlTemplate<"sqlite3/select: bind 1"_fs>()
+      .select<Col(&TestSelect::id)>()
+      .from<TestSelect>()
+      .where<Col(&TestSelect::loliCnt) == param<int32_t>.bind<"?loli">()
+          && Col(&TestSelect::name) == param<std::string>.bind<"?name">()
+      >(
+        bind<"?name">.link(std::string{"loli"}), // 绑定名称, 可以不按照参数顺序
+        bind<"?loli">.link(2233)
+     ).exec();
+}
+```
 
 ## 四、相关依赖
 

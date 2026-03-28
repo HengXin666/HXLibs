@@ -54,6 +54,10 @@ public:
         b, str,
         c, arr
     )
+
+    std::tuple<int, std::string, std::vector<TestCase01>> gets() const {
+        return {a, b, c};
+    }
 };
 
 TEST_CASE("测试宏反射私有变量") {
@@ -80,5 +84,7 @@ TEST_CASE("测试宏反射私有变量") {
             CHECK(false);
         }
     });
+
+    CHECK(t.gets() == decltype(t.gets()){1433223, "str", {}});
 }
 #endif

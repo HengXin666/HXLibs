@@ -52,8 +52,7 @@ private:
             _self.notify();
         }
     private:
-        ThreadLoop& _self;
-        
+        ThreadLoop& _self;  
     };
 public:
     ThreadLoop()
