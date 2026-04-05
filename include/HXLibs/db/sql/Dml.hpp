@@ -931,9 +931,9 @@ struct InsertSqlBuild {
                 }
             }(), ...);
         }(std::make_index_sequence<sizeof...(Us)>{});
-        if (_dbRef.exec()) [[unlikely]] {
+        if (!_dbRef.exec()) [[unlikely]] {
             // 执行失败
-            std::runtime_error{"SQL execution failed"};
+            throw std::runtime_error{"SQL execution failed"};
         }
         if constexpr (!std::is_same_v<ColumnResType, void>) {
             return _dbRef.template returning<Cs...>();
@@ -1050,7 +1050,7 @@ struct MutationSqlBuild {
         }(std::make_index_sequence<sizeof...(Us)>{});
         if (!_dbRef.exec()) [[unlikely]] {
             // 执行失败
-            std::runtime_error{"SQL execution failed"};
+            throw std::runtime_error{"SQL execution failed"};
         }
     }
 

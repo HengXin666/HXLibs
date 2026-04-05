@@ -54,8 +54,10 @@ struct SqliteDB : public DataBaseCrtp<SqliteDB>, private DataBaseInterface<Sqlit
     }
 
     void close() noexcept {
-        ::sqlite3_free(_db);
-        _db = nullptr;
+        if (_db) {
+            ::sqlite3_close(_db);
+            _db = nullptr;
+        }
     }
 
     ~SqliteDB() noexcept {

@@ -3,8 +3,7 @@ name: Build Test (From Windows [[MSVC]])
 on:
   push:
     branches:
-      # - main 临时屏蔽
-      - no
+      - main
   pull_request:
 
 jobs:
@@ -28,7 +27,7 @@ jobs:
 
       - name: 安装依赖
         run: |
-          & "${{github.workspace}}/vcpkg/vcpkg.exe" install --triplet x64-windows
+          & "${{github.workspace}}/vcpkg/vcpkg.exe" install openssl sqlite3 --triplet x64-windows
 
       - name: 配置 CMake
         run: |

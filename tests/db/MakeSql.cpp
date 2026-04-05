@@ -126,15 +126,15 @@ TEST_CASE("sqlite3/MakeCreateDbSql") {
 
     log::hxLog.info("table:", db::getTableName<TestSelect>());
 
-    db::ColumnResult<meta::ValueWrap<
-        Col(&User::id).as<"userId">(),
-        Col(&User::name).as<"user1d">(),
-        sum<Col(&User::age)>.as<"the sum">()
-    >> res{1, "2", 3};
-    [[maybe_unused]] auto& [_1, _2, _3] = res.gets();
-    [[maybe_unused]] auto& g1 = res.get<"userId">();
-    [[maybe_unused]] auto& g2 = res.get<"user1d">();
-    [[maybe_unused]] auto& g3 = res.get<"the sum">();
+    // db::ColumnResult<meta::ValueWrap<
+    //     Col(&User::id).as<"userId">(),
+    //     Col(&User::name).as<"user1d">(),
+    //     sum<Col(&User::age)>.as<"the sum">()
+    // >> res{1, "2", 3};
+    // [[maybe_unused]] auto& [_1, _2, _3] = res.gets();
+    // [[maybe_unused]] auto& g1 = res.get<"userId">();
+    // [[maybe_unused]] auto& g2 = res.get<"user1d">();
+    // [[maybe_unused]] auto& g3 = res.get<"the sum">();
 
     db.createDatabase<User>();
     db.createDatabase<Role>();

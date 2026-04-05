@@ -89,4 +89,10 @@ private:
 
 } // namespace HX::net::token
 
+#else
+
+namespace HX::net {
+
+} // namespace HX::net
+
 #endif // !defined(HXLIBS_ENABLE_SSL)
