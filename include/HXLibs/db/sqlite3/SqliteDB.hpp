@@ -31,6 +31,8 @@ struct SqliteDB : public DataBaseCrtp<SqliteDB>, private DataBaseInterface<Sqlit
     using Base = DataBaseCrtp<SqliteDB>;
     using Base::Base;
 
+    SqliteDB() = default;
+
     SqliteDB(std::string_view filePath)
         : DataBaseCrtp{}
         , DataBaseInterface{}
