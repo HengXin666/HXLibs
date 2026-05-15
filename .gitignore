@@ -21,6 +21,9 @@ vcpkg_installed/**
 .idea/**/dictionaries
 .idea/**/shelf
 
+# env
+.env.json
+
 # Generated files
 .idea/**/contentModel.xml
 

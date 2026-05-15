@@ -4,14 +4,11 @@
         "PowerShell": {
             "source": "PowerShell",
             "icon": "terminal-powershell",
-            "args": ["-NoExit","chcp 65001"]
+            "args": ["-NoExit", "-Command", "chcp 65001 > $null; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8"]
         },
         "Command Prompt": {
-            "path": [
-                "${env:windir}\\Sysnative\\cmd.exe",
-                "${env:windir}\\System32\\cmd.exe"
-            ],
-            "args": ["/K","chcp 65001"],
+            "path": "${env:windir}\\System32\\cmd.exe",
+            "args": ["/k", "chcp 65001"],
             "icon": "terminal-cmd"
         }
     },

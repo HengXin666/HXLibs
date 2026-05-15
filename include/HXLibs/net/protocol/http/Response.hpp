@@ -109,6 +109,10 @@ public:
         co_return true;
     }
 
+    coroutine::Task<> sseStrem() {
+        // @todo
+    }
+
     /**
      * @brief 获取协议版本
      * @return std::string_view 
