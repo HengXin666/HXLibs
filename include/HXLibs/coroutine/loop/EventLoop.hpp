@@ -97,7 +97,7 @@ inline unsigned int getIoUringMaxSize() {
 }
 
 struct IoUring {
-    explicit IoUring(unsigned int size = 1024U)
+    explicit IoUring(unsigned int size = 128U)
         : _ring{}
         , _numSqesPending{}
     {

@@ -30,11 +30,34 @@
 #include <HXLibs/net/socket/IO.hpp>
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/container/ArrayBuf.hpp>
+#include <HXLibs/reflection/MemberPtr.hpp>
+#include <HXLibs/reflection/deserialization/Numer.hpp>
 #include <HXLibs/utils/StringUtils.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
+
+namespace internal {
+
+constexpr void fromSse(std::string& v, std::string_view sv) {
+    if (v.size()) {
+        v += '\n';
+    }
+    v += sv;
+}
+
+constexpr void fromSse(std::optional<std::string>& v, std::string_view sv) {
+    v.emplace(sv);
+}
+
+constexpr void fromSse(std::optional<std::chrono::milliseconds>& v, std::string_view sv) {
+    uint64_t ms{};
+    reflection::Numer::fromNumer<uint64_t>(ms, sv);
+    v.emplace(ms);
+}
+
+} // namespace internal
 
 /**
  * @brief 响应数据
@@ -83,17 +106,17 @@ public:
 #endif
     // ===== ↓客户端使用↓ =====
     /**
-     * @brief 解析服务端响应
-     * @tparam Seconds 超时时间, 单位: 秒 (s)
+     * @brief 解析服务端响应 (响应行 + 响应头)
+     * @tparam Timeout 超时时间
      * @return coroutine::Task<bool> 是否解析完毕 
      */
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(utils::HasTimeNTTP<Timeout>)
-    coroutine::Task<bool> parserRes() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes(), IO::kBufMaxSize)) {
+    coroutine::Task<bool> parserResHead() {
+        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes2(), IO::kBufMaxSize)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
@@ -109,8 +132,87 @@ public:
         co_return true;
     }
 
-    coroutine::Task<> sseStrem() {
-        // @todo
+    /**
+     * @brief 朴素的解析 Body
+     * @tparam Timeout 超时时间
+     * @return Body String
+     */
+    template <typename Timeout = decltype(utils::operator""_s<"5">())>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<std::string> parseBody() {
+        _markBodyParsed();
+        for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
+                // 保留原有的数据
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
+            );
+            if (res.index() == 1) [[unlikely]] {
+                // 超时
+                throw std::runtime_error{"parseBody: Recv timeout"};
+            }
+            auto recvN = HXLIBS_CHECK_EVENT_LOOP(
+                (res.template get<0, exception::ExceptionMode::Nothrow>())
+            );
+            if (recvN == 0) [[unlikely]] {
+                // 连接断开
+                throw std::runtime_error{"parseBody: Connection is Broken"};
+            }
+            _recvBuf.addSize(static_cast<std::size_t>(recvN));
+        }
+        co_return std::move(_body);
+    }
+
+    /**
+     * @brief 解析服务端 SSE 流
+     * @tparam Timeout 超时时间
+     */
+    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<SseEvent> parserSseStrem() {
+        _markBodyParsed();
+        if (!co_await parserResHead<Timeout>()) [[unlikely]] {
+            throw std::runtime_error{"send timeout"};
+        }
+        constexpr auto findValEq = [](
+            HeaderHashMap& headMap, auto&& k, auto const& v
+        ) constexpr noexcept -> bool {
+            auto it = headMap.find(std::forward<decltype(k)>(k));
+            return it != headMap.end() && it->second == v;
+        };
+        using namespace std::string_view_literals;
+        // 校验是否满足 SSE 协议格式
+        if (!(getStatusCode() == "200"sv
+         && findValEq(_responseHeaders, CONTENT_TYPE_SV, "text/event-stream"sv)
+         && findValEq(_responseHeaders, "cache-control", "no-cache"sv)
+         && findValEq(_responseHeaders, CONNECTION_SV, "keep-alive"sv)
+        )) [[unlikely]] {
+            throw std::runtime_error{"SSE protocol error"};
+        }
+        // 进行 SSE 解析, 只有 TCP close 才是 SSE 结束, 因为它默认不会结束. 需用户协议好 [done] data
+        SseEvent event;
+        for (;;) {
+            auto res = co_await _io.template recvLinkTimeout<Timeout>(
+                // 保留原有的数据
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + _recvBuf.max_size()}
+            );
+            if (res.index() == 1) [[unlikely]] {
+                // 超时
+                throw std::runtime_error{"parseBody: Recv timeout"};
+            }
+            auto recvN = HXLIBS_CHECK_EVENT_LOOP(
+                (res.template get<0, exception::ExceptionMode::Nothrow>())
+            );
+            if (recvN == 0) [[unlikely]] {
+                // 连接断开
+                throw std::runtime_error{"parseBody: Connection is Broken"};
+            }
+            _recvBuf.addSize(static_cast<std::size_t>(recvN));
+            if (co_await _parserSseStrem(event)) {
+                co_yield std::move(event);
+                new (&event)SseEvent;
+            }
+        }
+        co_return std::move(event);
     }
 
     /**
@@ -554,6 +656,7 @@ public:
         _responseHeadersIt = _responseHeaders.end();
         _sendBuf.clear();
         _completeResponseHeader = false;
+        _completeBody = false;
     }
 
     /**
@@ -589,7 +692,8 @@ private:
     std::vector<char> _sendBuf;                     // 用于发送数据的缓冲区
     std::optional<std::size_t> _remainingBodyLen;   // 仍需读取的请求体长度
     IOType& _io;
-    bool _completeResponseHeader = false;           //是否解析完成响应头
+    bool _completeResponseHeader = false;           // 是否解析完成响应头
+    bool _completeBody = false;                     // 是否解析完成响应体
 
     template <typename>
     friend class WebSocketFactory;
@@ -667,7 +771,7 @@ private:
     }
 
     /**
-     * @brief [[仅客户端]] 解析响应
+     * @brief [[仅客户端]] 解析响应 (仅响应行和响应头)
      * @return 是否需要继续解析;
      *         `== 0`: 不需要;
      *         `>  0`: 需要继续解析`size_t`个字节
@@ -676,7 +780,210 @@ private:
     std::size_t _parserRes() { 
         using namespace std::string_literals;
         using namespace std::string_view_literals;
-        std::string_view buf = {_recvBuf.data(), _recvBuf.size()};
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        switch ((_completeResponseHeader << 1) | (!_statusLine.empty())) {
+            case 0x00: { // 响应行
+                if (_statusLine.empty()) { // 响应行还未解析
+                    std::size_t pos = buf.find(CRLF);
+                    if (pos == std::string_view::npos) [[unlikely]] { // 不可能事件
+                        return IO::kBufMaxSize;
+                    }
+
+                    // 解析响应行, 注意 不能按照空格直接切分! 因为 HTTP/1.1 404 NOF FOND\r\n
+                    _statusLine = utils::StringUtil::split<std::string>(
+                        buf.substr(0, pos), " "sv
+                    );
+                    if (_statusLine.size() < 3) [[unlikely]] {
+                        return IO::kBufMaxSize;
+                    }
+                    if (_statusLine.size() > 3) {
+                        auto& msg = _statusLine[ResponseLineDataType::StatusMessage];
+                        for (std::size_t i = 3; i < _statusLine.size(); ++i) {
+                            msg += ' ';
+                            msg += std::move(_statusLine[i]);
+                        }
+                        _statusLine.resize(3);
+                    }
+                    buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
+                }
+                [[fallthrough]];
+            }
+            case 0x01: { // 响应头
+                /**
+                 * @brief 请求头
+                 * 通过`\r\n`分割后, 取最前面的, 先使用最左的`:`以判断是否是需要作为独立的键值对;
+                 * -  如果找不到`:`, 并且 非空, 那么它需要接在上一个解析的键值对的值尾
+                 * -  否则即请求头解析完毕!
+                 */
+                while (!_completeResponseHeader) { // 响应头未解析完
+                    std::size_t pos = buf.find(CRLF);
+                    if (pos == std::string_view::npos) { // 没有读取完
+                        _recvBuf.moveToHead(buf);
+                        return IO::kBufMaxSize;
+                    }
+                    std::string_view subKVStr = buf.substr(0, pos);
+                    auto p = utils::StringUtil::splitAtFirst(subKVStr, HEADER_SEPARATOR_SV);
+                    if (p.first.empty()) {                  // 找不到 ": "
+                        if (subKVStr.size()) [[unlikely]] { // 很少会有分片传输响应头的
+                            _responseHeadersIt->second.append(subKVStr);
+                        } else { // 请求头解析完毕!
+                            _completeResponseHeader = true;
+                        }
+                    } else {
+                        // K: V, 其中 V 是区分大小写的, 但是 K 是不区分的
+                        utils::StringUtil::toLower(p.first);
+                        _responseHeadersIt = _responseHeaders.insert(p).first;
+                    }
+                    buf = buf.substr(pos + 2); // 再前进, 以去掉 "\r\n"
+                }
+                [[fallthrough]];
+            }
+            case 0x03: { // 响应体
+                _recvBuf.moveToHead(buf);
+                break;
+            }
+            [[unlikely]] default:
+#ifndef NDEBUG
+                throw std::runtime_error{"parserResponse UB Error"}
+#endif // !NDEBUG
+            ;
+        }
+        return 0; // 解析完毕
+    }
+
+    /**
+     * @brief 解析 Body
+     * @return std::size_t 还需要解析的字节数
+     */
+    std::size_t _parserReqBody() {
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        if (_responseHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
+            // 是 空行之后 (\r\n\r\n) 的内容大小(char)
+            if (!_remainingBodyLen.has_value()) {
+                _remainingBodyLen = std::stoull(_responseHeaders.find(CONTENT_LENGTH_SV)->second);
+            }
+            if (*_remainingBodyLen != 0) {
+                *_remainingBodyLen -= buf.size();
+                _body.append(buf);
+                _recvBuf.clear();
+                return *_remainingBodyLen;
+            }
+        } else if (_responseHeaders.contains(TRANSFER_ENCODING_SV)) { // 存在响应体以`分块传输编码`
+            if (_remainingBodyLen) { // 处理没有读取完的
+                if (buf.size() <= *_remainingBodyLen) { // 还没有读取完毕
+                    _body += buf;
+                    *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
+                    return IO::kBufMaxSize;
+                } else { // 读取完了
+                    _body.append(buf, 0, *_remainingBodyLen);
+                    buf = buf.substr(std::min(*_remainingBodyLen + 2, buf.size()));
+                    _remainingBodyLen.reset();
+                }
+            }
+            for (;;) {
+                std::size_t posLen = buf.find(CRLF);
+                if (posLen == std::string_view::npos) { // 没有读完
+                    _recvBuf.moveToHead(buf);
+                    return IO::kBufMaxSize;
+                }
+                if (!posLen && buf[0] == '\r') [[unlikely]] { // posLen == 0
+                    // \r\n 贴脸, 触发原因, std::min(*_remainingBodyLen + 2, buf.size()) 只能 buf.size()
+                    buf = buf.substr(posLen + 2);
+                    continue;
+                }
+                _remainingBodyLen = utils::NumericBaseConverter::strToNum<std::size_t, 16>(
+                    buf.substr(0, posLen)
+                ); // 转换为十进制整数
+                if (!*_remainingBodyLen) { // 解析完毕
+                    return 0;
+                }
+                buf = buf.substr(posLen + 2);
+                if (buf.size() <= *_remainingBodyLen) { // 没有读完
+                    _body += buf;
+                    *_remainingBodyLen -= buf.size();
+                    _recvBuf.clear();
+                    return IO::kBufMaxSize;
+                }
+                _body.append(buf.substr(0, *_remainingBodyLen));
+                buf = buf.substr(*_remainingBodyLen + 2);
+            }
+        } 
+        // else if (_responseHeaders.contains("content-range")) {
+            // 断点续传 @todo
+        // }
+        _recvBuf.moveToHead(buf);
+        return 0;
+    }
+
+    /**
+     * @brief 确认是否已经解析过 body, 如果解析过了, 就抛出异常; 否则置为 _completeBody = true
+     */
+    void _markBodyParsed() {
+        if (_completeBody) [[unlikely]] {
+            // 已经解析过 Http Body 了
+            throw std::runtime_error{"Have already analyzed the http body"};
+        }
+        _completeBody = true;
+    }
+
+    /**
+     * @brief 解析 SSE 流
+     * @return true 分块完成, 可以返回
+     * @return false 继续读取
+     */
+    bool _parserSseStrem(SseEvent& sse) {
+        using namespace std::string_view_literals;
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        /*
+        data: xxxx\n
+        data: yyyy\n
+        \n
+        : 这是注释, 可保活\n
+        da... // 未读取(传输)完全, 需要继续解析
+        */
+        for (auto pos = buf.find_first_of(":\n"sv);
+            pos != std::string_view::npos;
+            pos = buf.find_first_of(":\n"sv)
+        ) {
+            auto key = buf.substr(0, pos);
+            if (key.empty()) { // 仅 \n
+                return true;
+            }
+            auto knPos = buf.find('\n');
+            if (knPos == std::string_view::npos) {
+                // 找不到 \n 标识没有读取完全, 需要继续读取
+                _recvBuf.moveToHead(buf);
+                return false;
+            }
+            static const auto mp = reflection::makeNameToIdxVariantHashMap<SseEvent>();
+            if (auto it = mp.find(key); it != mp.end()) {
+                std::visit([&](auto&& idx) constexpr {
+                    using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type*;
+                    auto ptr = reinterpret_cast<PtrType>(
+                        reinterpret_cast<char*>(&sse) + idx.offset
+                    );
+                    internal::fromSse(*ptr, buf.substr(pos, knPos));
+                }, it->second);
+            }
+            buf = buf.substr(knPos + 1); // 跳过 \n
+        }
+        return false;
+    }
+
+    /**
+     * @brief [[仅客户端]] 解析响应
+     * @return 是否需要继续解析;
+     *         `== 0`: 不需要;
+     *         `>  0`: 需要继续解析`size_t`个字节
+     * @warning 假定内容是符合Http协议的
+     */
+    std::size_t _parserRes2() { 
+        using namespace std::string_literals;
+        using namespace std::string_view_literals;
+        std::string_view buf{_recvBuf.data(), _recvBuf.size()};
         switch ((_completeResponseHeader << 1) | (!_statusLine.empty())) {
             case 0x00: { // 响应行
                 if (_statusLine.empty()) { // 响应行还未解析

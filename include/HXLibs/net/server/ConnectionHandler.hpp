@@ -54,7 +54,7 @@ struct ConnectionHandler {
             try {
                 for (;;) {
                     // 读
-                    if (!co_await req.template parserReq<Timeout>()) [[unlikely]] {
+                    if (!co_await req.template parserReqHead<Timeout>()) [[unlikely]] {
                         break;
                     }
                     // 路由

@@ -88,7 +88,7 @@ public:
     template <typename K>
     constexpr mapped_type const& at(K const& key) const {
         auto const& kv = lookup(key);
-        if (_keyEqual(meta::getKey(kv), key)) {
+        if (_keyEqual(meta::getKey(kv), key)) [[likely]] {
             return kv.second;
         }
         throw std::out_of_range("unknown key");
@@ -97,7 +97,7 @@ public:
     template <typename K>
     constexpr mapped_type& at(K const& key) {
         auto& kv = lookup(key);
-        if (_keyEqual(meta::getKey(kv), key)) {
+        if (_keyEqual(meta::getKey(kv), key)) [[likely]] {
             return kv.second;
         }
         throw std::out_of_range("unknown key");
@@ -113,7 +113,7 @@ public:
     }
 
     template <typename K>
-    constexpr mapped_type& find(K const& key) noexcept {
+    constexpr iterator find(K const& key) noexcept {
         auto index = _pmhTable.lookup(key, _hash);
         if (_keyEqual(meta::getKey(_data[index]), key)) {
             return _data.begin() + index;

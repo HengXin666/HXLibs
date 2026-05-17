@@ -52,7 +52,7 @@ public:
         co_await req.sendHttpReq<decltype(3_s)>();
 
         HttpResponse<HttpIO> res{_io};
-        if (!co_await res.parserRes<decltype(3_s)>()) {
+        if (!co_await res.parserResHead<decltype(3_s)>()) {
             throw std::runtime_error{"Response parser error"};
         }
         if (res.getStatusCode() != "200") {

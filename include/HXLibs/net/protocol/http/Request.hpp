@@ -297,13 +297,13 @@ public:
 
     // ===== ↓服务端使用↓ =====
     /**
-     * @brief 解析请求
+     * @brief 解析请求 (请求行 + 请求头)
      * @return coroutine::Task<bool> 断开连接则为false, 解析成功为true
      */
     template <typename Timeout>
         requires(utils::HasTimeNTTP<Timeout>)
-    coroutine::Task<bool> parserReq() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserReq(), IO::kBufMaxSize)) {
+    coroutine::Task<bool> parserReqHead() {
+        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserReqHead(), IO::kBufMaxSize)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + n}
@@ -378,7 +378,7 @@ public:
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
@@ -414,7 +414,7 @@ public:
         for (std::size_t n = co_await _coParserReqBody(file); n; n = co_await _coParserReqBody(file)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(),  _recvBuf.data() + _recvBuf.max_size()}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
@@ -573,7 +573,7 @@ private:
     HeaderHashMap _requestHeaders;          // 请求头
 
     // 上一次解析的请求头
-    decltype(_requestHeaders)::iterator _requestHeadersIt;
+    HeaderHashMap::iterator _requestHeadersIt;
 
     // 请求体
     std::string _body;
@@ -666,7 +666,7 @@ private:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t _parserReq() {
+    std::size_t _parserReqHead() {
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};

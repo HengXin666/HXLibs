@@ -162,7 +162,7 @@ public:
             try {
                 co_await req.template sendChunkedReq<Timeout>(path);
                 Response res{_io.get()};
-                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
+                if (!co_await res.template parserResHead<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
                 co_return res.makeResponseData();
@@ -175,7 +175,7 @@ public:
                 // 再次发送
                 co_await req.template sendChunkedReq<Timeout>(path);
                 Response res{_io.get()};
-                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
+                if (!co_await res.template parserResHead<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
                 co_return res.makeResponseData();
@@ -603,7 +603,7 @@ private:
             do {
                 try {
                     // 可能会抛异常...
-                    if (isOkFd && co_await res.template parserRes<Timeout>()) {
+                    if (isOkFd && co_await res.template parserResHead<Timeout>()) {
                         break;
                     }
                 } catch (...) {
@@ -616,7 +616,7 @@ private:
                     // 重新发送一次请求
                     co_await req.template sendHttpReq<Timeout>();
                     // 再次解析请求
-                    if (co_await res.template parserRes<Timeout>()) [[likely]] {
+                    if (co_await res.template parserResHead<Timeout>()) [[likely]] {
                         break;
                     }
                 }

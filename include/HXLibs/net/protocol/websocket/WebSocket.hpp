@@ -833,7 +833,7 @@ public:
         co_await req.template sendHttpReq<Timeout>();
         // 解析响应
         Response res{io};
-        if (co_await res.template parserRes<Timeout>() == false) [[unlikely]] {
+        if (co_await res.template parserResHead<Timeout>() == false) [[unlikely]] {
             throw std::runtime_error{"Timeout"};
         }
         // 判断状态码

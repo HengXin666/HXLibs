@@ -22,6 +22,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <optional>
+#include <chrono>
 
 namespace HX::net {
 
@@ -147,5 +149,14 @@ struct RangeRequestView {
     HeaderHashMap const& reqHead;  // 请求头
 };
 
-} // namespace HX::net
+/**
+ * @brief SSE 事件包
+ */
+struct SseEvent {
+    std::string data;   // 数据
+    std::string event;  // 事件名
+    std::optional<std::string> id;                      // 断线恢复ID
+    std::optional<std::chrono::milliseconds> retry;     // 重连时间
+};
 
+} // namespace HX::net

@@ -415,7 +415,7 @@ struct FromJson {
         
         constexpr std::size_t N = membersCountVal<T>;
         if constexpr (N > 0) {
-            static auto nameHash = reflection::makeNameToIdxVariantHashMap<T>();
+            static const auto nameHash = reflection::makeNameToIdxVariantHashMap<T>();
             // 需要 name -> idx 映射
             while (it != end) {
                 auto key = findKey(it, end);
@@ -440,7 +440,7 @@ struct FromJson {
                         static_assert(!sizeof(T), "Does not support C-style bare pointers, "
                                                   "at least replace with smart pointers");
                     }
-                    using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type *;
+                    using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type*;
                     auto ptr = reinterpret_cast<PtrType>(
                         reinterpret_cast<char*>(&t) + idx.offset
                     );
