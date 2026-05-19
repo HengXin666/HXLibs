@@ -1,4 +1,6 @@
 {
+    
+    "cmake.setBuildTargetSameAsLaunchTarget": true,
     "terminal.integrated.defaultProfile.windows": "PowerShell",
     "terminal.integrated.profiles.windows": {
         "PowerShell": {

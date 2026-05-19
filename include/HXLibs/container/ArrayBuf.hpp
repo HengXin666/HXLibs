@@ -35,7 +35,7 @@ struct ArrayBuf {
      * @warning s.size() <= arr.size() && s.data 是 arr的子区间 && s.size() != 0
      * @param s 
      */
-    void moveToHead(std::span<T const> s) {
+    void moveToHead(std::span<T const> s) noexcept {
         _nowSize = s.size();
         std::memmove(_arr, s.data(), s.size());
     }
@@ -44,7 +44,7 @@ struct ArrayBuf {
      * @brief 设置长度 (注意, 如果外界对`.data()`进行写入, 需要自己调用此函数!)
      * @param index 
      */
-    void resetSize(std::size_t size) {
+    void resetSize(std::size_t size) noexcept {
         _nowSize = size;
     }
 
@@ -52,7 +52,7 @@ struct ArrayBuf {
      * @brief 增加长度 (注意, 如果外界对`.data()`进行写入, 需要自己调用此函数!)
      * @param index 
      */
-    void addSize(std::size_t size) {
+    void addSize(std::size_t size) noexcept {
         _nowSize += size;
     }
 
@@ -68,19 +68,19 @@ struct ArrayBuf {
      * @brief 返回长度最大值
      * @return constexpr std::size_t 
      */
-    constexpr static std::size_t max_size() {
+    constexpr static std::size_t max_size() noexcept {
         return N;
     }
 
-    constexpr T const* data() const {
+    constexpr T const* data() const noexcept {
         return _arr;
     }
 
-    constexpr T* data() {
+    constexpr T* data() noexcept {
         return _arr;
     }
 
-    void clear() {
+    void clear() noexcept {
         _nowSize = 0;
     }
 

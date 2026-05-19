@@ -162,9 +162,10 @@ public:
             try {
                 co_await req.template sendChunkedReq<Timeout>(path);
                 Response res{_io.get()};
-                if (!co_await res.template parserResHead<Timeout>()) [[unlikely]] {
+                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
+                co_await res.template parseBody<Timeout>();
                 co_return res.makeResponseData();
             } catch (...) {
                 ;
@@ -175,7 +176,7 @@ public:
                 // 再次发送
                 co_await req.template sendChunkedReq<Timeout>(path);
                 Response res{_io.get()};
-                if (!co_await res.template parserResHead<Timeout>()) [[unlikely]] {
+                if (!co_await res.template parserRes<Timeout>()) [[unlikely]] {
                     throw std::runtime_error{"Recv Timed Out"};
                 }
                 co_return res.makeResponseData();
@@ -468,9 +469,9 @@ public:
             if (ws.isAvailable()) [[likely]] {
                 try {
                     if constexpr (!std::is_void_v<Res>) {
-                        res.setVal(co_await func(ws.move()));
+                        res.setVal(co_await std::forward<Func>(func)(ws.move()));
                     } else {
-                        co_await func(ws.move());
+                        co_await std::forward<Func>(func)(ws.move());
                         res.setVal(container::NonVoidType<>{});
                     }
                 } catch (...) {
@@ -490,6 +491,84 @@ public:
             co_await taskMain;
         }
         co_return res;
+    }
+    
+    template <
+        HttpMethod Method,
+        typename Func,
+        meta::StringType Str = std::string
+    >
+        requires(std::is_same_v<std::invoke_result_t<Func, SseEvent>, coroutine::Task<>>)
+    coroutine::Task<container::Try<>> coSseLoop(
+        std::string url,
+        Func&& func,
+        HeaderHashMap headers = {},
+        Str&& body = {},
+        HttpContentType contentType = HttpContentType::None
+    ) {
+        auto task = [&]() -> coroutine::Task<> {
+            if (needConnect()) {
+                co_await makeSocket(url);
+            }
+            Request req{_io.get()};
+            req.template setReqLine<Method>(UrlParse::extractPath(url));
+            req.tryAddHeaders("Accept", "text/event-stream");
+            req.tryAddHeaders("Cache-Control", "no-cache");
+            preprocessHeaders(url, contentType, req);
+            req.addHeaders(std::move(headers));
+            if (body.size()) {
+                // @todo 请求体还需要支持一些格式!
+                req.setBody(std::forward<Str>(body));
+            }
+            std::exception_ptr exceptionPtr{};
+            try {
+                bool isOkFd = true;
+                try {
+                    co_await req.template sendHttpReq<Timeout>();
+                } catch (...) {
+                    // e: 大概率是 断开的管道, 直接重连
+                    isOkFd = false;
+                }
+                Response res{_io.get()};
+                do {
+                    try {
+                        // 可能会抛异常...
+                        if (isOkFd && co_await res.template parserResHead<Timeout>()) {
+                            break;
+                        }
+                    } catch (...) {
+                        ;
+                    }
+                    // 读取超时
+                    if (_isAutoReconnect) [[likely]] {
+                        // 重新建立连接
+                        co_await makeSocket(url);
+                        // 重新发送一次请求
+                        co_await req.template sendHttpReq<Timeout>();
+                        // 再次解析请求
+                        if (co_await res.template parserResHead<Timeout>()) [[likely]] {
+                            break;
+                        }
+                    }
+                    [[unlikely]] throw std::runtime_error{"Send Timed Out"};
+                } while (false);
+                for (auto seeLoop = res.template parserSseStrem<Timeout>(); ;) {
+                    co_await std::forward<Func>(func)(co_await seeLoop);
+                }
+            } catch (...) {
+                exceptionPtr = std::current_exception();
+            }
+
+            log::hxLog.error("超时断开 SSE"); // debug
+
+            co_await _io.get().close();
+            _cliFd = kInvalidSocket;
+            std::rethrow_exception(exceptionPtr);
+        };
+        if (_isUniqueEventLoop) {
+            co_return _eventLoop->trySync(task());
+        }
+        co_return co_await _eventLoop->tryAsync(task());
     }
 
     HttpBaseClient& operator=(HttpBaseClient&&) noexcept = delete;
@@ -603,7 +682,7 @@ private:
             do {
                 try {
                     // 可能会抛异常...
-                    if (isOkFd && co_await res.template parserResHead<Timeout>()) {
+                    if (isOkFd && co_await res.template parserRes<Timeout>()) {
                         break;
                     }
                 } catch (...) {
@@ -616,7 +695,7 @@ private:
                     // 重新发送一次请求
                     co_await req.template sendHttpReq<Timeout>();
                     // 再次解析请求
-                    if (co_await res.template parserResHead<Timeout>()) [[likely]] {
+                    if (co_await res.template parserRes<Timeout>()) [[likely]] {
                         break;
                     }
                 }

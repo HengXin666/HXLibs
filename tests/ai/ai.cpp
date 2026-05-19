@@ -64,17 +64,17 @@ struct ChatCompletionRequest {
     std::string model; // 模型名称
     std::vector<Messages> messages; // 消息列表
     bool stream; // 如果设置为 True, 将会以 SSE(server-sent events)的形式以流式发送消息增量。消息流以 data: [DONE] 结尾
-    Thinking thinking;
+    Thinking thinking{};
     std::string reasoning_effort{"high"}; // 推理强度 (high, max)
-    std::optional<int> max_tokens; // 限制一次请求中模型生成 completion 的最大 token 数
-    std::optional<ResponseFormat> response_format;
-    std::optional<Stop> stop;
-    std::optional<StreamOptions> stream_options;
+    std::optional<int> max_tokens{}; // 限制一次请求中模型生成 completion 的最大 token 数
+    std::optional<ResponseFormat> response_format{};
+    std::optional<Stop> stop{};
+    std::optional<StreamOptions> stream_options{};
     double temperature = 1;
     double top_p = 1;
-    std::vector<Tools> tools;
+    std::vector<Tools> tools{};
     // tool_choice
-    std::optional<int> top_logprobs;
+    std::optional<int> top_logprobs{};
 };
 
 struct AiConfig {
@@ -101,6 +101,19 @@ public:
             net::HeaderHashMap{{"Authorization", "Bearer " + _config.apiKey}}
         );
     }
+
+    template <typename Func>
+    coroutine::Task<container::Try<>> coChat(ai::ChatCompletionRequest const& body, Func&& func) {
+        std::string bodyStr;
+        reflection::toJson(body, bodyStr);
+        co_return co_await _client.coSseLoop<net::POST>(
+            _config.baseUrl + "/chat/completions",
+            std::forward<Func>(func),
+            net::HeaderHashMap{{"Authorization", "Bearer " + _config.apiKey}},
+            std::move(bodyStr),
+            net::HttpContentType::Json
+        );
+    }
 private:
     AiConfig _config;
     net::HttpsClient<decltype(utils::operator""_s<"180">()), net::NoneProxy> _client;
@@ -122,23 +135,28 @@ int main() {
             ai::Messages(ai::SystemMessage{"system", "你是由 HXLibs 开发的 AI 大模型, 其使用的模型是 deepseek-v8-prime"}),
             ai::Messages(ai::UserMessage{"user", "你是谁? 底层模型是什么?"}),
         },
-        .stream = false,
+        .stream = true
     };
     log::hxLog.debug(req);
+    log::hxLog.warning(key);
     ai::AiClient cli{{
         .baseUrl = "https://api.deepseek.com",
         .apiKey = key.apiKey
     }};
-
     return 0;
     coroutine::EventLoop loop;
     loop.sync([&]() -> coroutine::Task<> {
-        auto res = co_await cli.chat(req);
+        // auto res = co_await cli.chat(req);
+        auto res = co_await cli.coChat(req, [](net::SseEvent sse) -> coroutine::Task<> {
+            if (!sse.data.empty()) {
+                log::hxLog.warning(sse.data);
+            }
+            co_return;
+        });
         if (!res) {
             log::hxLog.error("err:", res.what());
             co_return;
         }
-        log::hxLog.info("[HXLibs]:", res.get());
     }());
 }
 

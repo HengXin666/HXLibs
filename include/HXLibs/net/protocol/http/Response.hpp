@@ -40,18 +40,18 @@ namespace HX::net {
 
 namespace internal {
 
-constexpr void fromSse(std::string& v, std::string_view sv) {
+inline void fromSse(std::string& v, std::string_view sv) {
     if (v.size()) {
         v += '\n';
     }
     v += sv;
 }
 
-constexpr void fromSse(std::optional<std::string>& v, std::string_view sv) {
+inline void fromSse(std::optional<std::string>& v, std::string_view sv) {
     v.emplace(sv);
 }
 
-constexpr void fromSse(std::optional<std::chrono::milliseconds>& v, std::string_view sv) {
+inline void fromSse(std::optional<std::chrono::milliseconds>& v, std::string_view sv) {
     uint64_t ms{};
     reflection::Numer::fromNumer<uint64_t>(ms, sv);
     v.emplace(ms);
@@ -105,6 +105,13 @@ public:
     HttpResponse& operator=(HttpResponse&&) noexcept = delete;
 #endif
     // ===== ↓客户端使用↓ =====
+    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+        requires(utils::HasTimeNTTP<Timeout>)
+    coroutine::Task<bool> parserRes() {
+        co_return co_await parserResHead<Timeout>()
+               && co_await parseBody<Timeout>();
+    }
+
     /**
      * @brief 解析服务端响应 (响应行 + 响应头)
      * @tparam Timeout 超时时间
@@ -113,7 +120,7 @@ public:
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserResHead() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserRes2(), IO::kBufMaxSize)) {
+        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserResHead(), IO::kBufMaxSize)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
                 {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
@@ -139,7 +146,7 @@ public:
      */
     template <typename Timeout = decltype(utils::operator""_s<"5">())>
         requires(utils::HasTimeNTTP<Timeout>)
-    coroutine::Task<std::string> parseBody() {
+    coroutine::Task<bool> parseBody() {
         _markBodyParsed();
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
@@ -148,18 +155,18 @@ public:
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
-                throw std::runtime_error{"parseBody: Recv timeout"};
+                co_return false;
             }
             auto recvN = HXLIBS_CHECK_EVENT_LOOP(
                 (res.template get<0, exception::ExceptionMode::Nothrow>())
             );
             if (recvN == 0) [[unlikely]] {
                 // 连接断开
-                throw std::runtime_error{"parseBody: Connection is Broken"};
+                co_return false;
             }
             _recvBuf.addSize(static_cast<std::size_t>(recvN));
         }
-        co_return std::move(_body);
+        co_return true;
     }
 
     /**
@@ -170,22 +177,22 @@ public:
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<SseEvent> parserSseStrem() {
         _markBodyParsed();
-        if (!co_await parserResHead<Timeout>()) [[unlikely]] {
-            throw std::runtime_error{"send timeout"};
-        }
+        // if (!co_await parserResHead<Timeout>()) [[unlikely]] {
+        //     throw std::runtime_error{"send timeout"};
+        // }
         constexpr auto findValEq = [](
             HeaderHashMap& headMap, auto&& k, auto const& v
         ) constexpr noexcept -> bool {
             auto it = headMap.find(std::forward<decltype(k)>(k));
-            return it != headMap.end() && it->second == v;
+            return it != headMap.end() && it->second.find(v) != std::string::npos;
         };
         using namespace std::string_view_literals;
         // 校验是否满足 SSE 协议格式
         if (!(getStatusCode() == "200"sv
          && findValEq(_responseHeaders, CONTENT_TYPE_SV, "text/event-stream"sv)
-         && findValEq(_responseHeaders, "cache-control", "no-cache"sv)
          && findValEq(_responseHeaders, CONNECTION_SV, "keep-alive"sv)
         )) [[unlikely]] {
+            log::hxLog.error(getStatusCode(), _responseHeaders, _recvBuf.data());
             throw std::runtime_error{"SSE protocol error"};
         }
         // 进行 SSE 解析, 只有 TCP close 才是 SSE 结束, 因为它默认不会结束. 需用户协议好 [done] data
@@ -207,7 +214,7 @@ public:
                 throw std::runtime_error{"parseBody: Connection is Broken"};
             }
             _recvBuf.addSize(static_cast<std::size_t>(recvN));
-            if (co_await _parserSseStrem(event)) {
+            while (_parserSseStrem(event)) {
                 co_yield std::move(event);
                 new (&event)SseEvent;
             }
@@ -777,7 +784,7 @@ private:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t _parserRes() { 
+    std::size_t _parserResHead() { 
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
@@ -939,36 +946,41 @@ private:
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
         /*
         data: xxxx\n
-        data: yyyy\n
+        data:yyyy\n
         \n
         : 这是注释, 可保活\n
         da... // 未读取(传输)完全, 需要继续解析
+              // 如果:后面有一个空格, 会吃掉
         */
-        for (auto pos = buf.find_first_of(":\n"sv);
+        for (auto pos = buf.find('\n');
             pos != std::string_view::npos;
-            pos = buf.find_first_of(":\n"sv)
+            pos = buf.find('\n')
         ) {
-            auto key = buf.substr(0, pos);
-            if (key.empty()) { // 仅 \n
+            // now line is: [0, pos)
+            auto skPos = buf.find(':');
+            if (skPos >= pos) {
+                // 说明本行是 \n
+                _recvBuf.moveToHead(buf.substr(1)); // 跳过 \n
                 return true;
             }
-            auto knPos = buf.find('\n');
-            if (knPos == std::string_view::npos) {
-                // 找不到 \n 标识没有读取完全, 需要继续读取
-                _recvBuf.moveToHead(buf);
-                return false;
+            auto key = buf.substr(0, skPos);
+            if (key.size()) { // 仅 \n
+                static const auto mp = reflection::makeNameToIdxVariantHashMap<SseEvent>();
+                if (auto it = mp.find(key); it != mp.end()) {
+                    std::visit([&](auto&& idx) constexpr {
+                        using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type*;
+                        auto ptr = reinterpret_cast<PtrType>(
+                            reinterpret_cast<char*>(&sse) + idx.offset
+                        );
+                        auto val = buf.substr(skPos + 1, pos - skPos - 1);
+                        if (val.front() == ' ') {
+                            val = val.substr(1);
+                        }
+                        internal::fromSse(*ptr, val);
+                    }, it->second);
+                }
             }
-            static const auto mp = reflection::makeNameToIdxVariantHashMap<SseEvent>();
-            if (auto it = mp.find(key); it != mp.end()) {
-                std::visit([&](auto&& idx) constexpr {
-                    using PtrType = typename meta::RemoveCvRefType<decltype(idx)>::Type*;
-                    auto ptr = reinterpret_cast<PtrType>(
-                        reinterpret_cast<char*>(&sse) + idx.offset
-                    );
-                    internal::fromSse(*ptr, buf.substr(pos, knPos));
-                }, it->second);
-            }
-            buf = buf.substr(knPos + 1); // 跳过 \n
+            buf = buf.substr(pos + 1); // 跳过 \n
         }
         return false;
     }
@@ -980,7 +992,7 @@ private:
      *         `>  0`: 需要继续解析`size_t`个字节
      * @warning 假定内容是符合Http协议的
      */
-    std::size_t _parserRes2() { 
+    [[deprecated("待删除")]] std::size_t _parserRes2() { 
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};

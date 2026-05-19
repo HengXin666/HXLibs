@@ -106,7 +106,7 @@ public:
     template <typename K>
     constexpr const_iterator find(K const& key) const noexcept {
         auto index = _pmhTable.lookup(key, _hash);
-        if (_keyEqual(meta::getKey(_data[index]), key)) {
+        if (index < N && _keyEqual(meta::getKey(_data[index]), key)) {
             return _data.begin() + index;
         }
         return end();
@@ -115,7 +115,7 @@ public:
     template <typename K>
     constexpr iterator find(K const& key) noexcept {
         auto index = _pmhTable.lookup(key, _hash);
-        if (_keyEqual(meta::getKey(_data[index]), key)) {
+        if (index < N && _keyEqual(meta::getKey(_data[index]), key)) {
             return _data.begin() + index;
         }
         return end();
