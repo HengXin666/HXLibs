@@ -126,6 +126,7 @@ struct ApiKey {
 };
 
 int main() {
+    return 0;
     using namespace HX;
     ApiKey key{};
     reflection::fromJson(key, utils::FileUtils::getFileContent("../../../../.env.json"));
@@ -143,7 +144,6 @@ int main() {
         .baseUrl = "https://api.deepseek.com",
         .apiKey = key.apiKey
     }};
-    return 0;
     coroutine::EventLoop loop;
     loop.sync([&]() -> coroutine::Task<> {
         // auto res = co_await cli.chat(req);

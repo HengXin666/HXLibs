@@ -123,7 +123,7 @@ public:
         for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserResHead(), IO::kBufMaxSize)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
@@ -151,7 +151,7 @@ public:
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + n}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
@@ -866,6 +866,7 @@ private:
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
+        log::hxLog.warning(_responseHeaders);
         if (_responseHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
             // 是 空行之后 (\r\n\r\n) 的内容大小(char)
             if (!_remainingBodyLen.has_value()) {
