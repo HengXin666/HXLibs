@@ -306,7 +306,7 @@ public:
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserReqHead()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
@@ -378,7 +378,7 @@ public:
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
@@ -414,7 +414,7 @@ public:
         for (std::size_t n = co_await _coParserReqBody(file); n; n = co_await _coParserReqBody(file)) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时

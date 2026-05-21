@@ -120,10 +120,10 @@ public:
     template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserResHead() {
-        for (std::size_t n = IO::kBufMaxSize; n; n = std::min(_parserResHead(), IO::kBufMaxSize)) {
+        for (std::size_t n = IO::kBufMaxSize; n; n = _parserResHead()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 co_return false;  // 超时
@@ -151,7 +151,7 @@ public:
         for (std::size_t n = _parserReqBody(); n; n = _parserReqBody()) {
             auto res = co_await _io.template recvLinkTimeout<Timeout>(
                 // 保留原有的数据
-                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size() - _recvBuf.size(), n)}
+                {_recvBuf.data() + _recvBuf.size(), _recvBuf.data() + std::min(_recvBuf.max_size(), n)}
             );
             if (res.index() == 1) [[unlikely]] {
                 // 超时
@@ -190,9 +190,7 @@ public:
         // 校验是否满足 SSE 协议格式
         if (!(getStatusCode() == "200"sv
          && findValEq(_responseHeaders, CONTENT_TYPE_SV, "text/event-stream"sv)
-         && findValEq(_responseHeaders, CONNECTION_SV, "keep-alive"sv)
         )) [[unlikely]] {
-            log::hxLog.error(getStatusCode(), _responseHeaders, _recvBuf.data());
             throw std::runtime_error{"SSE protocol error"};
         }
         // 进行 SSE 解析, 只有 TCP close 才是 SSE 结束, 因为它默认不会结束. 需用户协议好 [done] data
