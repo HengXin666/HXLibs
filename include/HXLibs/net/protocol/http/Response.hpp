@@ -36,10 +36,14 @@
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
 #include <HXLibs/utils/NumericBaseConverter.hpp>
+#include <HXLibs/log/serialize/FormatString.hpp>
 
 namespace HX::net {
 
 using namespace utils::time_nttp_literals;
+
+template <typename IOType>
+class HttpResponse;
 
 namespace internal {
 
@@ -59,6 +63,61 @@ inline void fromSse(std::optional<std::chrono::milliseconds>& v, std::string_vie
     reflection::Numer::fromNumer<uint64_t>(ms, sv);
     v.emplace(ms);
 }
+
+template <typename IOType>
+class SseStream {
+public:
+    explicit SseStream(HttpResponse<IOType>& res)
+        : _res{res}
+    {}
+
+    coroutine::Task<> ping() {
+        using namespace std::string_view_literals;
+        auto& io = _res.getIO();
+        co_await io.fullySend(":ping\n\n"sv);
+    }
+
+    coroutine::Task<> push(SseEvent& event) {
+        using namespace std::string_view_literals;
+        auto& io = _res.getIO();
+        if (event.event.size()) {
+            co_await sendStr("event:"sv, event.event);
+        }
+        if (event.data.size()) {
+            co_await sendStr("data:"sv, event.data);
+        }
+        if (event.id) {
+            co_await sendStr("id:"sv, *event.id);
+        }
+        if (event.retry) {
+            co_await io.fullySend("retry:"sv);
+            co_await io.fullySend(log::formatString(event.retry->count()));
+            co_await io.fullySend("\n"sv);
+        }
+        co_await io.fullySend("\n"sv);
+    }
+private:
+    coroutine::Task<> sendStr(std::string_view key, std::string_view val) {
+        using namespace std::string_view_literals;
+        auto& io = _res.getIO();
+        auto pos = val.find('\n');
+        for (;;) {
+            co_await io.fullySend(key);
+            if (pos == std::string_view::npos) {
+                co_await io.fullySend(val);
+                co_await io.fullySend("\n"sv);
+                break;
+            } else {
+                co_await io.fullySend(val.substr(0, pos));
+                co_await io.fullySend("\n"sv);
+            }
+            val = val.substr(pos + 1);
+            pos = val.find('\n');
+        }
+    }
+
+    HttpResponse<IOType>& _res;
+};
 
 } // namespace internal
 
@@ -587,6 +646,17 @@ public:
 #pragma GCC diagnostic pop
 #endif
 
+    coroutine::Task<internal::SseStream<IOType>> makeSseStream() {
+        // 组装必要的响应
+        setResLine(Status::CODE_200);
+        addHeader("Content-Type", "text/event-stream");
+        // 生成响应行和响应头
+        _buildResponseLineAndHeaders();
+        // 先发送一版, 告知我们是 SseStream
+        co_await _io.fullySend(_sendBuf);
+        co_return internal::SseStream<IOType>{*this};
+    }
+
     // ===== ↑服务端使用の更加人性化API↑ =====
 
     // ===== ↓服务端使用↓ =====
@@ -705,6 +775,9 @@ private:
 
     template <typename>
     friend class WebSocketFactory;
+
+    template <typename>
+    friend class internal::SseStream;
 
     /**
      * @brief [仅服务端] 生成响应行和响应头

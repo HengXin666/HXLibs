@@ -255,7 +255,7 @@ public:
 #endif // !NDEBUG
     }
 
-    operator coroutine::EventLoop&() {
+    operator coroutine::EventLoop&() noexcept {
         return _eventLoop;
     }
 

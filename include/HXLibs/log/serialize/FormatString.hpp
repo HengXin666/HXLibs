@@ -528,6 +528,28 @@ struct FormatString {
         ptr ? make(*ptr, s) : make(nullptr, s);
     }
 
+    // std::time_point
+    template <typename Clock, typename Duration>
+    constexpr std::string make(std::chrono::time_point<Clock, Duration> tp) {
+        return std::format("{}", tp);
+    }
+
+    template <typename Clock, typename Duration, typename Stream>
+    constexpr void make(std::chrono::time_point<Clock, Duration> tp, Stream& s) {
+        s.append(std::format("{}", tp));
+    }
+
+    // std::duration
+    template <typename Rep, typename Period>
+    constexpr std::string make(std::chrono::duration<Rep, Period> tp) {
+        return std::format("{}", tp);
+    }
+
+    template <typename Rep, typename Period, typename Stream>
+    constexpr void make(std::chrono::duration<Rep, Period> tp, Stream& s) {
+        s.append(std::format("{}", tp));
+    }
+
     // 任意自定义
     template <typename T>
         requires (IsCustomToStringVal<T, FormatString>)
