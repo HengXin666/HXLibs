@@ -8,6 +8,6 @@ int main() {
     [[maybe_unused]] constexpr auto res 
         = utils::internal::constexprCharToNum(_{});
 
-    utils::operator""_us<"123">();
+    utils::time_nttp_literals::operator""_us<"123">();
     return 0;
 }

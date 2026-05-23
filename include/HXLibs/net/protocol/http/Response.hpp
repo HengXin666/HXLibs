@@ -35,8 +35,11 @@
 #include <HXLibs/utils/StringUtils.hpp>
 #include <HXLibs/utils/FileUtils.hpp>
 #include <HXLibs/utils/TimeNTTP.hpp>
+#include <HXLibs/utils/NumericBaseConverter.hpp>
 
 namespace HX::net {
+
+using namespace utils::time_nttp_literals;
 
 namespace internal {
 
@@ -105,7 +108,7 @@ public:
     HttpResponse& operator=(HttpResponse&&) noexcept = delete;
 #endif
     // ===== ↓客户端使用↓ =====
-    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+    template <typename Timeout = decltype(30_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserRes() {
         co_return co_await parserResHead<Timeout>()
@@ -117,7 +120,7 @@ public:
      * @tparam Timeout 超时时间
      * @return coroutine::Task<bool> 是否解析完毕 
      */
-    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+    template <typename Timeout = decltype(30_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parserResHead() {
         for (std::size_t n = IO::kBufMaxSize; n; n = _parserResHead()) {
@@ -144,7 +147,7 @@ public:
      * @tparam Timeout 超时时间
      * @return Body String
      */
-    template <typename Timeout = decltype(utils::operator""_s<"5">())>
+    template <typename Timeout = decltype(5_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<bool> parseBody() {
         _markBodyParsed();
@@ -173,7 +176,7 @@ public:
      * @brief 解析服务端 SSE 流
      * @tparam Timeout 超时时间
      */
-    template <typename Timeout = decltype(utils::operator""_s<'3', '0'>())>
+    template <typename Timeout = decltype(30_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<SseEvent> parserSseStrem() {
         _markBodyParsed();
@@ -864,7 +867,6 @@ private:
         using namespace std::string_literals;
         using namespace std::string_view_literals;
         std::string_view buf{_recvBuf.data(), _recvBuf.size()};
-        log::hxLog.warning(_responseHeaders);
         if (_responseHeaders.contains(CONTENT_LENGTH_SV)) { // 存在content-length模式接收的响应体
             // 是 空行之后 (\r\n\r\n) 的内容大小(char)
             if (!_remainingBodyLen.has_value()) {

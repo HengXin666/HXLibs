@@ -80,7 +80,7 @@ auto hx_init = [] {
 }();
 #endif
 
-HttpClient client{HttpClientOptions<decltype(300_ms)>{}};
+HttpClient client{HttpClientOptions{}};
 
 #if 1
 
@@ -88,7 +88,7 @@ TEST_CASE("测试朴素get的自动重连") {
     log::hxLog.warning("=== 测试朴素get的自动重连 ===");
     for (std::size_t _ = 0; _ < 5; ++_) {
         log::hxLog.info("连接ing...(", _, ")");
-        log::hxLog.info("-->", client.get("http://127.0.0.1:28205/").get().move().body);
+        log::hxLog.info("-->", client.get<decltype(300_ms)>("http://127.0.0.1:28205/").get().move().body);
         std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }
@@ -101,7 +101,7 @@ TEST_CASE("测试get变长body的自动重连") {
         auto url = "http://127.0.0.1:28205/" 
             + std::to_string((uint64_t)std::pow(5 - _, 10));
         log::hxLog.info("连接ing...(", _, ")->", url);
-        log::hxLog.info("-->", client.get(std::move(url)).get().move().body);
+        log::hxLog.info("-->", client.get<decltype(300_ms)>(std::move(url)).get().move().body);
         std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了
     }
@@ -109,7 +109,7 @@ TEST_CASE("测试get变长body的自动重连") {
 
 TEST_CASE("测试ws") {
     log::hxLog.warning("=== 测试ws ===");
-    client.wsLoop("ws://127.0.0.1:28205/ws", [](WSClient ws) -> coroutine::Task<> {
+    client.wsLoop<decltype(300_ms)>("ws://127.0.0.1:28205/ws", [](WSClient ws) -> coroutine::Task<> {
         auto txt = co_await ws.recvText();
         log::hxLog.info("ws:", txt);
         co_await ws.close();
@@ -127,10 +127,10 @@ TEST_CASE("测试 file + get 交替") {
     
     for (std::size_t _ = 0; _ < 5; ++_) {
         log::hxLog.info("连接ing...(", _, ")");
-        log::hxLog.info("-->", client.get("http://127.0.0.1:28205/ass").get().move().body.size() 
+        log::hxLog.info("-->", client.get<decltype(300_ms)>("http://127.0.0.1:28205/ass").get().move().body.size() 
             == utils::FileUtils::getFileSize("./ass/2.ass"));
         std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
-        log::hxLog.info("-->", client.get("http://127.0.0.1:28205/" 
+        log::hxLog.info("-->", client.get<decltype(300_ms)>("http://127.0.0.1:28205/" 
             + std::to_string((uint64_t)std::pow(5 - _, 10))).get().move().body);
         std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal); // 等待 0.2s
         // 此时客户端已经被服务端断线了

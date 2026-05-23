@@ -24,7 +24,7 @@ int main() {
         co_await res.setStatusAndContent(Status::CODE_400, std::move(json))
                     .sendRes();
     });
-    server.asyncRun<decltype(utils::operator""_s<"1">())>(1);
+    server.asyncRun<decltype(1_s)>(1);
 
     coroutine::EventLoop loop;
     loop.sync(coMain());

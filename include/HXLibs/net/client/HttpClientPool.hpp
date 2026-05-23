@@ -24,16 +24,12 @@
 
 namespace HX::net {
 
-template <typename Timeout, 
-          typename Proxy,
-          typename IOType
->
-    requires(utils::HasTimeNTTP<Timeout>)
+template <typename Proxy, typename IOType>
 class HttpBaseClientPool {
 public:
-    using HttpClientType = HttpBaseClient<Timeout, Proxy, IOType>;
+    using HttpClientType = HttpBaseClient<Proxy, IOType>;
 
-    HttpBaseClientPool(std::size_t size, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+    HttpBaseClientPool(std::size_t size, HttpClientOptions<Proxy> options = HttpClientOptions{})
         : _cliPool{}
     {
         if (size <= 0) [[unlikely]] {
@@ -46,7 +42,7 @@ public:
 
     HttpBaseClientPool& operator=(HttpBaseClientPool&&) noexcept = delete;
 
-    void resize(std::size_t newSize, HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{}) {
+    void resize(std::size_t newSize, HttpClientOptions<Proxy> options = HttpClientOptions{}) {
         if (newSize <= 0) [[unlikely]] {
             throw std::runtime_error{"HttpClientPool: Size must be at least 1"};
         }
@@ -75,11 +71,13 @@ public:
      * @param headers 
      * @return container::FutureResult<ResponseData> 
      */
+    template <typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> get(
         std::string url,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->get(
+        return _cliPool.at(getIdxAndNext())->template get<Timeout>(
             std::move(url), std::move(headers)
         );
     }
@@ -91,13 +89,15 @@ public:
      * @param contentType 请求正文类型
      * @return container::FutureResult<container::Try<ResponseData>> 
      */
+    template <typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> post(
         std::string url,
         std::string body,
         HttpContentType contentType,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->post(
+        return _cliPool.at(getIdxAndNext())->template post<Timeout>(
             std::move(url), std::move(body),
             contentType, std::move(headers)
         );
@@ -112,14 +112,19 @@ public:
      * @param contentType 正文类型 
      * @return container::FutureResult<container::Try<ResponseData>> 响应数据
      */
-    template <HttpMethod Method, meta::StringType Str = std::string>
+    template <
+        HttpMethod Method,
+        typename Timeout = decltype(30_s),
+        meta::StringType Str = std::string
+    >
     container::FutureResult<container::Try<ResponseData>> requst(
         std::string url,
         HeaderHashMap headers = {},
         Str&& body = {},
-        HttpContentType contentType = HttpContentType::None
+        HttpContentType contentType = HttpContentType::None,
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->template requst<Method>(
+        return _cliPool.at(getIdxAndNext())->template requst<Method, Timeout>(
             std::move(url),
             std::move(headers),
             std::forward<Str>(body),
@@ -136,16 +141,18 @@ public:
      * @return container::FutureResult<container::Try<Res>>
      */
     template <
-        typename Func, 
+        typename Timeout = decltype(30_s),
+        typename Func,
         typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient<IOType>>, coroutine::Task<Res>>)
     container::FutureResult<container::Try<Res>> wsLoop(
         std::string url,
         Func&& func,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->wsLoop(
+        return _cliPool.at(getIdxAndNext())->template wsLoop<Timeout>(
             std::move(url), std::forward<Func>(func), std::move(headers)
         );
     }
@@ -159,14 +166,15 @@ public:
      * @param headers 请求头
      * @return container::FutureResult<>
      */
-    template <HttpMethod Method>
+    template <HttpMethod Method, typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> uploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return _cliPool.at(getIdxAndNext())->template uploadChunked<Method>(
+        return _cliPool.at(getIdxAndNext())->template uploadChunked<Method, Timeout>(
             std::move(url), std::move(path),
             contentType, std::move(headers)
         );
@@ -185,35 +193,33 @@ private:
     std::uint64_t _index;
 };
 
-template <typename Timeout, typename Proxy>
-    requires(utils::HasTimeNTTP<Timeout>)
-class HttpClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpIO> {
-    using Base = HttpBaseClientPool<Timeout, Proxy, HttpIO>;
+template <typename Proxy>
+class HttpClientPool : public HttpBaseClientPool<Proxy, HttpIO> {
+    using Base = HttpBaseClientPool<Proxy, HttpIO>;
 public:
     using Base::Base;
 
-    HttpClientPool(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+    HttpClientPool(HttpClientOptions<Proxy> options = HttpClientOptions{})
         : Base(std::move(options))
     {}
 };
 
-HttpClientPool(std::size_t size) -> HttpClientPool<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+HttpClientPool(std::size_t size) -> HttpClientPool<NoneProxy>;
 
 #if HXLIBS_ENABLE_SSL
 
-template <typename Timeout, typename Proxy>
-    requires(utils::HasTimeNTTP<Timeout>)
-class HttpsClientPool : public HttpBaseClientPool<Timeout, Proxy, HttpsIO> {
-    using Base = HttpBaseClientPool<Timeout, Proxy, HttpsIO>;
+template <typename Proxy>
+class HttpsClientPool : public HttpBaseClientPool<Proxy, HttpsIO> {
+    using Base = HttpBaseClientPool<Proxy, HttpsIO>;
 public:
     using Base::Base;
 
-    HttpsClientPool(HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{})
+    HttpsClientPool(HttpClientOptions<Proxy> options = HttpClientOptions{})
         : Base(std::move(options))
     {}
 };
 
-HttpsClientPool(std::size_t size) -> HttpsClientPool<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+HttpsClientPool(std::size_t size) -> HttpsClientPool<NoneProxy>;
 
 #endif // !HXLIBS_ENABLE_SSL
 

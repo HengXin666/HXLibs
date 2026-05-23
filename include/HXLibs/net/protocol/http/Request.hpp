@@ -35,6 +35,8 @@
 
 namespace HX::net {
 
+using namespace utils::time_nttp_literals;
+
 /**
  * @brief URL 参数
  */
@@ -367,7 +369,7 @@ public:
      * @tparam Timeout 超时时间
      * @return Body String
      */
-    template <typename Timeout = decltype(utils::operator""_s<"5">())>
+    template <typename Timeout = decltype(5_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<std::string> parseBody() {
         if (_completeBody) [[unlikely]] {
@@ -401,7 +403,7 @@ public:
      * @param path 保存路径
      * @return coroutine::Task<> 
      */
-    template <typename Timeout = decltype(utils::operator""_s<"5">())>
+    template <typename Timeout = decltype(5_s)>
         requires(utils::HasTimeNTTP<Timeout>)
     coroutine::Task<> saveToFile(std::string_view path) {
         utils::AsyncFile file{_io};
@@ -541,7 +543,7 @@ public:
     coroutine::Task<> clear() noexcept {
         if (!_completeBody) {
             // 250 ms, 如果解析不完, 就滚蛋! 传递这么多没用的干什么?!
-            co_await parseBody<decltype(utils::operator""_ms<"250">())>();
+            co_await parseBody<decltype(250_ms)>();
         }
         _completeBody = false;
         _boundary = {};

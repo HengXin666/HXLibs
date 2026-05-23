@@ -24,8 +24,11 @@
 #include <HXLibs/net/client/HttpClient.hpp>
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/container/FutureResult.hpp>
+#include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
+
+using namespace utils::time_nttp_literals;
 
 template <typename Self, typename IOType>
 class HttpBaseServer {
@@ -104,7 +107,7 @@ public:
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
     template <
-        typename Timeout = decltype(utils::operator""_s<"30">()),
+        typename Timeout = decltype(30_s),
         typename Init = decltype([]{})
     >
         requires(utils::HasTimeNTTP<Timeout>)
@@ -125,7 +128,7 @@ public:
      * @param timeout 超时时间 (使用类型 utils::TimeNTTP)
      */
     template <
-        typename Timeout = decltype(utils::operator""_s<"30">()),
+        typename Timeout = decltype(30_s),
         typename Init = decltype([]{})
     >
         requires(utils::HasTimeNTTP<Timeout>)
@@ -193,7 +196,7 @@ public:
         while (_runNum) {
             try {
                 // ! Win 上面, 0.0.0.0 无法被路由, 只能 127.0.0.1 访问!
-                HttpClient cli{HttpClientOptions{.timeout = 1_s}};
+                HttpClient cli{HttpClientOptions{}};
                 cli.get(
                     (std::is_same_v<IO, HttpIO> ? std::string{"http"} : std::string{"https"}) 
                     + "://127.0.0.1:"
@@ -262,7 +265,7 @@ public:
         using namespace utils;
         while (_runNum) {
             try {
-                HttpsClient cli{HttpClientOptions{.timeout = 1_s}};
+                HttpsClient cli{HttpClientOptions{}};
                 cli.initSsl({
                     SslVerifyOption::None
                 });

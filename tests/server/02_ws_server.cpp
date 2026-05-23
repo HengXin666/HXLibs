@@ -130,7 +130,7 @@ TEST_CASE("测试断开") {
     serv.addEndpoint<WS>("/ws/400", [] ENDPOINT {
         co_await res.setStatusAndContent(Status::CODE_400, "请携带token").sendRes();
     });
-    serv.asyncRun(1, []{}, utils::operator""_ms<"300">());
+    serv.asyncRun(1, []{}, 300_ms);
 
     HttpClient cli{};
     cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](net::WSClient ws) -> coroutine::Task<> {
@@ -166,7 +166,7 @@ TEST_CASE("测试断开") {
     }).wait();
 
     // 当服务器析构时候. 客户端还没有断开连接. 会导致循环关闭...
-    std::this_thread::sleep_for(utils::operator""_ms<"300">().toChrono());
+    std::this_thread::sleep_for((300_ms).toChrono());
 }
 
 TEST_CASE("测试超时后再ws") {
@@ -178,11 +178,11 @@ TEST_CASE("测试超时后再ws") {
     }).addEndpoint<GET>("/", [] ENDPOINT {
         co_await res.setStatusAndContent(Status::CODE_200, "!").sendRes();
     });
-    serv.asyncRun<decltype(utils::operator""_ms<"500">())>(1);
+    serv.asyncRun<decltype(500_ms)>(1);
     HttpClient cli;
     auto res = cli.get("http://127.0.0.1:28205/").get();
     log::hxLog.info("等待请求超时");
-    std::this_thread::sleep_for(decltype(utils::operator""_ms<"800">())::StdChronoVal);
+    std::this_thread::sleep_for(decltype(800_ms)::StdChronoVal);
     cli.wsLoop("ws://127.0.0.1:28205/ws/ok", [](WSClient ws) -> coroutine::Task<> {
         log::hxLog.info("读取到:", co_await ws.recvText());
     }).thenTry([](auto t) {

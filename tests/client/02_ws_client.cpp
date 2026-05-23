@@ -10,9 +10,9 @@ using namespace utils;
 using namespace std::chrono;
 
 coroutine::Task<> coMain() {
-    HttpClient cli{HttpClientOptions<decltype(3_s)>{}};
+    HttpClient cli{HttpClientOptions{}};
     log::hxLog.debug("开始请求");
-    co_await cli.coWsLoop("ws://127.0.0.1:28205/ws",
+    co_await cli.coWsLoop<decltype(3_s)>("ws://127.0.0.1:28205/ws",
         [](WSClient ws) -> coroutine::Task<> {
             co_await ws.sendText("hello");
             auto msg = co_await ws.recvText();
@@ -21,7 +21,7 @@ coroutine::Task<> coMain() {
         }
     );
     try {
-        co_await cli.coWsLoop("http://127.0.0.1:28205/ws",
+        co_await cli.coWsLoop<decltype(3_s)>("http://127.0.0.1:28205/ws",
             [](WSClient ws) -> coroutine::Task<> {
                 co_await ws.sendText("hello");
                 auto msg = co_await ws.recvText();
@@ -63,8 +63,8 @@ int main() {
 
     log::hxLog.warning("====== 测试同步 ======");
 
-    HttpClient cli{HttpClientOptions<decltype(3_s)>{}};
-    auto res = cli.wsLoop("ws://127.0.0.1:28205/ws",
+    HttpClient cli{};
+    auto res = cli.wsLoop<decltype(3_s)>("ws://127.0.0.1:28205/ws",
         [](WSClient ws) -> coroutine::Task<std::string> {
             co_await ws.sendText("hello 我是同步接口的协程回调");
             auto msg = co_await ws.recvText();
@@ -77,7 +77,7 @@ int main() {
     log::hxLog.info(res ? "get 收到:" : "get 失败:", res ? res.get() : res.what());
 
     log::hxLog.warning("====== 测试多消息 ======");
-    cli.wsLoop("ws://127.0.0.1:28205/ws/oku", [](WSClient ws) -> coroutine::Task<> {
+    cli.wsLoop<decltype(3_s)>("ws://127.0.0.1:28205/ws/oku", [](WSClient ws) -> coroutine::Task<> {
         try {
             for (;;)
                 log::hxLog.info("->:", co_await ws.recvText());

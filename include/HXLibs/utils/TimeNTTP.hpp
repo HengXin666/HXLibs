@@ -127,6 +127,8 @@ constexpr bool HasTimeNTTP = requires {
     { T::StdChronoVal };
 };
 
+namespace time_nttp_literals {
+
 template <meta::FixedString TimeStr>
 constexpr TimeNTTP<std::chrono::seconds,
                    internal::constexprCharToNum(meta::ToCharPack<TimeStr>{})>
@@ -182,5 +184,7 @@ constexpr TimeNTTP<std::chrono::nanoseconds,
 operator""_ns() {
     return {};
 }
+
+} // namespace time_nttp_literals
 
 } // namespace HX::utils

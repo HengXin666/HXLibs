@@ -36,7 +36,7 @@ TEST_CASE("一般性测试") {
     });
     server.asyncRun(1);
     
-    net::HttpClient cli{HttpClientOptions<decltype(utils::operator""_s<"60">())>{}};
+    net::HttpClient cli{};
     cli.uploadChunked<POST>("http://127.0.0.1:28205/saveFile", "./index.html")
         .thenTry([](container::Try<ResponseData> t) {
         if (!t) {

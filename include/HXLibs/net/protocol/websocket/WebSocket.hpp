@@ -34,6 +34,8 @@
 
 namespace HX::net {
 
+using namespace utils::time_nttp_literals;
+
 /**
  * @todo 专属 WS 的异常类型
  */
@@ -170,10 +172,10 @@ class WebSocket : public internal::WebSocketBase<Model> {
 
 public:
     // 默认Ping-Pong超时时间: 20s
-    using DefaultPPTimeout = decltype(utils::operator""_s<"20">());
+    using DefaultPPTimeout = decltype(20_s);
 
     // 默认读取数据的超时时间: 60s
-    using DefaultRDTimeout = decltype(utils::operator""_s<"60">());
+    using DefaultRDTimeout = decltype(60_s);
 
     WebSocket(IOType& io, std::vector<char> recvBuf)
         : Base{}

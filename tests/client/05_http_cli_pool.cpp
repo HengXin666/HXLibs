@@ -15,7 +15,7 @@ int main() {
                     .sendRes();
     });
     std::size_t n = 1;
-    server.asyncRun<decltype(utils::operator""_ms<"100">())>(1);
+    server.asyncRun<decltype(100_ms)>(1);
     HttpClientPool cliPool{n};
     for (std::size_t i = 0; i < 3; ++i) {
         cliPool.get("http://127.0.0.1:28205/get")
@@ -61,6 +61,6 @@ int main() {
             ;
     }
 
-    std::this_thread::sleep_for(decltype(utils::operator""_ms<"200">())::StdChronoVal);
+    std::this_thread::sleep_for(decltype(200_ms)::StdChronoVal);
     return 0;
 }

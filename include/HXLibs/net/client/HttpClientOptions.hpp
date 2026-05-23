@@ -22,7 +22,6 @@
 
 #include <HXLibs/net/protocol/http/Http.hpp>
 #include <HXLibs/net/protocol/proxy/Proxy.hpp>
-#include <HXLibs/utils/TimeNTTP.hpp>
 
 namespace HX::net {
 
@@ -55,17 +54,10 @@ struct ProxyType<NoneProxy> {
     }
 };
 
-template <
-    typename Timeout = decltype(utils::operator""_ms<"5000">()),
-    typename Proxy = NoneProxy
->
-    requires(utils::HasTimeNTTP<Timeout>)
+template <typename Proxy = NoneProxy>
 struct HttpClientOptions {
     // 代理地址
     ProxyType<Proxy> proxy = {};
-
-    // 超时时间
-    Timeout timeout = Timeout{}; // 5000ms
 };
 
 } // namespace HX::net

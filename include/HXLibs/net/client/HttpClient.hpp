@@ -28,6 +28,7 @@
 #include <HXLibs/coroutine/loop/EventLoop.hpp>
 #include <HXLibs/container/ThreadPool.hpp>
 #include <HXLibs/meta/ContainerConcepts.hpp>
+#include <HXLibs/utils/TimeNTTP.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
 #include <HXLibs/log/Log.hpp> // debug
@@ -42,11 +43,9 @@
 
 namespace HX::net {
 
-template <typename Timeout,
-          typename Proxy,
-          typename IOType
->
-    requires(utils::HasTimeNTTP<Timeout>)
+using namespace utils::time_nttp_literals;
+
+template <typename Proxy, typename IOType>
 class HttpBaseClient {
     using Request = HttpRequest<IOType>;
     using Response = HttpResponse<IOType>;
@@ -58,7 +57,7 @@ public:
      * @warning 当使用共享事件循环时候, 仅可使用协程函数, 使用其他函数可能因为线程竞争导致ub
      */
     HttpBaseClient(
-        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        HttpClientOptions<Proxy> options = HttpClientOptions{},
         std::shared_ptr<coroutine::EventLoop> loop = nullptr
     )
         : _options{std::move(options)}
@@ -105,12 +104,13 @@ public:
      * @param headers 请求头
      * @return container::FutureResult<>
      */
-    template <HttpMethod Method>
+    template <HttpMethod Method, typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> uploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
 #ifndef NDEBUG
         if (!_isUniqueEventLoop) [[unlikely]] {
@@ -129,7 +129,8 @@ public:
                 std::move(_url),
                 std::move(_path),
                 _contentType,
-                std::move(_headers)
+                std::move(_headers),
+                Timeout{}
             ).runSync();
         });
     }
@@ -143,12 +144,13 @@ public:
      * @param headers 请求头
      * @return coroutine::Task<>
      */
-    template <HttpMethod Method>
+    template <HttpMethod Method, typename Timeout = decltype(30_s)>
     coroutine::Task<container::Try<ResponseData>> coUploadChunked(
         std::string url,
         std::string path,
         HttpContentType contentType = HttpContentType::Text,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         auto task = [&]() -> coroutine::Task<ResponseData> {
             if (needConnect()) {
@@ -200,11 +202,19 @@ public:
      * @param url 请求的 URL
      * @return container::FutureResult<container::Try<ResponseData>>
      */
+    template <typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> get(
         std::string url,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        return requst<GET>(std::move(url), std::move(headers));
+        return requst<GET>(
+            std::move(url),
+            std::move(headers),
+            {},
+            HttpContentType::None,
+            Timeout{}
+        );
     }
 
     /**
@@ -212,11 +222,19 @@ public:
      * @param url 请求的 URL
      * @return coroutine::Task<ResponseData>
      */
+    template <typename Timeout = decltype(30_s)>
     coroutine::Task<container::Try<ResponseData>> coGet(
         std::string url,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
-        co_return co_await coRequst<GET>(std::move(url), std::move(headers));
+        co_return co_await coRequst<GET>(
+            std::move(url),
+            std::move(headers),
+            {},
+            HttpContentType::None,
+            Timeout{}
+        );
     }
 
     /**
@@ -226,15 +244,21 @@ public:
      * @param contentType 请求正文类型
      * @return container::FutureResult<container::Try<ResponseData>>
      */
+    template <typename Timeout = decltype(30_s)>
     container::FutureResult<container::Try<ResponseData>> post(
         std::string url,
         std::string body,
         HttpContentType contentType,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         return requst<POST>(
-            std::move(url), std::move(headers),
-            std::move(body), contentType);
+            std::move(url),
+            std::move(headers),
+            std::move(body),
+            contentType,
+            Timeout{}
+        );
     }
 
     /**
@@ -244,15 +268,21 @@ public:
      * @param contentType 请求正文类型
      * @return coroutine::Task<ResponseData>
      */
+    template <typename Timeout = decltype(30_s)>
     coroutine::Task<container::Try<ResponseData>> coPost(
         std::string url,
         std::string body,
         HttpContentType contentType,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         co_return co_await coRequst<POST>(
-            std::move(url), std::move(headers),
-            std::move(body), contentType);
+            std::move(url),
+            std::move(headers),
+            std::move(body),
+            contentType,
+            Timeout{}
+        );
     }
 
     /**
@@ -264,12 +294,17 @@ public:
      * @param contentType 正文类型
      * @return container::FutureResult<container::Try<ResponseData>> 响应数据
      */
-    template <HttpMethod Method, meta::StringType Str = std::string>
+    template <
+        HttpMethod Method,
+        typename Timeout = decltype(30_s),
+        meta::StringType Str = std::string
+    >
     container::FutureResult<container::Try<ResponseData>> requst(
         std::string url,
         HeaderHashMap headers = {},
         Str&& body = {},
-        HttpContentType contentType = HttpContentType::None
+        HttpContentType contentType = HttpContentType::None,
+        [[maybe_unused]] Timeout timeout = {}
     ) {
 #ifndef NDEBUG
         if (!_isUniqueEventLoop) [[unlikely]] {
@@ -284,7 +319,7 @@ public:
                               contentType] {
             return coRequst<Method>(
                 std::move(_url), std::move(_headers),
-                std::move(_body), contentType
+                std::move(_body), contentType, Timeout{}
             ).runSync();
         });
     }
@@ -298,12 +333,17 @@ public:
      * @param contentType 正文类型
      * @return coroutine::Task<ResponseData> 响应数据
      */
-    template <HttpMethod Method, meta::StringType Str = std::string>
+    template <
+        HttpMethod Method,
+        typename Timeout = decltype(30_s),
+        meta::StringType Str = std::string
+    >
     coroutine::Task<container::Try<ResponseData>> coRequst(
         std::string url,
         HeaderHashMap headers = {},
         Str&& body = {},
-        HttpContentType contentType = HttpContentType::None
+        HttpContentType contentType = HttpContentType::None,
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         auto task = [&]() -> coroutine::Task<ResponseData> {
             if (needConnect()) {
@@ -313,7 +353,8 @@ public:
                 std::move(url),
                 std::move(body),
                 contentType,
-                std::move(headers)
+                std::move(headers),
+                timeout
             );
         };
         // co_return _isUniqueEventLoop
@@ -401,6 +442,7 @@ public:
      * @return container::FutureResult<container::Try<Res>>
      */
     template <
+        typename Timeout = decltype(30_s),
         typename Func,
         typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
@@ -408,7 +450,8 @@ public:
     container::FutureResult<container::Try<Res>> wsLoop(
         std::string url,
         Func&& func,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
 #ifndef NDEBUG
         if (!_isUniqueEventLoop) [[unlikely]] {
@@ -421,7 +464,10 @@ public:
         return _pool.addTask([this, _url = std::move(url),
                               _func = std::forward<Func>(func), _headers = std::move(headers)]() mutable {
             return coWsLoop(
-                std::move(_url), std::forward<Func>(_func), std::move(_headers)
+                std::move(_url),
+                std::forward<Func>(_func),
+                std::move(_headers),
+                Timeout{}
             ).runSync();
         });
     }
@@ -435,11 +481,17 @@ public:
      * @return coroutine::Task<container::Try<Res>>
      */
     template <
+        typename Timeout = decltype(30_s),
         typename Func,
         typename Res = coroutine::AwaiterReturnType<std::invoke_result_t<Func, WebSocketClient<IOType>>>
     >
         requires(std::is_same_v<std::invoke_result_t<Func, WebSocketClient<IOType>>, coroutine::Task<Res>>)
-    coroutine::Task<container::Try<Res>> coWsLoop(std::string url, Func&& func, HeaderHashMap headers = {}) {
+    coroutine::Task<container::Try<Res>> coWsLoop(
+        std::string url,
+        Func&& func,
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
+    ) {
         container::Try<Res> res;
         auto taskObj = [&]() -> coroutine::Task<> {
             if (needConnect()) {
@@ -495,6 +547,7 @@ public:
     
     template <
         HttpMethod Method,
+        typename Timeout = decltype(30_s),
         typename Func,
         meta::StringType Str = std::string
     >
@@ -504,7 +557,8 @@ public:
         Func&& func,
         HeaderHashMap headers = {},
         Str&& body = {},
-        HttpContentType contentType = HttpContentType::None
+        HttpContentType contentType = HttpContentType::None,
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         auto task = [&]() -> coroutine::Task<> {
             if (needConnect()) {
@@ -629,7 +683,7 @@ private:
                         _io.get().resetSslBio();
                     }
                     // 初始化连接 (Https 握手)
-                    co_await _io.get().template initSsl<Timeout>(false);
+                    co_await _io.get().template initSsl<decltype(10_s)>(false);
                 }
 #endif // !HXLIBS_ENABLE_SSL
                 co_return;
@@ -654,12 +708,17 @@ private:
      * @param headers 请求头
      * @return coroutine::Task<ResponseData>
      */
-    template <HttpMethod Method, meta::StringType Str = std::string_view>
+    template <
+        HttpMethod Method,
+        meta::StringType Str = std::string_view,
+        typename Timeout = decltype(30_s)
+    >
     coroutine::Task<ResponseData> sendReq(
         std::string const& url,
         Str&& body = std::string_view{},
         HttpContentType contentType = HttpContentType::None,
-        HeaderHashMap headers = {}
+        HeaderHashMap headers = {},
+        [[maybe_unused]] Timeout timeout = {}
     ) {
         Request req{_io.get()};
         req.template setReqLine<Method>(UrlParse::extractPath(url));
@@ -741,7 +800,7 @@ private:
         req.tryAddHeaders("Date", utils::DateTimeFormat::makeHttpDate());
     }
 
-    HttpClientOptions<Timeout, Proxy> _options;
+    HttpClientOptions<Proxy> _options;
     std::shared_ptr<coroutine::EventLoop> _eventLoop;
     SocketFdType _cliFd;
     container::ThreadPool _pool;
@@ -757,34 +816,32 @@ private:
     bool _isUniqueEventLoop;
 };
 
-template <typename Timeout, typename Proxy>
-    requires(utils::HasTimeNTTP<Timeout>)
-class HttpClient : public HttpBaseClient<Timeout, Proxy, HttpIO> {
-    using Base = HttpBaseClient<Timeout, Proxy, HttpIO>;
+template <typename Proxy>
+class HttpClient : public HttpBaseClient<Proxy, HttpIO> {
+    using Base = HttpBaseClient<Proxy, HttpIO>;
 public:
     using Base::Base;
 
     HttpClient(
-        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        HttpClientOptions<Proxy> options = HttpClientOptions{},
         std::shared_ptr<coroutine::EventLoop> loop = nullptr
     )
         : Base(std::move(options), std::move(loop))
     {}
 };
 
-HttpClient() -> HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+HttpClient() -> HttpClient<NoneProxy>;
 
 #if HXLIBS_ENABLE_SSL
 
-template <typename Timeout, typename Proxy>
-    requires(utils::HasTimeNTTP<Timeout>)
-class HttpsClient : public HttpBaseClient<Timeout, Proxy, HttpsIO> {
-    using Base = HttpBaseClient<Timeout, Proxy, HttpsIO>;
+template <typename Proxy>
+class HttpsClient : public HttpBaseClient<Proxy, HttpsIO> {
+    using Base = HttpBaseClient<Proxy, HttpsIO>;
 public:
     using Base::Base;
 
     HttpsClient(
-        HttpClientOptions<Timeout, Proxy> options = HttpClientOptions{},
+        HttpClientOptions<Proxy> options = HttpClientOptions{},
         std::shared_ptr<coroutine::EventLoop> loop = nullptr
     )
         : Base(std::move(options), std::move(loop))
@@ -800,7 +857,7 @@ public:
     }
 };
 
-HttpsClient() -> HttpsClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+HttpsClient() -> HttpsClient<NoneProxy>;
 
 #endif // !HXLIBS_ENABLE_SSL
 

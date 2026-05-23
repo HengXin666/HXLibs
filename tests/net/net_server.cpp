@@ -37,7 +37,7 @@ void sayErr(
     log::hxLog.error(location.file_name(), '(', location.line(), "):", location.function_name(), ':', msg);
 }
 
-using WebClinet = HttpClient<decltype(utils::operator""_ms<"5000">()), NoneProxy>;
+using WebClinet = HttpClient<NoneProxy>;
 
 WebClinet makeClient(std::shared_ptr<coroutine::EventLoop> loop = nullptr) {
     // MSVC 无法基于 三元运算符进行 RVO 优化...
@@ -131,7 +131,7 @@ TEST_CASE("Test01: 测试 GET 请求 / AOP") {
     auto client = makeClient();
     initClient(client);
     {
-        auto t = client.get(makeUrl("127.0.0.1:28205/")).get();
+        auto t = client.get<decltype(5_s)>(makeUrl("127.0.0.1:28205/")).get();
         if (!t) {
             sayErr(t.what());
             CHECK(false);
@@ -147,7 +147,7 @@ TEST_CASE("Test01: 测试 GET 请求 / AOP") {
         }
     }
     {
-        auto t = client.get(makeUrl("127.0.0.1:28205/aop/default")).get();
+        auto t = client.get<decltype(5_s)>(makeUrl("127.0.0.1:28205/aop/default")).get();
         if (!t) {
             sayErr(t.what());
             CHECK(false);
@@ -163,7 +163,7 @@ TEST_CASE("Test01: 测试 GET 请求 / AOP") {
         }
     }
     {
-        auto t = client.get(makeUrl("127.0.0.1:28205/aop/return")).get();
+        auto t = client.get<decltype(5_s)>(makeUrl("127.0.0.1:28205/aop/return")).get();
         if (!t) {
             sayErr(t.what());
             CHECK(false);
@@ -276,7 +276,7 @@ TEST_CASE("Test02: 测试 WebSocket") {
     auto client = makeClient();
     initClient(client);
     {
-        client.wsLoop(
+        client.wsLoop<decltype(5_s)>(
             makeWsUrl("127.0.0.1:28205/ws/ok"),
             [] (net::WSClient ws) -> coroutine::Task<> {
                 CHECK(co_await ws.recvText() == "ws ok");
@@ -285,7 +285,7 @@ TEST_CASE("Test02: 测试 WebSocket") {
         ).wait();
     }
     {
-        client.wsLoop(
+        client.wsLoop<decltype(5_s)>(
             makeWsUrl("127.0.0.1:28205/ws/recv"),
             [] (net::WSClient ws) -> coroutine::Task<> {
                 auto str = net::internal::randomBase64();
@@ -296,7 +296,7 @@ TEST_CASE("Test02: 测试 WebSocket") {
         ).wait();
     }
     {
-        auto t = client.wsLoop(
+        auto t = client.wsLoop<decltype(5_s)>(
             makeWsUrl("127.0.0.1:28205/ws/upErr"),
             [] (auto) -> coroutine::Task<> {
                 co_return;
@@ -310,7 +310,7 @@ TEST_CASE("Test02: 测试 WebSocket") {
         }
     }
     {
-        auto t = client.wsLoop(
+        auto t = client.wsLoop<decltype(5_s)>(
             makeWsUrl("127.0.0.1:28205/ws/close"),
             [] (net::WSClient ws) -> coroutine::Task<> {
                 co_await ws.recvText();
@@ -335,14 +335,14 @@ TEST_CASE("Test02: 测试 WebSocket") {
             Test02Controller::Msg recvMsg;
             // 1. cli01/02 连接到 ws 中
             // 2. cli03 发送, server 广播
-            co_await (client01.coWsLoop(
+            co_await (client01.coWsLoop<decltype(5_s)>(
                 makeWsUrl("127.0.0.1:28205/ws/all/send"),
                 [&](net::WSClient ws) -> coroutine::Task<> {
                     for (std::size_t i = 0; i < n; ++i) {
                         CHECK(co_await ws.recvJson<Test02Controller::Msg>() == recvMsg);
                     }
                     co_await ws.close();
-                }) && client02.coWsLoop(
+                }) && client02.coWsLoop<decltype(5_s)>(
                 makeWsUrl("127.0.0.1:28205/ws/all/send"),
                 [&](net::WSClient ws) -> coroutine::Task<> {
                     for (std::size_t i = 0; i < n; ++i) {
@@ -357,7 +357,7 @@ TEST_CASE("Test02: 测试 WebSocket") {
                         recvMsg.msg = net::internal::randomBase64();
                         recvMsg.name = net::internal::randomBase64();
                         reflection::toJson(recvMsg, json);
-                        co_await client03.coPost(
+                        co_await client03.coPost<decltype(5_s)>(
                             makeUrl("127.0.0.1:28205/ws/addMsg"),
                             std::move(json),
                             HttpContentType::Json
@@ -424,42 +424,42 @@ TEST_CASE("测试路径参数解析") {
     }
     {
         // 无参数
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home"), "", JSON
         ).get();
         HX_CLIENT_CHECK("home");
     }
     {
         // 一个参数, 仅数字
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home/123"), "", JSON
         ).get();
         HX_CLIENT_CHECK("/home/123");
     }
     {
         // 一个参数, 混乱
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home/123dasdwaasdasdwasdwas2dwasdas88dwasdwfdcvxcvxcve2s"), "", JSON
         ).get();
         HX_CLIENT_CHECK("/home/123dasdwaasdasdwasdwas2dwasdas88dwasdwfdcvxcvxcve2s");
     }
     {
         // 两个参数
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home/123/link/qwq"), "", JSON
         ).get();
         HX_CLIENT_CHECK("123qwqok");
     }
     {
         // 一个参数, 包含之前前缀
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home/op/awa123"), "", JSON
         ).get();
         HX_CLIENT_CHECK("op:awa123");
     }
     {
         // 通配符
-        auto t = client.post(
+        auto t = client.post<decltype(5_s)>(
             makeUrl("127.0.0.1:28205/home/o1p/awa123/qwq666"), "", JSON
         ).get();
         HX_CLIENT_CHECK("all:/o1p/awa123/qwq666");

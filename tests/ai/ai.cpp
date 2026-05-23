@@ -116,7 +116,7 @@ public:
     }
 private:
     AiConfig _config;
-    net::HttpsClient<decltype(utils::operator""_s<"180">()), net::NoneProxy> _client;
+    net::HttpsClient<net::NoneProxy> _client;
 };
 
 } // namespace HX::ai
