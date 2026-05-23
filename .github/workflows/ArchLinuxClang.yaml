@@ -32,7 +32,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -B $(pwd)/build -S $(pwd) -G Ninja \
+          CC=clang CXX=clang++ cmake -B $(pwd)/build -S $(pwd) -G Ninja \
             -DCMAKE_BUILD_TYPE=${{matrix.mode}}
       - name: Build
         run: |
