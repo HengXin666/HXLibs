@@ -62,7 +62,7 @@ struct [[nodiscard]] Task {
     Task(Task const&) noexcept = delete;
     Task& operator=(Task const&) noexcept = delete;
 
-    constexpr Awaiter operator co_await() noexcept {
+    constexpr Awaiter operator co_await() const noexcept {
         return Awaiter{_handle};
     }
 

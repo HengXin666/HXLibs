@@ -152,3 +152,14 @@ CTestTestfile.cmake
 # VS2022 ==============================
 
 .vs/
+
+# py
+.venv
+__pycache__
+
+# ai cli
+.codex/
+.agents/
+.ai-task/
+.ai-cli/
+.ai-worktrees/
