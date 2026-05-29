@@ -17,8 +17,9 @@ class SerialScheduler {
             , _task{task}
         {}
         constexpr bool await_ready() const noexcept { return false; }
-        bool await_suspend(std::coroutine_handle<> co) const noexcept {
-            if (_mtx._q.empty()) {
+        constexpr bool await_suspend(std::coroutine_handle<> co) const noexcept {
+            if (!_mtx._runCnt) {
+                ++_mtx._runCnt;
                 _mtx._q.push({_task, std::noop_coroutine()});
                 return false;
             }
@@ -33,10 +34,11 @@ class SerialScheduler {
 
 #if 1
     coroutine::Task<> start() {
-        auto& [task, co] = _q.front();
+        auto [task, co] = std::move(_q.front());
+        _q.pop();
         co_await task;
         co.resume();
-        _q.pop();
+        --_runCnt;
         if (_q.empty()) {
             co_return;
         }
@@ -61,7 +63,7 @@ class SerialScheduler {
 public:
     coroutine::Task<> serial(coroutine::Task<> const& t) {
         co_await SerialAwaiter{*this, t};
-        if (std::get<std::coroutine_handle<>>(_q.front()) == std::noop_coroutine()) {
+        if (_runCnt == 1) {
             log::hxLog.warning("mi mi mi");
             co_await start();
         }
@@ -69,6 +71,7 @@ public:
 private:
     // 传递引用, 防止其因为析构引发的 段错误
     std::queue<std::tuple<coroutine::Task<> const&, std::coroutine_handle<>>> _q;
+    std::size_t _runCnt{};
 };
 
 struct Test {
@@ -152,6 +155,6 @@ private:
 };
 
 int main() {
-    // Test{}.run();
+    Test{}.run();
     TestIf1UseAfterFree{}.run();
 }
