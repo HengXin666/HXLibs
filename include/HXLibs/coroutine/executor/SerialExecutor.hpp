@@ -76,7 +76,7 @@ class SerialExecutor {
             , _task{task}
         {}
         constexpr bool await_ready() const noexcept { return false; }
-        constexpr bool await_suspend(std::coroutine_handle<> co) const noexcept {
+        bool await_suspend(std::coroutine_handle<> co) const noexcept {
             [[maybe_unused]] auto& [isRun, q, _] = *_mtx._runList;
             if (!isRun) {
                 q.push({_task, std::noop_coroutine()});
