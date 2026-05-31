@@ -208,7 +208,7 @@ public:
         HeaderHashMap headers = {},
         [[maybe_unused]] Timeout timeout = {}
     ) {
-        return requst<GET>(
+        return request<GET>(
             std::move(url),
             std::move(headers),
             {},
@@ -228,7 +228,7 @@ public:
         HeaderHashMap headers = {},
         [[maybe_unused]] Timeout timeout = {}
     ) {
-        co_return co_await coRequst<GET>(
+        co_return co_await coRequest<GET>(
             std::move(url),
             std::move(headers),
             {},
@@ -252,7 +252,7 @@ public:
         HeaderHashMap headers = {},
         [[maybe_unused]] Timeout timeout = {}
     ) {
-        return requst<POST>(
+        return request<POST>(
             std::move(url),
             std::move(headers),
             std::move(body),
@@ -276,7 +276,7 @@ public:
         HeaderHashMap headers = {},
         [[maybe_unused]] Timeout timeout = {}
     ) {
-        co_return co_await coRequst<POST>(
+        co_return co_await coRequest<POST>(
             std::move(url),
             std::move(headers),
             std::move(body),
@@ -299,7 +299,7 @@ public:
         typename Timeout = decltype(30_s),
         meta::StringType Str = std::string
     >
-    container::FutureResult<container::Try<ResponseData>> requst(
+    container::FutureResult<container::Try<ResponseData>> request(
         std::string url,
         HeaderHashMap headers = {},
         Str&& body = {},
@@ -317,7 +317,7 @@ public:
         return _pool.addTask([this, _url = std::move(url),
                               _body = std::move(body), _headers = std::move(headers),
                               contentType] {
-            return coRequst<Method>(
+            return coRequest<Method>(
                 std::move(_url), std::move(_headers),
                 std::move(_body), contentType, Timeout{}
             ).runSync();
@@ -338,7 +338,7 @@ public:
         typename Timeout = decltype(30_s),
         meta::StringType Str = std::string
     >
-    coroutine::Task<container::Try<ResponseData>> coRequst(
+    coroutine::Task<container::Try<ResponseData>> coRequest(
         std::string url,
         HeaderHashMap headers = {},
         Str&& body = {},

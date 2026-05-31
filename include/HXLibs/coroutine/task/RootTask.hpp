@@ -41,7 +41,7 @@ struct [[nodiscard]] RootTask {
         that._handle = nullptr;
     }
 
-    RootTask &operator=(RootTask&& that) noexcept {
+    RootTask& operator=(RootTask&& that) noexcept {
         std::swap(_handle, that._handle);
         return *this;
     }
@@ -49,11 +49,11 @@ struct [[nodiscard]] RootTask {
     RootTask(RootTask const&) noexcept = delete;
     RootTask& operator=(RootTask const&) noexcept = delete;
 #else
-    RootTask &operator=(RootTask&&) noexcept = delete;
+    RootTask& operator=(RootTask&&) noexcept = delete;
 #endif
 
-    void detach() && {
-        static_cast<std::coroutine_handle<>>(std::move(*this)).resume();
+    constexpr void detach() && {
+        _handle.resume();
     }
 
     ~RootTask() noexcept {

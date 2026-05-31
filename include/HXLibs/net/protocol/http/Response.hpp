@@ -108,7 +108,8 @@ private:
                 co_await io.fullySend("\n"sv);
                 break;
             } else {
-                co_await io.fullySend(val.substr(0, pos));
+                auto _ = val.substr(0, pos);
+                co_await io.fullySend(_);
                 co_await io.fullySend("\n"sv);
             }
             val = val.substr(pos + 1);
@@ -1035,7 +1036,7 @@ private:
             if (skPos >= pos) {
                 // 说明本行是 \n
                 _recvBuf.moveToHead(buf.substr(1)); // 跳过 \n
-                return true;
+                return sse;
             }
             auto key = buf.substr(0, skPos);
             if (key.size()) { // 仅 \n
@@ -1056,6 +1057,7 @@ private:
             }
             buf = buf.substr(pos + 1); // 跳过 \n
         }
+        _recvBuf.moveToHead(buf);
         return false;
     }
 

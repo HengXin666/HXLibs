@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <map>
+#include <list>
 #include <coroutine>
 
 namespace HX::coroutine {
@@ -29,6 +30,7 @@ namespace HX::coroutine {
  */
 struct TimerLoop {
     using TimerTree = std::multimap<std::chrono::system_clock::time_point, std::coroutine_handle<>>;
+    using YieldQueue = std::list<std::coroutine_handle<>>;
 
     TimerLoop& operator=(TimerLoop&&) = delete;
 
@@ -42,6 +44,10 @@ struct TimerLoop {
             } else {
                 return it->first - nowTime;
             }
+        }
+        while (_yieldQueue.size()) {
+            _yieldQueue.front().resume();
+            _yieldQueue.pop_front();
         }
         return {};
     }
@@ -91,6 +97,39 @@ struct TimerLoop {
         std::chrono::system_clock::time_point _expireTime;  // 过期时间
         mutable std::optional<TimerTree::iterator> _it;     // 红黑树迭代器
     };
+
+    struct [[nodiscard]] YieldAwaiter {
+        YieldAwaiter(TimerLoop* timerLoop)
+            : _timerLoop{timerLoop}
+            , _it{}
+        {}
+
+        YieldAwaiter(YieldAwaiter const&) = delete;
+        YieldAwaiter& operator=(YieldAwaiter const&) noexcept = delete;
+
+        YieldAwaiter(YieldAwaiter&&) = default;
+        YieldAwaiter& operator=(YieldAwaiter&&) noexcept = default;
+
+        bool await_ready() const noexcept {
+            return false;
+        }
+        void await_suspend(std::coroutine_handle<> coroutine) const noexcept {
+            _it = _timerLoop->_yieldQueue.insert(_timerLoop->_yieldQueue.end(), coroutine);
+        }
+        void await_resume() const noexcept {
+            _it.reset(); // 如果继续, 说明是从 TimerTree::run() 来的
+                         // 之后外界会执行 _yieldQueue.erase(_it)
+                         // 因此内部要执行 _it = {}, 防止多次 erase
+        }
+        ~YieldAwaiter() noexcept {
+            if (_it) {
+                _timerLoop->_yieldQueue.erase(*_it);
+            }
+        }
+    private:
+        TimerLoop* _timerLoop;
+        mutable std::optional<YieldQueue::iterator> _it;     // 红黑树迭代器
+    };
 private:
     struct [[nodiscard]] TimerAwaiterBuilder {
         TimerAwaiterBuilder(TimerLoop* timerLoop)
@@ -115,6 +154,12 @@ private:
         TimerAwaiter sleepUntil(std::chrono::system_clock::time_point expireTime) && {
             return TimerAwaiter{_timerLoop}.setExpireTime(expireTime);
         }
+        /**
+         * @brief 放弃当前执行权
+         */
+        YieldAwaiter yield() && {
+            return {_timerLoop};
+        }
         TimerLoop* _timerLoop;
     };
 public:
@@ -128,6 +173,7 @@ public:
     }
 private:
     TimerTree _timerTree;
+    YieldQueue _yieldQueue;
 };
 
 } // namespace HX::coroutine

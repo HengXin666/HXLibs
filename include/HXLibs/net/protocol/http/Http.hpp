@@ -157,6 +157,10 @@ struct SseEvent {
     std::string event;  // 事件名
     std::optional<std::string> id;                      // 断线恢复ID
     std::optional<std::chrono::milliseconds> retry;     // 重连时间
+
+    constexpr operator bool() noexcept {
+        return data.size() || event.size() || id || retry;
+    }
 };
 
 } // namespace HX::net

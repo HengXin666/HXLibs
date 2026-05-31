@@ -22,6 +22,9 @@
 
 #include <HXLibs/coroutine/task/Task.hpp>
 #include <HXLibs/coroutine/concepts/Awaiter.hpp>
+#include <HXLibs/container/Try.hpp>
+
+#include <HXLibs/log/Log.hpp> // debug
 
 namespace HX::coroutine {
 
@@ -74,20 +77,26 @@ template <std::size_t Idx, AwaitableLike T, typename Res>
 Task<std::coroutine_handle<>, WhenAllPromise> allStrat(
     T&& t, Res& res, WhenAllCtlBlock& ctlBlock
 ) {
-    if constexpr (Awaiter<T>) {
-        if constexpr (std::is_void_v<decltype(t.await_resume())>) {
-            static_cast<void>(co_await t);
+    try {
+        if constexpr (Awaiter<T>) {
+            if constexpr (std::is_void_v<decltype(t.await_resume())>) {
+                static_cast<void>(co_await t);
+                std::get<Idx>(res).setVal(container::NonVoidType<>{});
+            } else {
+                std::get<Idx>(res).setVal(co_await t);
+            }
+        } else if constexpr (Awaitable<T>) {
+            if constexpr (std::is_void_v<decltype(t.operator co_await().await_resume())>) {
+                static_cast<void>(co_await t);
+                std::get<Idx>(res).setVal(container::NonVoidType<>{});
+            } else {
+                std::get<Idx>(res).setVal(co_await t);
+            }
         } else {
-            std::get<Idx>(res) = co_await t;
+            static_assert(!sizeof(T), "The type is not Awaiter");
         }
-    } else if constexpr (Awaitable<T>) {
-        if constexpr (std::is_void_v<decltype(t.operator co_await().await_resume())>) {
-            static_cast<void>(co_await t);
-        } else {
-            std::get<Idx>(res) = co_await t;
-        }
-    } else {
-        static_assert(!sizeof(T), "The type is not Awaiter");
+    } catch (...) {
+        std::get<Idx>(res).setException(std::current_exception());
     }
     if (--ctlBlock.cnt) {
         co_return std::noop_coroutine();
@@ -98,7 +107,7 @@ Task<std::coroutine_handle<>, WhenAllPromise> allStrat(
 template <
     std::size_t... Idx,
     AwaitableLike... Ts,
-    typename Res = std::tuple<container::NonVoidType<AwaiterReturnType<Ts>>...>
+    typename Res = std::tuple<container::Try<AwaiterReturnType<Ts>>...>
 >
 Task<Res> whenAll(std::index_sequence<Idx...>, Ts&&... ts) {
     // 1. 定义返回值
@@ -134,7 +143,7 @@ auto whenAll(Ts&&... ts) {
 namespace internal {
 
 template <AwaitableLike... Ts>
-struct [[nodiscard]] WheyAllWrap {
+struct [[nodiscard]] WhenAllWrap {
 private:
     static constexpr auto makeWhenAll(std::tuple<Ts...>&& tp) noexcept {
         return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr {
@@ -142,8 +151,8 @@ private:
         } (std::make_index_sequence<sizeof...(Ts)>{});
     }
 public:
-    struct WheyWrapAwaiter {
-        WheyWrapAwaiter(std::tuple<Ts...>&& tp)
+    struct WhenWrapAwaiter {
+        WhenWrapAwaiter(std::tuple<Ts...>&& tp)
             : _whenAll{makeWhenAll(std::move(tp))}
         {}
         constexpr bool await_ready() const noexcept { return false; }
@@ -156,49 +165,49 @@ public:
             return _whenAll.getPromise().promise().result();
         }
         decltype(
-            WheyAllWrap<Ts...>::makeWhenAll(std::declval<std::tuple<Ts...>>())
+            WhenAllWrap<Ts...>::makeWhenAll(std::declval<std::tuple<Ts...>>())
         ) _whenAll;
     };
 
-    constexpr WheyAllWrap(Ts&&... ts) 
+    constexpr WhenAllWrap(Ts&&... ts) 
         : _tp{std::move(ts)...}
     {}
     
     [[nodiscard]] constexpr auto operator co_await() && noexcept {
-        return WheyWrapAwaiter{std::move(_tp)};
+        return WhenWrapAwaiter{std::move(_tp)};
     }
 private:
     std::tuple<Ts...> _tp;
 
     template <typename... Us, AwaitableLike U>
-    friend constexpr WheyAllWrap<Us..., U> operator&&(WheyAllWrap<Us...>&& ts, U&& u) noexcept;
+    friend constexpr WhenAllWrap<Us..., U> operator&&(WhenAllWrap<Us...>&& ts, U&& u) noexcept;
 
     template <typename... Us, AwaitableLike U>
-    friend constexpr WheyAllWrap<U, Us...> operator&&(U&& u, WheyAllWrap<Us...>&& ts) noexcept;
+    friend constexpr WhenAllWrap<U, Us...> operator&&(U&& u, WhenAllWrap<Us...>&& ts) noexcept;
 
     template <typename... Us, AwaitableLike... Es>
-    friend constexpr WheyAllWrap<Us..., Es...> operator&&(WheyAllWrap<Us...>&& ts, WheyAllWrap<Es...>&& us) noexcept;
+    friend constexpr WhenAllWrap<Us..., Es...> operator&&(WhenAllWrap<Us...>&& ts, WhenAllWrap<Es...>&& us) noexcept;
 };
 
 template <typename... Ts, AwaitableLike U>
-[[nodiscard]] constexpr WheyAllWrap<Ts..., U> operator&&(WheyAllWrap<Ts...>&& ts, U&& u) noexcept {
-    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAllWrap<Ts..., U> {
+[[nodiscard]] constexpr WhenAllWrap<Ts..., U> operator&&(WhenAllWrap<Ts...>&& ts, U&& u) noexcept {
+    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WhenAllWrap<Ts..., U> {
         return {std::move(std::get<Idx>(ts._tp))..., std::move(u)};
     } (std::make_index_sequence<sizeof...(Ts)>{});
 }
 
 template <typename... Ts, AwaitableLike U>
-[[nodiscard]] constexpr WheyAllWrap<U, Ts...> operator&&(U&& u, WheyAllWrap<Ts...>&& ts) noexcept {
-    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WheyAllWrap<U, Ts...> {
+[[nodiscard]] constexpr WhenAllWrap<U, Ts...> operator&&(U&& u, WhenAllWrap<Ts...>&& ts) noexcept {
+    return [&] <std::size_t... Idx> (std::index_sequence<Idx...>) constexpr -> WhenAllWrap<U, Ts...> {
         return {std::move(u), std::move(std::get<Idx>(ts._tp))...};
     } (std::make_index_sequence<sizeof...(Ts)>{});
 }
 
 template <typename... Ts, AwaitableLike... Us>
-[[nodiscard]] constexpr WheyAllWrap<Ts..., Us...> operator&&(WheyAllWrap<Ts...>&& ts, WheyAllWrap<Us...>&& us) noexcept {
+[[nodiscard]] constexpr WhenAllWrap<Ts..., Us...> operator&&(WhenAllWrap<Ts...>&& ts, WhenAllWrap<Us...>&& us) noexcept {
     return [&] <std::size_t... I, std::size_t... J> (
         std::index_sequence<I...>, std::index_sequence<J...>
-    ) constexpr -> WheyAllWrap<Ts..., Us...> {
+    ) constexpr -> WhenAllWrap<Ts..., Us...> {
         return {std::move(std::get<I>(ts._tp))..., std::move(std::get<J>(us._tp))...};
     } (std::make_index_sequence<sizeof...(Ts)>{}, std::make_index_sequence<sizeof...(Us)>{});
 }
@@ -206,7 +215,7 @@ template <typename... Ts, AwaitableLike... Us>
 } // namespace internal
 
 template <AwaitableLike T, AwaitableLike U>
-[[nodiscard]] constexpr internal::WheyAllWrap<T, U> operator&&(T&& t, U&& u) {
+[[nodiscard]] constexpr internal::WhenAllWrap<T, U> operator&&(T&& t, U&& u) {
     return {std::move(t), std::move(u)};
 }
 

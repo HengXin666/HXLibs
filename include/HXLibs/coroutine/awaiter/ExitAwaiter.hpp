@@ -32,7 +32,7 @@ template <typename T, typename P, bool IsStop = true>
 struct ExitAwaiter {
     using promise_type = P;
 
-    explicit ExitAwaiter(std::coroutine_handle<promise_type> coroutine)
+    explicit constexpr ExitAwaiter(std::coroutine_handle<promise_type> coroutine)
         : _coroutine(coroutine)
     {}
 
