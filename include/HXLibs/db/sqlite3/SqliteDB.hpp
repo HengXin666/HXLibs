@@ -56,13 +56,21 @@ struct SqliteDB : public DataBaseCrtp<SqliteDB>, private DataBaseInterface<Sqlit
     }
 
     void close() noexcept {
-        if (_db) {
-            ::sqlite3_close(_db);
-            _db = nullptr;
+        if (!_db) {
+            return;
         }
+#ifndef NDEBUG
+        sqlite3_stmt* stmt = nullptr;
+        while ((stmt = sqlite3_next_stmt(_db, stmt))) {
+            std::fprintf(stderr, "Leaked stmt: %s\n", ::sqlite3_sql(stmt));
+        }
+#endif
+        sqlite3_close(_db);
     }
 
     ~SqliteDB() noexcept {
+        // 需要清空缓存, 否则无法释放 sqlite3_close
+        Base::clearCache();
         close();
     }
 

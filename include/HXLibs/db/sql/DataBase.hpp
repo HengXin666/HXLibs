@@ -53,6 +53,13 @@ struct DataBaseCrtp {
         return *this;
     }
 
+    /**
+     * @brief 清空 预编译 sql 缓存
+     */
+    void clearCache() {
+        _sqlMap.clear();
+    }
+
 private:
     DataBaseCrtp() = default;
     friend CRTP;

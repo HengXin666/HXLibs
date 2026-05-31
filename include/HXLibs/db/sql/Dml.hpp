@@ -28,8 +28,6 @@
 #include <HXLibs/db/sql/Expression.hpp>
 #include <HXLibs/db/sql/ColumnResult.hpp>
 
-#include <HXLibs/log/Log.hpp> // debug
-
 namespace HX::db {
 
 namespace internal {
