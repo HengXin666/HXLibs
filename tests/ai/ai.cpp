@@ -126,7 +126,9 @@ struct ApiKey {
 };
 
 int main() {
+#if defined(HX_CTEST)
     return 0;
+#endif // !defined(HX_CTEST)
     using namespace HX;
     ApiKey key{};
     reflection::fromJson(key, utils::FileUtils::getFileContent("../../../../.env.json"));

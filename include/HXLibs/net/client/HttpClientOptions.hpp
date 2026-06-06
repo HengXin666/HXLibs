@@ -61,4 +61,3 @@ struct HttpClientOptions {
 };
 
 } // namespace HX::net
-

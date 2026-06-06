@@ -821,6 +821,7 @@ class HttpClient : public HttpBaseClient<Proxy, HttpIO> {
     using Base = HttpBaseClient<Proxy, HttpIO>;
 public:
     using Base::Base;
+    using IoType = HttpIO;
 
     HttpClient(
         HttpClientOptions<Proxy> options = HttpClientOptions{},
@@ -839,6 +840,7 @@ class HttpsClient : public HttpBaseClient<Proxy, HttpsIO> {
     using Base = HttpBaseClient<Proxy, HttpsIO>;
 public:
     using Base::Base;
+    using IoType = HttpsIO;
 
     HttpsClient(
         HttpClientOptions<Proxy> options = HttpClientOptions{},

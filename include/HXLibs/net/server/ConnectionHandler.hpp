@@ -62,7 +62,6 @@ struct ConnectionHandler {
                         req.getReqType(), 
                         req.getReqPath()
                     )(req, res);
-                    
                     // 只要不是明确写 close 的, 我就复用连接 (keep-alive)
                     if (auto it = req.getHeaders().find(CONNECTION_SV);
                         (it != req.getHeaders().end() && it->second == "close"sv)
@@ -70,9 +69,7 @@ struct ConnectionHandler {
                     ) [[unlikely]] {
                         break;
                     }
-    
                     // 写 (由端点内部完成)
-    
                     // 清空
                     co_await req.clear();
                     res.clear();
@@ -87,11 +84,9 @@ struct ConnectionHandler {
             log::hxLog.warning("已经开启Https, 不支持普通Http请求:", err.what());
         }
         log::hxLog.debug("连接已断开");
-
         co_await io.close();
         co_return;
     }
 };
 
 } // namespace HX::net
-
