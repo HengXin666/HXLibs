@@ -288,9 +288,10 @@ public:
 #elif defined(_WIN32)
 
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 
 #include <HXLibs/coroutine/loop/TimerLoop.hpp>
+#include <HXLibs/container/CoSharedPtr.hpp>
 #include <HXLibs/exception/ExceptionMode.hpp>
 
 namespace HX::coroutine {
@@ -301,7 +302,7 @@ struct Iocp;
 
 struct TaskCnt {
     std::size_t _numSqesPending;                // 未完成的任务数
-    std::unordered_set<::HANDLE> _runingHandle; // 防止重复加入监测
+    std::unordered_map<::HANDLE, container::CoSharedPtr<bool>> _runingHandle; // 防止重复加入监测
 };
 
 } // namespace internal
@@ -343,12 +344,12 @@ private:
      * @brief 非 RAII 的, 存放 OVERLAPPED 的类
      */
     struct _AioIocpData : public ::OVERLAPPED {
-        _AioIocpData(AioTask& self)
+        explicit _AioIocpData(AioTask& self)
             : ::OVERLAPPED{}
             , _self{self}
             , _isCancel{false}
         {
-            // std::memset(static_cast<::OVERLAPPED*>(this), 0, sizeof(::OVERLAPPED));
+            std::memset(static_cast<::OVERLAPPED*>(this), 0, sizeof(::OVERLAPPED));
         }
 
         _AioIocpData& operator=(_AioIocpData&&) noexcept = delete;
@@ -358,11 +359,12 @@ private:
         }
 
         bool isCancel() const noexcept {
-            return _isCancel;
+            return _isCancel || *_isClose;
         }
 
         AioTask& _self; // 注意! 当 res = err 或者 _iocpState & 1 == Cancel 时候,
                         // _self 为悬挂引用! (野指针)
+        container::CoSharedPtr<bool> _isClose{};
         bool _isCancel;
     };
 
@@ -383,7 +385,8 @@ private:
         if constexpr (IsAioTask) {
             ++_taskCnt._numSqesPending;
         }
-        if (runingHandleRef.count(h)) {
+        if (auto it = runingHandleRef.find(h); it != runingHandleRef.end()) {
+            _data->_isClose = it->second;
             return;
         }
         if (!::CreateIoCompletionPort(
@@ -392,7 +395,10 @@ private:
         ) {
             throw std::runtime_error{std::to_string(::GetLastError())};
         }
-        runingHandleRef.insert(h);
+        runingHandleRef.insert({
+            h,
+            _data->_isClose = container::makeCoSharedPtr<bool>(false)
+        });
     }
 
     template <bool IsAioTask = true>
@@ -841,17 +847,20 @@ int WSASend(
         // ::io_uring_prep_close(_sqe, fd);
         auto&& runingHandleRef = _taskCnt._runingHandle;
         bool ok = ::CloseHandle(fd);
+        auto it = runingHandleRef.find(fd);
         if (!ok) [[unlikely]] {
             // 如果这里抛异常了, 那是不是无法关闭?!
             // 除非 fd 根本就不是由 win32 创建的?!
             // 原本的东西留着也没有用了...
-            if (auto it = runingHandleRef.find(fd); it != runingHandleRef.end()) [[unlikely]] {
+            if (it != runingHandleRef.end()) [[unlikely]] {
+                *it->second = true; // 已经失效
                 runingHandleRef.erase(it);
                 throw std::runtime_error{
                     "CloseHandle ERROR: " + std::to_string(::GetLastError())};
             }
             // 那仅仅只是超时了 ...
         } else {
+            *it->second = true; // 已经失效
             runingHandleRef.erase(fd);
         }
         // @!!! 这里只能是同步的...
@@ -867,13 +876,13 @@ int WSASend(
         // ::io_uring_prep_close(_sqe, fd);
         auto&& runingHandleRef = _taskCnt._runingHandle;
         int ok = ::closesocket(socket);
+        auto it = runingHandleRef.find(reinterpret_cast<::HANDLE>(socket));
         if (ok == SOCKET_ERROR) [[unlikely]] {
             // 如果这里抛异常了, 那是不是无法关闭?!
             // 除非 fd 根本就不是由 win32 创建的?!
             // 原本的东西留着也没有用了...
-            if (auto it = runingHandleRef.find(reinterpret_cast<::HANDLE>(socket));
-                it != runingHandleRef.end()
-            ) [[unlikely]] {
+            if (it != runingHandleRef.end()) [[unlikely]] {
+                *it->second = true; // 已经失效
                 runingHandleRef.erase(it);
                 // @todo 应该返回一个 -err
                 throw std::runtime_error{
@@ -881,6 +890,7 @@ int WSASend(
             }
             // 超时了 ...
         } else {
+            *it->second = true; // 已经失效
             runingHandleRef.erase(reinterpret_cast<::HANDLE>(socket));
         }
         // @!!! 这里只能是同步的...
