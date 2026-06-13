@@ -7,9 +7,6 @@ file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS
 include_directories(tests/include)
 
 foreach(TEST_FILE ${TEST_FILES})
-    # 添加统一标识宏 [HX_CTEST]
-    add_definitions(-DHX_CTEST)
-
     # 将 tests/ 之后的路径提取出来 (相对路径)
     file(RELATIVE_PATH REL_TEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tests ${TEST_FILE})
 
@@ -30,8 +27,12 @@ foreach(TEST_FILE ${TEST_FILES})
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output/tests/${PARENT_DIR}
     )
 
-    # 添加 ctest 测试项
+    # 添加 ctest 测试项, 同时注入环境变量 HX_CTEST=1
+    # 这样只有通过 ctest 运行时才能检测到, 直接手动执行二进制则不会
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+    set_tests_properties(${TEST_NAME} PROPERTIES
+        ENVIRONMENT "HX_CTEST=1"
+    )
 
     # 设置 FOLDER 属性 (适用于 Visual Studio 工程组织)
     set_target_properties(${TEST_NAME} PROPERTIES FOLDER tests/${PARENT_DIR})

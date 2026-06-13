@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <HXLibs/net/Api.hpp>
 #include <HXLibs/log/Log.hpp>
 #include <HXLibs/log/serialize/CustomToString.hpp>
@@ -126,9 +127,7 @@ struct ApiKey {
 };
 
 int main() {
-#if defined(HX_CTEST)
-    return 0;
-#endif // !defined(HX_CTEST)
+    if (std::getenv("HX_CTEST")) { return 0; }
     using namespace HX;
     ApiKey key{};
     reflection::fromJson(key, utils::FileUtils::getFileContent("../../../../.env.json"));

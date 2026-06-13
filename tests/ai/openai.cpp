@@ -1,11 +1,12 @@
 #include <HXLibs/ai/openai.hpp>
 
+#include <cstdlib>
+#include <iostream>
+
 using namespace HX;
 
 int main() {
-#if defined(HX_CTEST)
-    return 0;
-#endif // !defined(HX_CTEST)
+    if (std::getenv("HX_CTEST")) { return 0; }
     auto loop = std::make_shared<coroutine::EventLoop>();
     ai::openai::OpenAiClient<net::HttpClient> aiCli{{
         .baseUrl="http://127.0.0.1:8792/v1",
@@ -37,22 +38,54 @@ int main() {
     log::hxLog.info(res.get());
 #else
     auto res = loop->trySync([&]() -> coroutine::Task<> {
-        co_await aiCli.coChat({
-            .model = "auto",
-            .messages={
-                {
-                    .role="user",
-                    .content="C++协程一般都是 单个线程内启动一个 调度器, 然后再开多个线程启动这个调度器任务的吗?"
+        std::vector<ai::openai::Message> msgs;
+        for (bool init{};;) {
+            std::string s;
+            if (!init) [[unlikely]] {
+                log::hxLog.warning("你好, 请问你有什么问题吗? (输入 /exit 可退出, 输入 /clear 可清空会话)");
+                init = true;
+            }
+            printf("\033[1;32m>> \033[0m \033[32m");
+            std::cin >> s;
+            if (s.empty()) [[unlikely]] {
+                break;
+            }
+            if (s.front() == '/') {
+                if (s == "/exit") {
+                    break;
                 }
+                if (s == "/clear") {
+                    log::hxLog.warning("已清空会话");
+                    msgs.clear();
+                    continue;
+                }
+                log::hxLog.error("未知命令! 请重新输入");
+                continue;
             }
-        }, [](auto ck) -> coroutine::Task<> {
-            if (ck.choices.front().delta.content) [[likely]] {
-                printf("%s", (*ck.choices.front().delta.content).data());
-            } else {
-                printf("\n");
-            }
-            co_return;
-        });
+            msgs.push_back({
+                .role=ai::openai::role::User,
+                .content=std::move(s)
+            });
+
+            printf("\033[1;32m GPT: \033[0m \033[32m");
+            co_await aiCli.coChat({
+                .model = "auto",
+                .messages=msgs
+            }, [&](auto ck) -> coroutine::Task<> {
+                if (auto& opt = ck.choices.front().delta.content; opt) [[likely]] {
+                    printf("%s", opt->data());
+                    s += std::move(*opt);
+                } else {
+                    printf("\033[0m\n");
+                }
+                co_return;
+            });
+            msgs.push_back({
+                .role=ai::openai::role::Assistant,
+                .content=std::move(s)
+            });
+        }
+        log::hxLog.warning("🙏 感谢使用~");
     }());
     if (!res) {
         log::hxLog.error(res.what());
