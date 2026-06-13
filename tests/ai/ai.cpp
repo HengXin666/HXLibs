@@ -127,7 +127,9 @@ struct ApiKey {
 };
 
 int main() {
-    if (std::getenv("HX_CTEST")) { return 0; }
+#ifdef HX_CTEST
+     return 0;
+#endif // !HX_CTEST
     using namespace HX;
     ApiKey key{};
     reflection::fromJson(key, utils::FileUtils::getFileContent("../../../../.env.json"));

@@ -1,12 +1,13 @@
 #include <HXLibs/ai/openai.hpp>
 
-#include <cstdlib>
 #include <iostream>
 
 using namespace HX;
 
 int main() {
-    if (std::getenv("HX_CTEST")) { return 0; }
+#ifdef HX_CTEST
+     return 0;
+#endif // !HX_CTEST
     auto loop = std::make_shared<coroutine::EventLoop>();
     ai::openai::OpenAiClient<net::HttpClient> aiCli{{
         .baseUrl="http://127.0.0.1:8792/v1",
