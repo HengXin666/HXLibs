@@ -90,3 +90,20 @@ TEST_CASE("带双引号的字符串josn") {
     reflection::fromJson(aa, json);
     CHECK(a == aa);
 }
+
+TEST_CASE("tuple") {
+    struct Tp {
+        std::tuple<std::tuple<int, std::vector<int>>, std::string> t;
+
+        bool operator==(Tp const& that) const noexcept {
+            return t == that.t;
+        }
+    };
+    Tp tp{{{1, {2, 3, 4,}}, "5"}};
+    std::string json;
+    reflection::toJson(tp, json);
+    log::hxLog.info(json);
+    Tp tpp{};
+    reflection::fromJson(tpp, json);
+    CHECK(tp == tpp);
+}

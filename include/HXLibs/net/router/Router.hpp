@@ -41,17 +41,17 @@ public:
 
     /**
      * @brief 获取路由
-     * @param method 
-     * @param path 
-     * @return EndpointFunc 
+     * @param method
+     * @param path
+     * @return EndpointFunc
      */
     const EndpointType& getEndpoint(
         std::string_view method,
         std::string_view path
     ) const {
         auto findLink = utils::StringUtil::split<std::string_view>(
-            path, 
-            "/", 
+            path,
+            "/",
             {method}
         );
         return _routerTree.find(findLink);
@@ -59,8 +59,8 @@ public:
 
     /**
      * @brief 设置路由找不到时候的端点函数
-     * @tparam Func 
-     * @tparam Interceptors 
+     * @tparam Func
+     * @tparam Interceptors
      * @param endpoint 端点函数
      * @param interceptors 拦截器
      */
@@ -106,8 +106,8 @@ public:
             ), ...);
         } else {
             (_addEndpoint<Methods>(
-                path, 
-                endpoint, 
+                path,
+                endpoint,
                 interceptors...
             ), ...);
         }
@@ -156,12 +156,12 @@ private:
 
     /**
      * @brief 添加路由端点
-     * @tparam Method 
-     * @tparam Func 
-     * @tparam Interceptors 
-     * @param path 
-     * @param endpoint 
-     * @param interceptors 
+     * @tparam Method
+     * @tparam Func
+     * @tparam Interceptors
+     * @param path
+     * @param endpoint
+     * @param interceptors
      */
     template <HttpMethod Method,
         typename Func,
@@ -289,7 +289,7 @@ private:
                     for (auto idx : indexArr) {
                         wildcarArr.emplace_back(pathSplitArr[idx].second);
                     }
-                    req._urlWildcardData = pathSplitArr.size() > UWPIndex 
+                    req._urlWildcardData = pathSplitArr.size() > UWPIndex
                             ? pureRequesPathView.substr(pathSplitArr[UWPIndex].first)
                             : ""sv;
                     req._wildcarDataArr = wildcarArr;
@@ -316,7 +316,7 @@ private:
             }
         }
         auto buildLink = utils::StringUtil::split<std::string_view>(
-            path, 
+            path,
             "/",
             {getMethodStringView(Method)}
         );
@@ -329,9 +329,9 @@ private:
 
     template <typename T>
     coroutine::Task<bool> doBefore(
-        T& interceptors, 
-        bool& ok, 
-        Request& req, 
+        T& interceptors,
+        bool& ok,
+        Request& req,
         Response& res
     ) const {
         if constexpr (requires {
@@ -356,9 +356,9 @@ private:
 
     template <typename T>
     coroutine::Task<bool> doAfter(
-        T& interceptors, 
-        bool& ok, 
-        Request& req, 
+        T& interceptors,
+        bool& ok,
+        Request& req,
         Response& res
     ) const {
         if constexpr (requires {

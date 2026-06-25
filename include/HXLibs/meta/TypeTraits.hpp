@@ -21,6 +21,7 @@
 #include <variant>
 #include <optional>
 #include <memory>
+#include <tuple>
 #include <type_traits>
 
 namespace HX::meta {
@@ -90,8 +91,7 @@ using RemoveOptionalWrapType = internal::RemoveOptionalWrapTypeImpl<T>::Type;
  */
 template <typename T>
 concept IsSmartPointerVal = std::same_as<T, std::unique_ptr<typename T::element_type>>
-                          || std::same_as<T, std::shared_ptr<typename T::element_type>>
-                          || std::same_as<T, std::weak_ptr<typename T::element_type>>;
+                          || std::same_as<T, std::shared_ptr<typename T::element_type>>;
 
 /**
  * @brief 类型萃取: 是否为 std::array 类型
@@ -111,6 +111,12 @@ template <typename T>
 concept IsSpanVal = requires (T&& t) {
     t.subspan(0);
 };
+
+template <typename T>
+constexpr bool IsTupleVal = false;
+
+template <typename... Ts>
+constexpr bool IsTupleVal<std::tuple<Ts...>> = true;
 
 /**
  * @brief 判断 T 是否可以从 Ts 中被唯一构造

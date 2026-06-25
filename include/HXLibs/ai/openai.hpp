@@ -154,6 +154,11 @@ public:
         }
     }
 
+    /**
+     * @brief 非流式请求, 基于 /chat/completions 端点
+     * @param body chat 请求
+     * @return auto 完整响应
+     */
     auto chat(ChatCompletionRequest body) {
         std::string bodyStr;
         body.stream = false;
@@ -166,6 +171,11 @@ public:
         );
     }
 
+    /**
+     * @brief 流式相应. 基于 /chat/completions 端点
+     * @tparam Func sse 回调, 要求函数参数为传入 ChatCompletionChunk 的 Task<> 协程
+     * @param body chat 请求
+     */
     template <typename Func>
         requires (std::same_as<std::invoke_result_t<Func, ChatCompletionChunk>, coroutine::Task<>>)
     coroutine::Task<container::Try<>> coChat(ChatCompletionRequest body, Func&& func) {
@@ -175,7 +185,8 @@ public:
         co_return co_await _cli.template coSseLoop<net::POST>(
             _cfg.baseUrl + "/chat/completions",
             [&](net::SseEvent sse) -> coroutine::Task<> {
-                if (sse.data == "[DONE]") [[unlikely]] {
+                using namespace std::string_view_literals;
+                if (sse.data == "[DONE]"sv) [[unlikely]] {
                     co_return;
                 }
                 ChatCompletionChunk chunk;

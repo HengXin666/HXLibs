@@ -62,6 +62,7 @@ TEST_CASE("json_all_case") {
         std::optional<std::string> d;
         std::shared_ptr<std::string> e;
         double f;
+        std::tuple<std::tuple<int, int>, std::string> g;
     } t{};
 
     reflection::fromJson(t, R"({
@@ -80,7 +81,11 @@ TEST_CASE("json_all_case") {
             ["单独一个"],
             ["多行\n字符串", "特殊字符\"\\\'", "空字符串", "\u4E2D\u6587"]
         ],
-        "e": "HelloPtr"
+        "e": "HelloPtr",
+        "g": [
+            [1, 2],
+            "tuple"
+        ]
     })");
 
     // 断言检查
@@ -105,6 +110,7 @@ TEST_CASE("json_all_case") {
     REQUIRE(t.b[2][1] == "特殊字符\"\\\'");
     REQUIRE(t.b[2][2] != "");
     REQUIRE(t.b[2][3] == "中文");
+    REQUIRE(t.g == std::tuple<std::tuple<int, int>, std::string>{{1, 2}, "tuple"});
 }
 
 TEST_CASE("json_read_array") {

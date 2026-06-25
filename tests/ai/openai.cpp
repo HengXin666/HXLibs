@@ -4,6 +4,9 @@
 
 using namespace HX;
 
+#define JSON_S(...)  std::string{#__VA_ARGS__, sizeof(#__VA_ARGS__)}
+#define JSON_SV(...) std::string_view{#__VA_ARGS__, sizeof(#__VA_ARGS__)}
+
 int main() {
 #ifdef HX_CTEST
      return 0;
@@ -71,13 +74,75 @@ int main() {
             printf("\033[1;32m GPT: \033[0m \033[32m");
             co_await aiCli.coChat({
                 .model = "auto",
-                .messages=msgs
-            }, [&](auto ck) -> coroutine::Task<> {
+                .messages=msgs,
+                .tools=std::vector<ai::openai::Tool>{
+                    ai::openai::Tool{
+                        .function={
+                            .name="read_file",
+                            .description="Read a UTF-8 text file from the local workspace",
+                            .parameters=JSON_S({
+                                "type": "object",
+                                "properties": {
+                                    "path": {
+                                        "type": "string",
+                                        "description": "Relative path inside the workspace."
+                                    }
+                                },
+                                "required": ["path"],
+                                "additionalProperties": false
+                            })
+                        }
+                    }, ai::openai::Tool{
+                        .function={
+                            .name="write_file",
+                            .description="Write UTF-8 text content to a file inside the local workspace",
+                            .parameters=JSON_S({
+                                "type": "object",
+                                "properties": {
+                                    "path": { "type": "string" },
+                                    "content": { "type": "string" },
+                                    "mode": {
+                                        "type": "string",
+                                        "enum": ["overwrite", "append"]
+                                    }
+                                },
+                                "required": ["path", "content", "mode"],
+                                "additionalProperties": false
+                            })
+                        }
+                    }, ai::openai::Tool{
+                        .function={
+                            .name="run_command",
+                            .description="Run a shell command in the local workspace and return stdout, stderr, and exit code",
+                            .parameters=JSON_S({
+                                "type": "object",
+                                "properties": {
+                                    "command": {
+                                        "type": "string",
+                                        "description": "Command to run."
+                                    },
+                                    "cwd": {
+                                        "type": "string",
+                                        "description": "Working directory relative to workspace."
+                                    }
+                                },
+                                "required": ["command"],
+                                "additionalProperties": false
+                            })
+                        }
+                    }
+                },
+                .tool_choice="auto"
+            }, [&](ai::openai::ChatCompletionChunk ck) -> coroutine::Task<> {
                 if (auto& opt = ck.choices.front().delta.content; opt) [[likely]] {
                     printf("%s", opt->data());
                     s += std::move(*opt);
                 } else {
                     printf("\033[0m\n");
+                }
+                for  (auto const& tool : ck.choices) {
+                    auto& d = tool.delta;
+                    log::hxLog.warning("<tools>:", d);
                 }
                 co_return;
             });

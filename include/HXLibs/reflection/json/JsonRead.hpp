@@ -370,6 +370,38 @@ struct FromJson {
         }
     }
 
+    template <typename T, typename It>
+        requires (meta::IsTupleVal<T>)
+    static void fromJson(T& t, It&& it, It&& end) {
+        skipWhiteSpace(it, end);
+        verify<'['>(it, end);
+
+        skipWhiteSpace(it, end);
+        if (*it == ']') [[unlikely]] {
+            ++it;
+            return;
+        }
+        // 解析数组 []
+        constexpr auto N = std::tuple_size_v<T>;
+        [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            ([&]() {
+                if (it == end) {
+                    return;
+                }
+                // 把内容移交
+                fromJson(std::get<I>(t), it, end);
+                skipWhiteSpace(it, end);
+                if (*it == ']') {
+                    ++it;
+                    return;
+                }
+                if constexpr (I != N -1) {
+                    verify<','>(it, end);
+                }
+            }(), ...);
+        }(std::make_index_sequence<N>{});
+    }
+
     template <meta::KeyValueContainer T, typename It>
     static void fromJson(T& t, It&& it, It&& end) {
         skipWhiteSpace(it, end);
@@ -468,4 +500,3 @@ void fromJson(T& t, std::string_view json) {
 }
 
 } // namespace HX::reflection
-

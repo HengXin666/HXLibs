@@ -29,6 +29,9 @@ if(CMAKE_PROJECT_NAME STREQUAL "HXLibs")
     # 开发模式启动全部功能
     set(HXLIBS_ENABLE_DB_SQLITE3 ON)
 
+    # 启用 CTest
+    include(CTest)
+
     include(cmake/utils.cmake)
     include(cmake/config.cmake)
     include(cmake/develop.cmake)

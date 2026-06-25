@@ -30,12 +30,18 @@ namespace HX::container {
  * @brief 基数树结点
  * @tparam T 存储的类型
  */
-template <typename K, typename T>
+template <
+    typename K,
+    typename T,
+    typename Hash = std::hash<K>,
+    typename Pred = std::equal_to<K>>
 struct RadixTreeNode {
     std::optional<T> val;
     std::unordered_map<
         K, 
-        std::shared_ptr<RadixTreeNode<K, T>>
+        std::shared_ptr<RadixTreeNode<K, T, Hash, Pred>>,
+        Hash,
+        Pred
     > child;
 
     RadixTreeNode() 

@@ -331,6 +331,21 @@ struct ToJson {
         s.back() = '}';
     }
 
+    // tuple
+    template <typename T, typename S>
+        requires (meta::IsTupleVal<T>)
+    static void toJson(T const& tp, S& s) {
+        s.push_back('[');
+        constexpr auto N = std::tuple_size_v<T>;
+        [&] <std::size_t... I> (std::index_sequence<I...>) constexpr {
+            ([&]() constexpr {
+                toJson(std::get<I>(tp), s);
+                s.push_back(',');
+            }(), ...);
+        }(std::make_index_sequence<N>{});
+        s.back() = ']';
+    }
+
     // opt
     template <typename T, typename S>
         requires (meta::IsOptionalVal<T>)

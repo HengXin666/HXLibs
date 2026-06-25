@@ -1,5 +1,7 @@
 # 开发日志
 
+- [2026-06-26 01:44:25] : 初步实现了 RPC (http) 的服务端和客户端, json 支持 tuple 的序列化与反序列化 (对应是 `[]`), 重大变更: 路由 从 `std::string_view` 变为了 `std::string`, 可能会对性能产生些微影响. 但原本的设计无法支持动态路由注册 (会出现悬垂引用); 新增函数名的反射 (暂时没有支持类型名称, 因为并不跨平台 (如: string))
+
 - [2026-06-12 21:09:00] : 新增协程共享智能指针, 修复 win 上的可能存在的 AioTask 协程的访问野指针的bug
 
 - [2026-06-07 02:07:16] : 新增模块 ai::openai::OpenAiClient 并且支持 `/chat/completions` 的协议
@@ -94,7 +96,7 @@
 
 ```cpp
 // 似乎 GCC 下存在问题: 调试看到 _isUniqueEventLoop = ture, 但是却走 tryAsync 分支...
-co_return _isUniqueEventLoop 
+co_return _isUniqueEventLoop
     ? _eventLoop->trySync(task())
     : co_await _eventLoop->tryAsync(task());
 
@@ -156,7 +158,7 @@ HX_CONTROLLER(LoliController) {
     // 可以进行依赖注入, 只需要定义变量
     HX_ENDPOINT_MAIN([[maybe_unused]] int a, [[maybe_unused]] std::string const& b) {
         auto loliPtr = std::make_shared<int>(); // 可以定义成员.
-    
+
         addEndpoint<GET>("/", [=] ENDPOINT {
             *loliPtr = 114514;
             co_return;
@@ -584,7 +586,7 @@ Transfer/sec:    290.31MB
 - [2025-1-26 23:01:55] : 支持解析路径参数(内部均以`std::string_view`方式实现, 性能好)
 - [2025-1-26 16:39:22] : 把响应的分开编码的api进行了迁移, 现在分块编码传输文件支持自动识别文件类型.
 - [2025-1-26 16:06:48] : 往`请求类`/`响应类`中内嵌的`io *`, 以便支持在端点内直接进行响应(如升级为`ws`), 以处理一个旧api对接问题.
-- [2025-1-26 00:07:31] : 重构了响应码, 简单添加了一些api, 优化了转化大小写的速度. (需要使用`<sys/uio.h>`/`io_uring_prep_writev`重构一下, 以提升性能?! 难搞! 如果后面需要支持iocp的话, 就跟麻烦了.. || 不对, `WSASend 的多缓冲区支持`(WSASend 的 lpBuffers 参数接受 WSABUF 数组，与 writev 或 io_uring_prep_writev 中的 iovec 类似); 可以稍微封装一下!)
+- [2025-1-26 00:07:31] : 重构了响应码, 简单添加了一些api, 优化了转化大小写的速度. (需要使用`<sys/uio.h>`/`io_uring_prep_writev`重构一下, 以提升性能?! 难搞! 如果后面需要支持iocp的话, 就跟麻烦了.. || 不对, `WSASend 的多缓冲区支持`(WSASend 的 lpBuffers 参数接受 WSABUF 数组, 与 writev 或 io_uring_prep_writev 中的 iovec 类似); 可以稍微封装一下!)
 - [2025-1-25 12:58:01] : 修改路由树使用`std::string_view`作为`std::unordered_map`的键, 修改`split`为模版, 使其更加通用.
 - [2025-1-24 20:02:28] : 初步架构了新的api宏, 并且修改了`ChatServer.cpp`中的代码, 看起来很高级.
 - [2025-1-23 23:12:01] : 完成新的支持切片编程的路由, 等待宏封装... (还需要测试`{}`与`**`的匹配, 因为路由部分为非递归编写!)

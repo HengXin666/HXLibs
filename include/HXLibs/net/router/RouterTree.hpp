@@ -28,13 +28,42 @@
 
 namespace HX::net {
 
+namespace internal {
+
+struct StrHash {
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>()(sv);
+    }
+
+    std::size_t operator()(std::string const& s) const noexcept {
+        return std::hash<std::string>()(s);
+    }
+
+    template <std::size_t N>
+    std::size_t operator()(const char (&s)[N]) const noexcept {
+        return operator()(std::string_view{s, N});
+    }
+};
+
+struct StrEq {
+    using is_transparent = void;
+
+    constexpr std::size_t operator()(std::string_view sv1, std::string_view sv2) const noexcept {
+        return sv1 == sv2;
+    }
+};
+
+} // namespace internal
+
 template <typename IOType>
 using EndpointFunc = std::function<coroutine::Task<>(HttpRequest<IOType>&, HttpResponse<IOType>&)>;
 
 template <typename IOType>
 class RouterTree {
     using EndpointType = EndpointFunc<IOType>;
-    using Node = container::RadixTreeNode<std::string_view, EndpointType>;
+    using Node = container::RadixTreeNode<std::string, EndpointType, internal::StrHash, internal::StrEq>;
 public:
     explicit RouterTree() 
         : _root(std::make_shared<Node>())
@@ -88,7 +117,7 @@ public:
             }
             auto findIt = node->child.find(key);
             if (findIt == node->child.end()) {
-                node = node->child[key] = std::make_shared<Node>();
+                node = node->child[std::string{key}] = std::make_shared<Node>();
             } else {
                 node = findIt->second;
             }

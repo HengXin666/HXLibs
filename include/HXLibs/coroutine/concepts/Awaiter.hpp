@@ -54,5 +54,18 @@ using AwaiterReturnType = decltype([](auto&& t) {
     }
 }(std::declval<T>()));
 
+/**
+ * @brief 去掉协程包裹
+ * @tparam T
+ */
+template <typename T>
+using RemoveAwaiterWrapType = decltype([] <typename U> (U&&) {
+    if constexpr (AwaitableLike<U>) {
+        return AwaiterReturnType<U>{};
+    } else {
+        return U{};
+    }
+}(std::declval<T>()));
+
 } // namespace HX::coroutine
 

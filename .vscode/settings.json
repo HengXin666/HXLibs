@@ -14,5 +14,6 @@
             "icon": "terminal-cmd"
         }
     },
-    "editor.tabSize": 4
+    "editor.tabSize": 4,
+    "window.title": "${rootName}${separator}${activeEditorShort} [WD:5effe7]"
 }

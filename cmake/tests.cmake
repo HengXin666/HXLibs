@@ -6,11 +6,6 @@ file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS
 # 添加 include 路径
 include_directories(tests/include)
 
-function(hx_add_ctest TEST_NAME)
-    target_compile_definitions(${TEST_NAME} PRIVATE HX_CTEST)
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
-endfunction()
-
 foreach(TEST_FILE ${TEST_FILES})
     # 将 tests/ 之后的路径提取出来 (相对路径)
     file(RELATIVE_PATH REL_TEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tests ${TEST_FILE})
@@ -32,14 +27,18 @@ foreach(TEST_FILE ${TEST_FILES})
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output/tests/${PARENT_DIR}
     )
 
-    # 注入测试编译宏, 用于 #ifdef HX_CTEST 屏蔽不适合自动测试的逻辑
-    hx_add_ctest(${TEST_NAME})
-
     # 设置 FOLDER 属性 (适用于 Visual Studio 工程组织)
     set_target_properties(${TEST_NAME} PROPERTIES FOLDER tests/${PARENT_DIR})
 
     # 在 IDE 中显示原始结构
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_FILE})
+
+    # 注册为 CTest 测试
+    add_test(
+        NAME ${TEST_NAME}
+        COMMAND ${TEST_NAME}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/output/tests/${PARENT_DIR}
+    )
 
     # 启用 AddressSanitizer(仅 Debug 模式)
     if(HX_DEBUG_BY_ADDRESS_SANITIZER)

@@ -128,7 +128,7 @@ inline constexpr std::string_view getTypeNameAndNamespace() noexcept {
     auto pos = split.find(';');
     split = split.substr(0, pos);
 #elif defined(_MSC_VER)
-    auto split = funcName.substr(funcName.rfind("getTypeName<") + sizeof("getTypeName<") - 1);
+    auto split = funcName.substr(funcName.rfind("getTypeNameAndNamespace<") + sizeof("getTypeNameAndNamespace<") - 1);
     auto pos = split.find('<');
     if (pos != std::string_view::npos) {
         split = split.substr(0, pos);
