@@ -41,10 +41,11 @@ struct StrHash {
         return std::hash<std::string>()(s);
     }
 
-    template <std::size_t N>
-    std::size_t operator()(const char (&s)[N]) const noexcept {
-        return operator()(std::string_view{s, N});
-    }
+    // 此次仅被下文的 find("**") 使用到. 替换为 find("**"sv) 即可
+    // template <std::size_t N>
+    // constexpr std::size_t operator()(const char (&s)[N]) const noexcept {
+    //     return operator()(std::string_view{s, N - (s[N - 1] == '\0')});
+    // }
 };
 
 struct StrEq {
@@ -144,16 +145,14 @@ private:
         using namespace std::string_view_literals;
         std::array<std::string_view const, 2> arr{findLink.front(), "*"sv};
         for (auto const findStr : arr) {
-            auto it = node->child.find(findStr);
-            if (it != node->child.end()) {
+            if (auto it = node->child.find(findStr); it != node->child.end()) {
                 if (auto* res = _find(findLink.subspan(1), it->second)) {
                     return res;
                 }
             }
         }
         // 处理通配符
-        auto it = node->child.find("**");
-        if (it != node->child.end()) {
+        if (auto it = node->child.find("**"sv); it != node->child.end()) {
             return _find({}, it->second);
         }
         return nullptr;
@@ -168,4 +167,3 @@ private:
 };
 
 } // namespace HX::net
-
