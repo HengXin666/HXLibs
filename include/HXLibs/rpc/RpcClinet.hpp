@@ -52,7 +52,7 @@ public:
         typename Res = typename decltype(FuncName{Func})::ResType,
         typename... Args
     >
-    coroutine::Task<coroutine::RemoveAwaiterWrapType<Res>> req(Args&&... args) {
+    coroutine::Task<coroutine::RemoveAwaiterWrapType<Res>> call(Args&&... args) {
 #if 0
         [] <typename... Ts> (meta::Wrap<Ts...>) {
             constexpr auto IsCntSame = sizeof...(Ts) == sizeof...(Args);

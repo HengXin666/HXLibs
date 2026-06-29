@@ -21,7 +21,7 @@ int main() {
     cli.setBaseUrl("http://127.0.0.1:9090/rpc");
     {
         int to{1};
-        auto res = coroutine::EventLoop{}.trySync(cli.req<addTo>(1, to));
+        auto res = coroutine::EventLoop{}.trySync(cli.call<addTo>(1, to));
         if (!res) [[unlikely]] {
             log::hxLog.error("???:", res.what());
             return 1;
@@ -31,7 +31,7 @@ int main() {
 
     {
         std::string to{"1"};
-        auto res = coroutine::EventLoop{}.trySync(cli.req<addStr>("1", to));
+        auto res = coroutine::EventLoop{}.trySync(cli.call<addStr>("1", to));
         if (!res) [[unlikely]] {
             log::hxLog.error("???:", res.what());
             return 1;
