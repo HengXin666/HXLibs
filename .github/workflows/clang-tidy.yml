@@ -1,0 +1,91 @@
+name: Static Analysis (clang-tidy)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    env:
+      CLANG_TIDY_CHECKS: clang-diagnostic-*,clang-analyzer-*,bugprone-*,performance-*,portability-*,readability-*
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: 安装环境
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl sqlite python
+
+      - name: 确认工具版本
+        run: |
+          clang++ --version
+          clang-tidy --version
+          cmake --version
+
+      - name: 生成编译数据库
+        run: |
+          CC=clang CXX=clang++ cmake -B "${GITHUB_WORKSPACE}/build" -S "${GITHUB_WORKSPACE}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_WARNING=OFF \
+            -DENABLE_SANITIZER=OFF
+
+      - name: 运行 clang-tidy
+        id: analyze
+        shell: bash
+        run: |
+          set +e
+          mkdir -p reports/clang-tidy
+          mapfile -t files < <(python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path("build/compile_commands.json").read_text())
+          for item in data:
+              file = Path(item["file"])
+              try:
+                  print(file.relative_to(Path.cwd()))
+              except ValueError:
+                  print(file)
+          PY
+          )
+          clang-tidy -p build \
+            --checks="${CLANG_TIDY_CHECKS}" \
+            --warnings-as-errors='*' \
+            "${files[@]}" 2>&1 | tee reports/clang-tidy/raw.log
+          status=${PIPESTATUS[0]}
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: 生成中文 HTML 报告
+        run: |
+          python .github/scripts/static_analysis_report.py \
+            --tool clang-tidy \
+            --input reports/clang-tidy/raw.log \
+            --output-dir reports/clang-tidy \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --context-lines 4
+          cat reports/clang-tidy/summary.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: 上传报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-html-report
+          path: reports/clang-tidy/
+          if-no-files-found: error
+
+      - name: 根据 clang-tidy 结果设置状态
+        run: |
+          if [ "${{ steps.analyze.outputs.exit_code }}" != "0" ]; then
+            echo "clang-tidy 发现问题或执行失败，详情见 Job Summary 和 clang-tidy-html-report artifact。"
+            exit 1
+          fi

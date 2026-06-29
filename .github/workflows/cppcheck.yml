@@ -1,0 +1,80 @@
+name: Static Analysis (cppcheck)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cppcheck:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: 安装环境
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm gcc clang cmake ninja pkgconf openssl sqlite cppcheck python
+
+      - name: 确认工具版本
+        run: |
+          cppcheck --version
+          cmake --version
+
+      - name: 生成编译数据库
+        run: |
+          CC=clang CXX=clang++ cmake -B "${GITHUB_WORKSPACE}/build" -S "${GITHUB_WORKSPACE}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_WARNING=OFF \
+            -DENABLE_SANITIZER=OFF
+
+      - name: 运行 cppcheck
+        id: analyze
+        shell: bash
+        run: |
+          set +e
+          mkdir -p reports/cppcheck
+          cppcheck --project=build/compile_commands.json \
+            --enable=warning,style,performance,portability,information \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            --xml \
+            --xml-version=2 \
+            --error-exitcode=1 \
+            2> reports/cppcheck/raw.xml
+          status=$?
+          cat reports/cppcheck/raw.xml
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: 生成中文 HTML 报告
+        run: |
+          python .github/scripts/static_analysis_report.py \
+            --tool cppcheck \
+            --input reports/cppcheck/raw.xml \
+            --output-dir reports/cppcheck \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --context-lines 4
+          cat reports/cppcheck/summary.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: 上传报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-html-report
+          path: reports/cppcheck/
+          if-no-files-found: error
+
+      - name: 根据 cppcheck 结果设置状态
+        run: |
+          if [ "${{ steps.analyze.outputs.exit_code }}" != "0" ]; then
+            echo "cppcheck 发现问题或执行失败，详情见 Job Summary 和 cppcheck-html-report artifact。"
+            exit 1
+          fi
