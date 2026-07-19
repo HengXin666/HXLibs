@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm gcc cmake ninja pkgconf openssl curl util-linux python python-pip jdk17-openjdk maven git make
+          pacman -S --noconfirm gcc cmake ninja pkgconf openssl curl unzip util-linux python python-pip jdk17-openjdk maven git make
       - name: Install FastAPI
         run: |
           python3 -m venv .benchmark-venv
