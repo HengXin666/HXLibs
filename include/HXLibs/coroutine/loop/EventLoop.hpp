@@ -97,7 +97,7 @@ inline unsigned int getIoUringMaxSize() {
 }
 
 struct IoUring {
-    explicit IoUring(unsigned int size = 128U)
+    explicit IoUring(unsigned int size = 1024U)
         : _ring{}
         , _numSqesPending{}
     {
@@ -519,4 +519,3 @@ private:
 };
 
 } // namespace HX::coroutine
-
