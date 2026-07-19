@@ -148,12 +148,14 @@ start_server() {
 }
 
 run_one() {
-    local name="$1"
-    local repeat="$2"
-    local path="${3:-/}"
+    local server="$1"
+    local scenario="$2"
+    local repeat="$3"
+    local path="${4:-/}"
+    local name="${server}-${scenario}"
     printf 'repeat=%s server=%s server_cpus=%s client_cpus=%s\n' \
         "${repeat}" "${name}" "${SERVER_CPUS}" "${CLIENT_CPUS}"
-    start_server "${name}"
+    start_server "${server}"
 
     taskset -c "${CLIENT_CPUS}" "${BIN_DIR}/wrk" \
         -t"${WRK_THREADS}" -c"${CONNECTIONS}" -d"${WARMUP}s" \
@@ -177,7 +179,8 @@ for ((repeat = 1; repeat <= REPEATS; ++repeat)); do
     for ((index = 0; index < ${#SERVERS[@]}; ++index)); do
         server_index=$(( (index + offset) % ${#SERVERS[@]} ))
         for scenario in "${SCENARIOS[@]}"; do
-            [[ "${scenario}" == html ]] && run_one "${SERVERS[server_index]}-html" "${repeat}" /page.html || run_one "${SERVERS[server_index]}-hello" "${repeat}" /
+            [[ "${scenario}" == html ]] && path=/page.html || path=/
+            run_one "${SERVERS[server_index]}" "${scenario}" "${repeat}" "${path}"
         done
     done
 done
