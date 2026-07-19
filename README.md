@@ -1,5 +1,11 @@
 <h1 align="center" style="color:yellow">HXLibs</h1>
 
+<p align="center">
+  <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white" alt="C++20"></a>
+  <a href="https://cmake.org/"><img src="https://img.shields.io/badge/CMake-3.15%2B-064F8C?logo=cmake&logoColor=white" alt="CMake 3.15+"></a>
+  <a href="https://github.com/HengXin666/HXLibs/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="Apache-2.0 license"></a>
+</p>
+
 ## 一、概述
 
 HXLibs 是一个现代 C++ 库. 目前集合了:
@@ -1089,6 +1095,30 @@ TEST_CASE("sqlite3/select: bind") {
      ).exec();
 }
 ```
+
+### 3.6 HX::rpc (RPC 模块)
+
+RPC 模块基于 HTTP 服务端、客户端和反射序列化。服务端注册函数后，客户端通过模板调用：
+
+```cpp
+#include <HXLibs/rpc/RpcClinet.hpp>
+#include <HXLibs/rpc/RpcServer.hpp>
+
+using namespace HX;
+
+int addTo(int a, int& b) { return b += a; }
+
+rpc::RpcServer server{9090};
+server.bind<addTo>();
+server.getServer().asyncRun(1);
+
+rpc::RpcClient client{net::HttpClientOptions<>{}};
+client.setBaseUrl("http://127.0.0.1:9090/rpc");
+int value{1};
+auto result = coroutine::EventLoop{}.trySync(client.call<addTo>(1, value));
+```
+
+完整的服务端/客户端调用示例见 [`tests/rpc/rpcTest.cpp`](tests/rpc/rpcTest.cpp)。
 
 ## 四、相关依赖
 
