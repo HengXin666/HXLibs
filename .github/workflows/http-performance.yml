@@ -3,9 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Measured seconds per run'; required: true; default: '15'
+        description: 'Measured seconds per run'
+        required: true
+        default: '15'
       repeats:
-        description: 'Runs per server'; required: true; default: '3'
+        description: 'Runs per server'
+        required: true
+        default: '3'
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
