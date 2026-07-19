@@ -19,6 +19,8 @@
  */
 
 #include <coroutine>
+#include <concepts>
+#include <type_traits>
 
 namespace HX::coroutine {
 
@@ -68,4 +70,3 @@ using RemoveAwaiterWrapType = decltype([] <typename U> (U&&) {
 }(std::declval<T>()));
 
 } // namespace HX::coroutine
-
