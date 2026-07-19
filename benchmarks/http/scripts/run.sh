@@ -73,7 +73,7 @@ if [[ ! -x "${BUILD_DIR}/nginx/sbin/nginx" ]]; then
     exit 1
 fi
 
-mkdir -p "${RESULT_DIR}/logs" "${BUILD_DIR}/nginx-run"
+mkdir -p "${RESULT_DIR}/logs" "${BUILD_DIR}/nginx-run/logs"
 : > "${RESULT_DIR}/results.jsonl"
 
 readarray -t ALLOWED_CPUS < <(python3 - <<'PY'

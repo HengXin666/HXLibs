@@ -55,7 +55,6 @@ if [[ ! -x "${BUILD_DIR}/nginx/sbin/nginx" ]]; then
         cd "${SOURCE_DIR}/nginx"
         ./auto/configure \
             --prefix="${BUILD_DIR}/nginx" \
-            --without-http_rewrite_module \
             --without-http_gzip_module \
             --with-cc-opt="-O3 -DNDEBUG"
         make -j"$(nproc)"
