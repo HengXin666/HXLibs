@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     coro_http_server server{workers, static_cast<unsigned short>(port)};
     server.set_http_handler<GET>("/", [](coro_http_request&, coro_http_response& response) {
         response.set_status_and_content(status_type::ok, "Hello World!",
-                                        content_type::text);
+                                        content_encoding::none);
     });
     server.sync_start();
 }
