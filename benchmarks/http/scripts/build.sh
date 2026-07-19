@@ -75,7 +75,6 @@ cp "${BUILD_DIR}/cmake/bin/bench-yalantinglibs" "${BIN_DIR}/bench-yalantinglibs"
     printf 'wrk=%s (4.2.0)\n' "${WRK_COMMIT}"
     c++ --version | head -n 1
     cmake --version | head -n 1
-    "${BIN_DIR}/wrk" --version 2>&1
     "${BUILD_DIR}/nginx/sbin/nginx" -v 2>&1
 } > "${BUILD_DIR}/versions.txt"
 
