@@ -135,6 +135,10 @@ start_server() {
     for _ in {1..100}; do
         if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
             printf '%s exited during startup; see %s\n' "${SERVER_NAME}" "${log_file}" >&2
+            if [[ -s "${log_file}" ]]; then
+                printf '%s startup log:\n' "${SERVER_NAME}" >&2
+                sed 's/^/  /' "${log_file}" >&2
+            fi
             exit 1
         fi
         body="$(curl --silent --show-error --max-time 1 "http://127.0.0.1:${PORT}/" || true)"
