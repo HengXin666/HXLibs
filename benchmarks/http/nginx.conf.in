@@ -1,0 +1,25 @@
+daemon off;
+worker_processes @WORKERS@;
+worker_rlimit_nofile 65535;
+error_log stderr warn;
+pid @PREFIX@/nginx.pid;
+
+events {
+    worker_connections 8192;
+    multi_accept on;
+}
+
+http {
+    access_log off;
+    server_tokens off;
+    keepalive_requests 1000000;
+    keepalive_timeout 30s;
+
+    server {
+        listen 127.0.0.1:@PORT@ reuseport backlog=8192;
+        default_type text/plain;
+        location = / {
+            return 200 "Hello World!";
+        }
+    }
+}
