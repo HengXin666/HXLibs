@@ -6,8 +6,16 @@ on:
         description: '每轮正式采样秒数（建议至少 60 秒）'
         required: true
         default: '60'
+      warmup:
+        description: '每轮预热秒数'
+        required: true
+        default: '15'
       repeats:
         description: '每个实现 / 优化 / 场景的重复轮次'
+        required: true
+        default: '3'
+      cooldown:
+        description: '轮次间冷却秒数'
         required: true
         default: '3'
 jobs:
@@ -34,7 +42,9 @@ jobs:
       - name: 运行长时多场景压测
         env:
           BENCH_DURATION: ${{ inputs.duration }}
+          BENCH_WARMUP: ${{ inputs.warmup }}
           BENCH_REPEATS: ${{ inputs.repeats }}
+          BENCH_COOLDOWN: ${{ inputs.cooldown }}
         run: benchmarks/http/scripts/run.sh
       - name: 发布中文 HTML 报告
         if: always()
