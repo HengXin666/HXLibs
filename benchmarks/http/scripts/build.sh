@@ -69,7 +69,9 @@ for optimization in "${OPTIMIZATIONS[@]}"; do
 done
 
 make -C "${SOURCE_DIR}/wrk" clean >/dev/null 2>&1 || true
-make -C "${SOURCE_DIR}/wrk" -j"$(nproc)" CC=clang CFLAGS="-O3 -DNDEBUG"
+# CFLAGS 必须通过环境传入；若作为 make 命令行变量，会覆盖 wrk Makefile
+# 追加的 LuaJIT/OpenSSL include 路径，最终导致 lua.h 找不到。
+CFLAGS="-O3 -DNDEBUG" make -C "${SOURCE_DIR}/wrk" -j"$(nproc)" CC=clang
 cp "${SOURCE_DIR}/wrk/wrk" "${BIN_DIR}/wrk"
 
 (cd "${BENCH_DIR}/servers/spring-app" && mvn -q -DskipTests package)
