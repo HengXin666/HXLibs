@@ -3,6 +3,7 @@
 #include <charconv>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <string_view>
 
 #include "benchmark_payloads.hpp"
@@ -28,6 +29,9 @@ int main(int argc, char** argv) {
 
     auto const port = argc > 1 ? parsePositive(argv[1], "port") : 18080;
     auto const workers = argc > 2 ? parsePositive(argv[2], "workers") : 1;
+    auto const assetDir = std::string{argc > 3 ? argv[3] : "benchmarks/http/assets"};
+    auto const htmlPath = assetDir + "/page.html";
+    auto const payloadPath = assetDir + "/payload.bin";
     if (port > 65535) {
         std::cerr << "port must be at most 65535\n";
         return EXIT_FAILURE;
@@ -39,12 +43,17 @@ int main(int argc, char** argv) {
     }).addEndpoint<GET>("/api/users", [] ENDPOINT {
         co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::json)
             .setContentType(JSON).sendRes();
-    }).addEndpoint<GET>("/page.html", [] ENDPOINT {
-        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::html)
-            .setContentType(HTML).sendRes();
-    }).addEndpoint<GET>("/payload.bin", [] ENDPOINT {
-        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::payload64k)
-            .setContentType(HttpContentType::OctetStream).sendRes();
+    }).addEndpoint<GET>("/api/users/{userId}/orders/{orderId}", [] ENDPOINT {
+        auto query = req.getParseQueryParameters();
+        std::string body = "{\"user_id\":" + req.getPathParam(0).to<std::string>()
+            + ",\"order_id\":" + req.getPathParam(1).to<std::string>()
+            + ",\"page\":" + query["page"] + ",\"limit\":" + query["limit"]
+            + ",\"sort\":\"" + query["sort"] + "\"}";
+        co_await res.setStatusAndContent(Status::CODE_200, body).setContentType(JSON).sendRes();
+    }).addEndpoint<GET>("/page.html", [htmlPath] ENDPOINT {
+        co_await res.useRangeTransferFile(req.getRangeRequestView(), htmlPath);
+    }).addEndpoint<GET>("/payload.bin", [payloadPath] ENDPOINT {
+        co_await res.useRangeTransferFile(req.getRangeRequestView(), payloadPath);
     });
     server.syncRun(workers);
 }

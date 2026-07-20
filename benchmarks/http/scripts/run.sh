@@ -12,10 +12,10 @@ readonly ASSET_DIR="${BUILD_DIR}/assets"
 readonly PORT="${BENCH_PORT:-18080}"
 # 长时间、多轮采样才能让 CPU 频率、连接池和分配器进入稳定状态。
 # 本地冒烟测试仍可通过 BENCH_DURATION/BENCH_REPEATS 覆盖这些默认值。
-readonly DURATION="${BENCH_DURATION:-120}"
-readonly WARMUP="${BENCH_WARMUP:-20}"
-readonly REPEATS="${BENCH_REPEATS:-5}"
-readonly COOLDOWN="${BENCH_COOLDOWN:-5}"
+readonly DURATION="${BENCH_DURATION:-60}"
+readonly WARMUP="${BENCH_WARMUP:-15}"
+readonly REPEATS="${BENCH_REPEATS:-3}"
+readonly COOLDOWN="${BENCH_COOLDOWN:-3}"
 
 SERVER_PID=""
 SERVER_LABEL=""
@@ -125,6 +125,12 @@ if [[ ! -x "${BIN_DIR}/wrk" ]]; then
     printf 'Missing %s; run scripts/build.sh first.\n' "${BIN_DIR}/wrk" >&2
     exit 1
 fi
+if [[ ! -f "${ASSET_DIR}/page.html" || ! -f "${ASSET_DIR}/payload.bin" ]]; then
+    printf 'Missing benchmark assets in %s; run scripts/build.sh first.\n' "${ASSET_DIR}" >&2
+    exit 1
+fi
+readonly PAGE_BYTES="$(stat -c '%s' "${ASSET_DIR}/page.html")"
+readonly PAYLOAD_BYTES="$(stat -c '%s' "${ASSET_DIR}/payload.bin")"
 
 ulimit -n 65535 2>/dev/null || true
 mkdir -p "${RESULT_DIR}/logs"
@@ -133,8 +139,7 @@ mkdir -p "${RESULT_DIR}/logs"
 for optimization in O2 O3; do
     nginx_run_prefix="${BUILD_DIR}/nginx-run-${optimization}"
     mkdir -p "${nginx_run_prefix}/logs" "${nginx_run_prefix}/html"
-    cp "${BUILD_DIR}/nginx-${optimization}/html/payload.bin" \
-        "${nginx_run_prefix}/html/payload.bin"
+    cp "${ASSET_DIR}/payload.bin" "${nginx_run_prefix}/html/payload.bin"
     cp "${ASSET_DIR}/page.html" "${nginx_run_prefix}/html/page.html"
     sed -e "s|@WORKERS@|${WORKERS}|g" \
         -e "s|@PORT@|${PORT}|g" \
@@ -166,7 +171,7 @@ start_server() {
             BENCH_ASSET_DIR="${ASSET_DIR}" taskset -c "${SERVER_CPUS}" python3 "${BENCH_DIR}/servers/fastapi_server.py" "${PORT}" "${WORKERS}" >"${log_file}" 2>&1 &
             ;;
         SpringBoot)
-            taskset -c "${SERVER_CPUS}" java -XX:ActiveProcessorCount="${WORKERS}" \
+            BENCH_ASSET_DIR="${ASSET_DIR}" taskset -c "${SERVER_CPUS}" java -XX:ActiveProcessorCount="${WORKERS}" \
                 -jar "${BENCH_DIR}/servers/spring-app/target/spring-bench-1.jar" \
                 --server.port="${PORT}" >"${log_file}" 2>&1 &
             ;;
@@ -188,7 +193,21 @@ start_server() {
         fi
         body="$(curl --silent --show-error --max-time 1 "http://127.0.0.1:${PORT}/" || true)"
         if [[ "${body}" == "Hello World!" ]]; then
-            return
+            page_bytes="$(curl --silent --show-error --max-time 2 --output /dev/null \
+                --write-out '%{size_download}' "http://127.0.0.1:${PORT}/page.html" || true)"
+            payload_bytes="$(curl --silent --show-error --max-time 2 --output /dev/null \
+                --write-out '%{size_download}' "http://127.0.0.1:${PORT}/payload.bin" || true)"
+            route_body="$(curl --silent --show-error --max-time 2 \
+                "http://127.0.0.1:${PORT}/api/users/1001/orders/90001?page=2&limit=20&sort=name" || true)"
+            if [[ "${page_bytes}" == "${PAGE_BYTES}" \
+                && "${payload_bytes}" == "${PAYLOAD_BYTES}" \
+                && "${route_body}" == *'90001'* && "${route_body}" == *'name'* ]]; then
+                return
+            fi
+            printf '%s endpoint self-check failed: html=%s/%s payload=%s/%s route=%s\n' \
+                "${SERVER_LABEL}" "${page_bytes}" "${PAGE_BYTES}" \
+                "${payload_bytes}" "${PAYLOAD_BYTES}" "${route_body}" >&2
+            exit 1
         fi
         sleep 0.1
     done
@@ -238,10 +257,10 @@ readonly CONFIGURATIONS=(
 readonly SCENARIOS=(
     "hello|低并发|/|${LOW_CONNECTIONS}"
     "json-api|标准并发|/api/users|${CONNECTIONS}"
-    "route-query|路由与参数解析|/api/users?page=2&limit=20&sort=name|${CONNECTIONS}"
+    "route-query|动态路由与参数解析|/api/users/1001/orders/90001?page=2&limit=20&sort=name|${CONNECTIONS}"
     "html-page|标准并发|/page.html|${CONNECTIONS}"
     "payload-64k|带宽负载|/payload.bin|${LOW_CONNECTIONS}"
-    "mixed-traffic|高并发|/,/api/users,/,/page.html,/api/users,/,/payload.bin,/page.html|${HIGH_CONNECTIONS}"
+    "mixed-traffic|高并发|/,/api/users,/api/users/1001/orders/90001?page=2&limit=20&sort=name,/,/page.html,/api/users,/,/payload.bin,/page.html|${HIGH_CONNECTIONS}"
 )
 
 for ((repeat = 1; repeat <= REPEATS; ++repeat)); do

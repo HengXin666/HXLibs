@@ -9,6 +9,9 @@ ASSETS=os.getenv('BENCH_ASSET_DIR', '.')
 async def hello(): return PlainTextResponse('Hello World!')
 @app.get('/api/users')
 async def users(): return JSONResponse(USERS)
+@app.get('/api/users/{user_id}/orders/{order_id}')
+async def route_query(user_id: int, order_id: int, page: int, limit: int, sort: str):
+    return {'user_id':user_id,'order_id':order_id,'page':page,'limit':limit,'sort':sort}
 @app.get('/page.html')
 async def page(): return FileResponse(os.path.join(ASSETS, 'page.html'), media_type='text/html')
 @app.get('/payload.bin')

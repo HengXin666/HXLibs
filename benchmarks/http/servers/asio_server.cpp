@@ -5,6 +5,7 @@
 #include <array>
 #include <charconv>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string_view>
@@ -23,8 +24,30 @@ std::string makeResponse(std::string_view contentType, std::string_view body) {
 
 std::string const kHelloResponse = makeResponse("text/plain", benchmark_payloads::hello);
 std::string const kJsonResponse = makeResponse("application/json", benchmark_payloads::json);
-std::string const kHtmlResponse = makeResponse("text/html; charset=utf-8", benchmark_payloads::html);
-std::string const kPayloadResponse = makeResponse("application/octet-stream", benchmark_payloads::payload64k);
+std::string kAssetDir;
+
+std::string makeFileResponse(std::string_view name, std::string_view contentType) {
+    std::ifstream file{kAssetDir + "/" + std::string{name}, std::ios::binary};
+    std::string body{std::istreambuf_iterator<char>{file}, {}};
+    return makeResponse(contentType, body);
+}
+
+std::string makeRouteResponse(std::string_view target) {
+    auto const users = target.find("/api/users/");
+    auto const orders = target.find("/orders/", users + 11);
+    auto const query = target.find('?', orders + 8);
+    auto const userId = target.substr(users + 11, orders - (users + 11));
+    auto const orderId = target.substr(orders + 8, query - (orders + 8));
+    auto const page = target.find("page=", query) + 5;
+    auto const limit = target.find("limit=", query) + 6;
+    auto const sort = target.find("sort=", query) + 5;
+    auto body = "{\"user_id\":" + std::string{userId} + ",\"order_id\":"
+        + std::string{orderId} + ",\"page\":"
+        + std::string{target.substr(page, target.find('&', page) - page)}
+        + ",\"limit\":" + std::string{target.substr(limit, target.find('&', limit) - limit)}
+        + ",\"sort\":\"" + std::string{target.substr(sort)} + "\"}";
+    return makeResponse("application/json", body);
+}
 
 std::size_t parsePositive(char const* value, char const* name) {
     std::size_t result{};
@@ -53,12 +76,18 @@ private:
                 }
                 auto const begin = asio::buffers_begin(self->buffer_.data());
                 std::string_view request{&*begin, bytes};
-                if (request.starts_with("GET /api/users ")) {
+                if (request.starts_with("GET /api/users/") && request.find("/orders/") != std::string_view::npos) {
+                    auto const targetEnd = request.find(' ', 4);
+                    self->owned_response_ = makeRouteResponse(request.substr(4, targetEnd - 4));
+                    self->response_ = &self->owned_response_;
+                } else if (request.starts_with("GET /api/users ")) {
                     self->response_ = &kJsonResponse;
                 } else if (request.starts_with("GET /page.html ")) {
-                    self->response_ = &kHtmlResponse;
+                    self->owned_response_ = makeFileResponse("page.html", "text/html; charset=utf-8");
+                    self->response_ = &self->owned_response_;
                 } else if (request.starts_with("GET /payload.bin ")) {
-                    self->response_ = &kPayloadResponse;
+                    self->owned_response_ = makeFileResponse("payload.bin", "application/octet-stream");
+                    self->response_ = &self->owned_response_;
                 } else {
                     self->response_ = &kHelloResponse;
                 }
@@ -80,6 +109,7 @@ private:
     asio::ip::tcp::socket socket_;
     asio::streambuf buffer_;
     std::string const* response_{&kHelloResponse};
+    std::string owned_response_;
 };
 
 class Server {
@@ -112,6 +142,7 @@ private:
 int main(int argc, char** argv) {
     auto const port = argc > 1 ? parsePositive(argv[1], "port") : 18080;
     auto const workers = argc > 2 ? parsePositive(argv[2], "workers") : 1;
+    kAssetDir = argc > 3 ? argv[3] : "benchmarks/http/assets";
     if (port > 65535) {
         std::cerr << "port must be at most 65535\n";
         return EXIT_FAILURE;

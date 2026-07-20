@@ -25,6 +25,10 @@ http {
             default_type application/json;
             return 200 '{"users":[{"id":1001,"name":"Alice","active":true,"roles":["admin","editor"]},{"id":1002,"name":"Bob","active":true,"roles":["viewer"]},{"id":1003,"name":"Carol","active":false,"roles":["viewer","billing"]}],"page":1,"page_size":20,"total":3}';
         }
+        location ~ ^/api/users/([0-9]+)/orders/([0-9]+)$ {
+            default_type application/json;
+            return 200 '{"user_id":$1,"order_id":$2,"page":$arg_page,"limit":$arg_limit,"sort":"$arg_sort"}';
+        }
         location = /page.html {
             root @PREFIX@/html;
         }

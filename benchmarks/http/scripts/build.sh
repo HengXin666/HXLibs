@@ -86,11 +86,6 @@ for optimization in "${OPTIMIZATIONS[@]}"; do
             --with-cc-opt="-${optimization} -DNDEBUG"
         make -j"$(nproc)"
         make install
-        python3 - "${nginx_prefix}/html/payload.bin" <<'PY'
-import pathlib
-import sys
-pathlib.Path(sys.argv[1]).write_bytes(b'x' * (64 * 1024))
-PY
     )
 done
 

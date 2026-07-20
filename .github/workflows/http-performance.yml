@@ -3,20 +3,20 @@ on:
   workflow_dispatch:
     inputs:
       duration:
-        description: '每轮正式采样秒数（建议至少 120 秒）'
+        description: '每轮正式采样秒数（建议至少 60 秒）'
         required: true
-        default: '120'
+        default: '60'
       repeats:
         description: '每个实现 / 优化 / 场景的重复轮次'
         required: true
-        default: '5'
+        default: '3'
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
       options: --privileged
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies

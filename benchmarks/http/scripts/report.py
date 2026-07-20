@@ -16,7 +16,7 @@ from collections import defaultdict
 SCENARIO_NAMES = {
     "hello": "短响应 / 低并发",
     "json-api": "JSON API / 标准并发",
-    "route-query": "URL 路由与查询参数解析",
+    "route-query": "动态 URL 路由与参数解析",
     "html-page": "HTML 页面 / 标准并发",
     "payload-64k": "64 KiB 响应 / 带宽负载",
     "mixed-traffic": "混合流量 / 高并发",
@@ -216,7 +216,7 @@ def main() -> None:
   <header class="hero">
     <div class="eyebrow"><span class="pulse"></span>HXLibs Performance Lab</div>
     <h1>HTTP 性能实验室</h1>
-    <div class="subtitle">Clang O2 / O3 双优化矩阵，覆盖短响应、JSON API、HTML 页面、64 KiB 传输与混合流量。所有差距只在相同场景、负载和连接数内计算。</div>
+    <div class="subtitle">Clang O2 / O3 双优化矩阵，覆盖短响应、JSON API、动态路由与参数解析、真实 HTML / 64 KiB 文件传输及混合流量。所有差距只在相同场景、负载和连接数内计算。</div>
     <div class="hero-meta" id="heroMeta"></div>
   </header>
 
@@ -268,9 +268,9 @@ const scenarioSelect=$('scenarioSelect'),profileSelect=$('profileSelect'),optimi
 const scenarios=[...new Map(all.map(x=>[x.scenario,x.scenario_name])).entries()];
 const initial=scenarios.some(x=>x[0]==='mixed-traffic')?'mixed-traffic':(scenarios[0]?.[0]||'');
 scenarioSelect.innerHTML=scenarios.map(([id,name])=>`<option value="${id}" ${id===initial?'selected':''}>${name}</option>`).join('');
-function updateProfiles(){const profiles=[...new Set(all.filter(x=>x.scenario===scenarioSelect.value).map(x=>x.profile))];profileSelect.innerHTML=['全部负载（分别展示）',...profiles].map(x=>`<option>${x}</option>`).join('')}
+function updateProfiles(){const previous=profileSelect.value,profiles=[...new Set(all.filter(x=>x.scenario===scenarioSelect.value).map(x=>x.profile))],options=['全部负载（分别展示）',...profiles];profileSelect.innerHTML=options.map(x=>`<option>${x}</option>`).join('');profileSelect.value=options.includes(previous)?previous:options[0]}
 function gapClass(n){return n<.05?'gap-best':n<15?'gap-mid':'gap-high'}
-function render(){updateProfiles();const aggregate=profileSelect.value==='全部负载（分别展示）';let rows=all.filter(x=>x.scenario===scenarioSelect.value&&(aggregate||x.profile===profileSelect.value)&&(optimizationSelect.value==='all'||x.optimization===optimizationSelect.value)).sort((a,b)=>b.rps.median-a.rps.median);
+function render(){const aggregate=profileSelect.value==='全部负载（分别展示）';let rows=all.filter(x=>x.scenario===scenarioSelect.value&&(aggregate||x.profile===profileSelect.value)&&(optimizationSelect.value==='all'||x.optimization===optimizationSelect.value)).sort((a,b)=>b.rps.median-a.rps.median);
   const chips=Object.entries(payload.metadata).slice(0,6).map(([k,v])=>`<span class="chip">${k} · ${v}</span>`);$('heroMeta').innerHTML=chips.join('')+`<span class="chip">${payload.sample_count} 条有效样本</span>`;
   if(!rows.length){$('throughputBars').innerHTML='<div class="empty">当前筛选条件没有数据</div>';$('resultBody').innerHTML='';return}
   const best=rows[0],latRows=rows.filter(x=>x.latency.p99>0).sort((a,b)=>a.latency.p99-b.latency.p99),bestLat=latRows[0];
