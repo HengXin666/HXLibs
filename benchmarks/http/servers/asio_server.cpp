@@ -11,15 +11,20 @@
 #include <thread>
 #include <vector>
 
+#include "benchmark_payloads.hpp"
+
 namespace {
 
-constexpr std::string_view kResponse =
-    "HTTP/1.1 200 OK\r\n"
-    "Content-Type: text/plain\r\n"
-    "Content-Length: 12\r\n"
-    "Connection: keep-alive\r\n"
-    "\r\n"
-    "Hello World!";
+std::string makeResponse(std::string_view contentType, std::string_view body) {
+    return "HTTP/1.1 200 OK\r\nContent-Type: " + std::string{contentType}
+        + "\r\nContent-Length: " + std::to_string(body.size())
+        + "\r\nConnection: keep-alive\r\n\r\n" + std::string{body};
+}
+
+std::string const kHelloResponse = makeResponse("text/plain", benchmark_payloads::hello);
+std::string const kJsonResponse = makeResponse("application/json", benchmark_payloads::json);
+std::string const kHtmlResponse = makeResponse("text/html; charset=utf-8", benchmark_payloads::html);
+std::string const kPayloadResponse = makeResponse("application/octet-stream", benchmark_payloads::payload64k);
 
 std::size_t parsePositive(char const* value, char const* name) {
     std::size_t result{};
@@ -46,6 +51,17 @@ private:
                 if (ec) {
                     return;
                 }
+                auto const begin = asio::buffers_begin(self->buffer_.data());
+                std::string_view request{&*begin, bytes};
+                if (request.starts_with("GET /api/users ")) {
+                    self->response_ = &kJsonResponse;
+                } else if (request.starts_with("GET /page.html ")) {
+                    self->response_ = &kHtmlResponse;
+                } else if (request.starts_with("GET /payload.bin ")) {
+                    self->response_ = &kPayloadResponse;
+                } else {
+                    self->response_ = &kHelloResponse;
+                }
                 self->buffer_.consume(bytes);
                 self->write();
             });
@@ -53,7 +69,7 @@ private:
 
     void write() {
         auto self = shared_from_this();
-        asio::async_write(socket_, asio::buffer(kResponse),
+        asio::async_write(socket_, asio::buffer(*response_),
             [self](std::error_code ec, std::size_t) {
                 if (!ec) {
                     self->read();
@@ -63,6 +79,7 @@ private:
 
     asio::ip::tcp::socket socket_;
     asio::streambuf buffer_;
+    std::string const* response_{&kHelloResponse};
 };
 
 class Server {

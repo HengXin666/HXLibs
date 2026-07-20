@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string_view>
 
+#include "benchmark_payloads.hpp"
+
 namespace {
 
 std::size_t parsePositive(char const* value, char const* name) {
@@ -33,7 +35,16 @@ int main(int argc, char** argv) {
 
     HttpServer server{static_cast<std::uint16_t>(port)};
     server.addEndpoint<GET>("/", [] ENDPOINT {
-        co_await res.setStatusAndContent(Status::CODE_200, "Hello World!").sendRes();
+        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::hello).sendRes();
+    }).addEndpoint<GET>("/api/users", [] ENDPOINT {
+        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::json)
+            .setContentType(JSON).sendRes();
+    }).addEndpoint<GET>("/page.html", [] ENDPOINT {
+        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::html)
+            .setContentType(HTML).sendRes();
+    }).addEndpoint<GET>("/payload.bin", [] ENDPOINT {
+        co_await res.setStatusAndContent(Status::CODE_200, benchmark_payloads::payload64k)
+            .setContentType(HttpContentType::OctetStream).sendRes();
     });
     server.syncRun(workers);
 }

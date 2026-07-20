@@ -1,45 +1,42 @@
-name: HTTP performance benchmark
+name: HTTP 性能压测
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Measured seconds per run'
+        description: '每轮正式采样秒数（建议至少 120 秒）'
         required: true
-        default: '15'
+        default: '120'
       repeats:
-        description: 'Runs per server'
+        description: '每个实现 / 优化 / 场景的重复轮次'
         required: true
-        default: '3'
+        default: '5'
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
       options: --privileged
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm gcc cmake ninja pkgconf openssl pcre2 curl unzip util-linux python python-pip jdk17-openjdk maven git make
+          pacman -S --noconfirm clang gcc cmake ninja pkgconf openssl pcre2 curl unzip util-linux python python-pip jdk17-openjdk maven git make
       - name: Install FastAPI
         run: |
           python3 -m venv .benchmark-venv
           . .benchmark-venv/bin/activate
           pip install fastapi uvicorn websockets
           echo "${PWD}/.benchmark-venv/bin" >> "$GITHUB_PATH"
-      - name: Build pinned benchmark matrix
+      - name: 构建固定版本的 Clang O2 / O3 矩阵
         run: benchmarks/http/scripts/build.sh
-      - name: Run pinned benchmark
+      - name: 运行长时多场景压测
         env:
           BENCH_DURATION: ${{ inputs.duration }}
           BENCH_REPEATS: ${{ inputs.repeats }}
-          BENCH_WORKERS: '2'
-          BENCH_WRK_THREADS: '2'
-          BENCH_CONNECTIONS: '256'
         run: benchmarks/http/scripts/run.sh
-      - name: Publish HTML report
+      - name: 发布中文 HTML 报告
         if: always()
         uses: actions/upload-artifact@v4
         with:

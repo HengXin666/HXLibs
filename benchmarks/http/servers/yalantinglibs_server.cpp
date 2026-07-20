@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string_view>
 
+#include "benchmark_payloads.hpp"
+
 namespace {
 
 std::size_t parsePositive(char const* value, char const* name) {
@@ -32,7 +34,19 @@ int main(int argc, char** argv) {
 
     coro_http_server server{workers, static_cast<unsigned short>(port)};
     server.set_http_handler<GET>("/", [](coro_http_request&, coro_http_response& response) {
-        response.set_status_and_content(status_type::ok, "Hello World!",
+        response.set_status_and_content(status_type::ok, benchmark_payloads::hello,
+                                        content_encoding::none);
+    });
+    server.set_http_handler<GET>("/api/users", [](coro_http_request&, coro_http_response& response) {
+        response.set_status_and_content(status_type::ok, benchmark_payloads::json,
+                                        content_encoding::none);
+    });
+    server.set_http_handler<GET>("/page.html", [](coro_http_request&, coro_http_response& response) {
+        response.set_status_and_content(status_type::ok, benchmark_payloads::html,
+                                        content_encoding::none);
+    });
+    server.set_http_handler<GET>("/payload.bin", [](coro_http_request&, coro_http_response& response) {
+        response.set_status_and_content(status_type::ok, benchmark_payloads::payload64k,
                                         content_encoding::none);
     });
     server.sync_start();

@@ -21,5 +21,16 @@ http {
         location = / {
             return 200 "Hello World!";
         }
+        location = /api/users {
+            default_type application/json;
+            return 200 '{"users":[{"id":1001,"name":"Alice","active":true,"roles":["admin","editor"]},{"id":1002,"name":"Bob","active":true,"roles":["viewer"]},{"id":1003,"name":"Carol","active":false,"roles":["viewer","billing"]}],"page":1,"page_size":20,"total":3}';
+        }
+        location = /page.html {
+            root @PREFIX@/html;
+        }
+        location = /payload.bin {
+            default_type application/octet-stream;
+            root @PREFIX@/html;
+        }
     }
 }

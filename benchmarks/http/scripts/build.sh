@@ -7,6 +7,7 @@ readonly REPO_DIR="$(cd -- "${BENCH_DIR}/../.." && pwd)"
 readonly BUILD_DIR="${BENCH_BUILD_DIR:-${REPO_DIR}/.benchmark-build}"
 readonly SOURCE_DIR="${BUILD_DIR}/sources"
 readonly BIN_DIR="${BUILD_DIR}/bin"
+readonly OPTIMIZATIONS=(O2 O3)
 
 readonly ASIO_REPOSITORY="https://github.com/chriskohlhoff/asio.git"
 readonly ASIO_COMMIT="231cb29bab30f82712fcd54faaea42424cc6e710"
@@ -31,40 +32,67 @@ fetch_source() {
 }
 
 mkdir -p "${SOURCE_DIR}" "${BIN_DIR}"
+mkdir -p "${BUILD_DIR}/assets"
+cp "${BENCH_DIR}/assets/page.html" "${BUILD_DIR}/assets/page.html"
+python3 - "${BUILD_DIR}/assets/payload.bin" <<'PY'
+import pathlib, sys
+pathlib.Path(sys.argv[1]).write_bytes(b'x' * (64 * 1024))
+PY
+
+for command in clang clang++ cmake ninja; do
+    if ! command -v "${command}" >/dev/null 2>&1; then
+        printf 'Missing required command: %s\n' "${command}" >&2
+        exit 1
+    fi
+done
 
 fetch_source asio "${ASIO_REPOSITORY}" "${ASIO_COMMIT}"
 fetch_source yalantinglibs "${YLT_REPOSITORY}" "${YLT_COMMIT}"
 fetch_source nginx "${NGINX_REPOSITORY}" "${NGINX_COMMIT}"
 fetch_source wrk "${WRK_REPOSITORY}" "${WRK_COMMIT}"
 
-cmake -S "${BENCH_DIR}" -B "${BUILD_DIR}/cmake" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
-    -DASIO_SOURCE_DIR="${SOURCE_DIR}/asio" \
-    -DYLT_SOURCE_DIR="${SOURCE_DIR}/yalantinglibs"
-cmake --build "${BUILD_DIR}/cmake" --parallel --target \
-    bench-hxlibs bench-asio bench-yalantinglibs
+for optimization in "${OPTIMIZATIONS[@]}"; do
+    cmake -S "${BENCH_DIR}" -B "${BUILD_DIR}/cmake-${optimization}" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_CXX_FLAGS_RELEASE="-${optimization} -DNDEBUG" \
+        -DASIO_SOURCE_DIR="${SOURCE_DIR}/asio" \
+        -DYLT_SOURCE_DIR="${SOURCE_DIR}/yalantinglibs"
+    cmake --build "${BUILD_DIR}/cmake-${optimization}" --parallel --target \
+        bench-hxlibs bench-asio bench-yalantinglibs
 
-make -C "${SOURCE_DIR}/wrk" -j"$(nproc)"
+    mkdir -p "${BIN_DIR}/${optimization}"
+    for executable in bench-hxlibs bench-asio bench-yalantinglibs; do
+        cp "${BUILD_DIR}/cmake-${optimization}/bin/${executable}" \
+            "${BIN_DIR}/${optimization}/${executable}"
+    done
+done
+
+make -C "${SOURCE_DIR}/wrk" clean >/dev/null 2>&1 || true
+make -C "${SOURCE_DIR}/wrk" -j"$(nproc)" CC=clang CFLAGS="-O3 -DNDEBUG"
 cp "${SOURCE_DIR}/wrk/wrk" "${BIN_DIR}/wrk"
 
 (cd "${BENCH_DIR}/servers/spring-app" && mvn -q -DskipTests package)
 
-if [[ ! -x "${BUILD_DIR}/nginx/sbin/nginx" ]]; then
+for optimization in "${OPTIMIZATIONS[@]}"; do
+    nginx_prefix="${BUILD_DIR}/nginx-${optimization}"
     (
         cd "${SOURCE_DIR}/nginx"
+        make clean >/dev/null 2>&1 || true
         ./auto/configure \
-            --prefix="${BUILD_DIR}/nginx" \
+            --prefix="${nginx_prefix}" \
             --without-http_gzip_module \
-            --with-cc-opt="-O3 -DNDEBUG"
+            --with-cc=clang \
+            --with-cc-opt="-${optimization} -DNDEBUG"
         make -j"$(nproc)"
         make install
+        python3 - "${nginx_prefix}/html/payload.bin" <<'PY'
+import pathlib
+import sys
+pathlib.Path(sys.argv[1]).write_bytes(b'x' * (64 * 1024))
+PY
     )
-fi
-
-cp "${BUILD_DIR}/cmake/bin/bench-hxlibs" "${BIN_DIR}/bench-hxlibs"
-cp "${BUILD_DIR}/cmake/bin/bench-asio" "${BIN_DIR}/bench-asio"
-cp "${BUILD_DIR}/cmake/bin/bench-yalantinglibs" "${BIN_DIR}/bench-yalantinglibs"
+done
 
 {
     printf 'HXLibs=%s\n' "$(git -C "${REPO_DIR}" rev-parse HEAD 2>/dev/null || printf working-tree)"
@@ -72,9 +100,19 @@ cp "${BUILD_DIR}/cmake/bin/bench-yalantinglibs" "${BIN_DIR}/bench-yalantinglibs"
     printf 'yalantinglibs=%s (0.5.0)\n' "${YLT_COMMIT}"
     printf 'nginx=%s (release-1.28.0)\n' "${NGINX_COMMIT}"
     printf 'wrk=%s (4.2.0)\n' "${WRK_COMMIT}"
-    c++ --version | head -n 1
+    clang --version | head -n 1
+    clang++ --version | head -n 1
     cmake --version | head -n 1
-    "${BUILD_DIR}/nginx/sbin/nginx" -v 2>&1
+    "${BUILD_DIR}/nginx-O2/sbin/nginx" -v 2>&1
+    printf '\n--- 运行环境 ---\n'
+    uname -srmo
+    lscpu
+    printf '可用 CPU: '
+    python3 - <<'PY'
+import os
+print(','.join(map(str, sorted(os.sched_getaffinity(0)))))
+PY
+    awk '/MemTotal/ {printf "内存: %.2f GiB\\n", $2 / 1024 / 1024}' /proc/meminfo
 } > "${BUILD_DIR}/versions.txt"
 
 printf 'Benchmark binaries are in %s\n' "${BIN_DIR}"
