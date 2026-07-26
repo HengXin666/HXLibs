@@ -3,21 +3,25 @@ on:
   workflow_dispatch:
     inputs:
       duration:
-        description: '每轮正式采样秒数（建议至少 60 秒）'
+        description: '每轮正式采样秒数'
         required: true
-        default: '60'
+        default: '30'
       warmup:
-        description: '每轮预热秒数'
+        description: '每个场景切换前的预热秒数'
         required: true
-        default: '15'
+        default: '5'
       repeats:
-        description: '每个实现 / 优化 / 场景的重复轮次'
+        description: '每个实现 / 场景的重复轮次'
         required: true
         default: '3'
       cooldown:
-        description: '轮次间冷却秒数'
+        description: '实现切换间冷却秒数'
         required: true
-        default: '3'
+        default: '2'
+      optimizations:
+        description: '编译优化矩阵（O3 或 "O2 O3"；O2/O3 结果几乎一致, 默认只跑 O3 以节省时间）'
+        required: true
+        default: 'O3'
 jobs:
   benchmark:
     runs-on: ubuntu-latest
@@ -31,20 +35,23 @@ jobs:
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm clang gcc cmake ninja pkgconf openssl pcre2 curl unzip util-linux python python-pip jdk17-openjdk maven git make
-      - name: Install FastAPI
+      - name: Install FastAPI (uvloop + httptools + orjson 最佳实践栈)
         run: |
           python3 -m venv .benchmark-venv
           . .benchmark-venv/bin/activate
-          pip install fastapi uvicorn websockets
+          pip install fastapi 'uvicorn[standard]' orjson websockets
           echo "${PWD}/.benchmark-venv/bin" >> "$GITHUB_PATH"
-      - name: 构建固定版本的 Clang O2 / O3 矩阵
+      - name: 构建固定版本的 Clang 优化矩阵
+        env:
+          BENCH_OPTIMIZATIONS: ${{ inputs.optimizations }}
         run: benchmarks/http/scripts/build.sh
-      - name: 运行长时多场景压测
+      - name: 运行多场景压测（每实现单次启动连跑全部场景）
         env:
           BENCH_DURATION: ${{ inputs.duration }}
           BENCH_WARMUP: ${{ inputs.warmup }}
           BENCH_REPEATS: ${{ inputs.repeats }}
           BENCH_COOLDOWN: ${{ inputs.cooldown }}
+          BENCH_OPTIMIZATIONS: ${{ inputs.optimizations }}
         run: benchmarks/http/scripts/run.sh
       - name: 发布中文 HTML 报告
         if: always()

@@ -14,6 +14,12 @@ http {
     server_tokens off;
     keepalive_requests 1000000;
     keepalive_timeout 30s;
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    open_file_cache max=64 inactive=300s;
+    open_file_cache_valid 300s;
+    open_file_cache_errors on;
 
     server {
         listen 127.0.0.1:@PORT@ reuseport backlog=8192;
@@ -33,6 +39,14 @@ http {
             root @PREFIX@/html;
         }
         location = /payload.bin {
+            default_type application/octet-stream;
+            root @PREFIX@/html;
+        }
+        # 磁盘变体路由: nginx 静态文件本就走 sendfile + 页缓存, 与内存变体同源
+        location = /page-file.html {
+            root @PREFIX@/html;
+        }
+        location = /payload-file.bin {
             default_type application/octet-stream;
             root @PREFIX@/html;
         }

@@ -24,11 +24,19 @@ std::string makeResponse(std::string_view contentType, std::string_view body) {
 
 std::string const kHelloResponse = makeResponse("text/plain", benchmark_payloads::hello);
 std::string const kJsonResponse = makeResponse("application/json", benchmark_payloads::json);
+// 内存变体: 静态资源响应在 main 中一次性预生成, 压测网络栈本身。
+std::string kPageResponse;
+std::string kPayloadResponse;
+// 磁盘变体 (/page-file.html, /payload-file.bin): 每请求真实读盘。
 std::string kAssetDir;
 
-std::string makeFileResponse(std::string_view name, std::string_view contentType) {
-    std::ifstream file{kAssetDir + "/" + std::string{name}, std::ios::binary};
+std::string makeFileResponse(std::string const& path, std::string_view contentType) {
+    std::ifstream file{path, std::ios::binary};
     std::string body{std::istreambuf_iterator<char>{file}, {}};
+    if (!file || body.empty()) {
+        std::cerr << "cannot read " << path << '\n';
+        std::exit(EXIT_FAILURE);
+    }
     return makeResponse(contentType, body);
 }
 
@@ -83,10 +91,16 @@ private:
                 } else if (request.starts_with("GET /api/users ")) {
                     self->response_ = &kJsonResponse;
                 } else if (request.starts_with("GET /page.html ")) {
-                    self->owned_response_ = makeFileResponse("page.html", "text/html; charset=utf-8");
-                    self->response_ = &self->owned_response_;
+                    self->response_ = &kPageResponse;
                 } else if (request.starts_with("GET /payload.bin ")) {
-                    self->owned_response_ = makeFileResponse("payload.bin", "application/octet-stream");
+                    self->response_ = &kPayloadResponse;
+                } else if (request.starts_with("GET /page-file.html ")) {
+                    self->owned_response_ = makeFileResponse(
+                        kAssetDir + "/files/page-file.html", "text/html; charset=utf-8");
+                    self->response_ = &self->owned_response_;
+                } else if (request.starts_with("GET /payload-file.bin ")) {
+                    self->owned_response_ = makeFileResponse(
+                        kAssetDir + "/files/payload-file.bin", "application/octet-stream");
                     self->response_ = &self->owned_response_;
                 } else {
                     self->response_ = &kHelloResponse;
@@ -128,6 +142,8 @@ private:
     void accept() {
         acceptor_.async_accept([this](std::error_code ec, asio::ip::tcp::socket socket) {
             if (!ec) {
+                std::error_code ignored;
+                socket.set_option(asio::ip::tcp::no_delay{true}, ignored);
                 std::make_shared<Session>(std::move(socket))->run();
             }
             accept();
@@ -147,6 +163,8 @@ int main(int argc, char** argv) {
         std::cerr << "port must be at most 65535\n";
         return EXIT_FAILURE;
     }
+    kPageResponse = makeFileResponse(kAssetDir + "/page.html", "text/html; charset=utf-8");
+    kPayloadResponse = makeFileResponse(kAssetDir + "/payload.bin", "application/octet-stream");
 
     asio::io_context context{static_cast<int>(workers)};
     Server server{context, static_cast<unsigned short>(port)};

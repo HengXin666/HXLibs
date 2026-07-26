@@ -26,6 +26,11 @@
 #include <HXLibs/net/server/ConnectionHandler.hpp>
 #include <HXLibs/exception/ErrorHandlingTools.hpp>
 
+#if defined(__linux__)
+    #include <netinet/in.h>
+    #include <netinet/tcp.h> // TCP_NODELAY
+#endif
+
 #include <HXLibs/log/Log.hpp>
 
 namespace HX::net {
@@ -86,6 +91,9 @@ private:
         int on = 1;
         setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
         setsockopt(serverFd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
+        // 禁用 Nagle: 分多次 send 的响应 (如文件分块传输) 会与延迟 ACK 互锁,
+        // 造成毫秒级停顿; Linux 上 accept 出的连接会继承监听套接字的该选项
+        setsockopt(serverFd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 
         exception::LinuxErrorHandlingTools::convertError<int>(
             ::bind(serverFd, serAddr._addr, serAddr._addrlen)

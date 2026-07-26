@@ -3,6 +3,7 @@
 #include <charconv>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -22,6 +23,18 @@ std::size_t parsePositive(char const* value, char const* name) {
     return result;
 }
 
+// 静态资源在启动时读入内存, 用 set_status_and_content_view 零拷贝发送,
+// 避免 set_static_res_dir 每请求的文件系统开销。
+std::string readFileOrExit(std::filesystem::path const& path) {
+    std::ifstream file{path, std::ios::binary};
+    std::string data{std::istreambuf_iterator<char>{file}, {}};
+    if (!file || data.empty()) {
+        std::cerr << "cannot read " << path << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+    return data;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -34,15 +47,16 @@ int main(int argc, char** argv) {
         std::cerr << "port must be at most 65535\n";
         return EXIT_FAILURE;
     }
+    static std::string const html = readFileOrExit(assetDir / "page.html");
+    static std::string const payload = readFileOrExit(assetDir / "payload.bin");
 
     coro_http_server server{workers, static_cast<unsigned short>(port)};
     server.set_http_handler<GET>("/", [](coro_http_request&, coro_http_response& response) {
-        response.set_status_and_content(status_type::ok, std::string{benchmark_payloads::hello},
-                                        content_encoding::none);
+        response.set_status_and_content_view(status_type::ok, benchmark_payloads::hello);
     });
     server.set_http_handler<GET>("/api/users", [](coro_http_request&, coro_http_response& response) {
-        response.set_status_and_content(status_type::ok, std::string{benchmark_payloads::json},
-                                        content_encoding::none);
+        response.add_header("Content-Type", "application/json");
+        response.set_status_and_content_view(status_type::ok, benchmark_payloads::json);
     });
     server.set_http_handler<GET>("/api/users/:userId/orders/:orderId", [](
             coro_http_request& request, coro_http_response& response) {
@@ -51,9 +65,20 @@ int main(int argc, char** argv) {
             + ",\"page\":" + std::string{request.get_query_value("page")}
             + ",\"limit\":" + std::string{request.get_query_value("limit")}
             + ",\"sort\":\"" + std::string{request.get_query_value("sort")} + "\"}";
+        response.add_header("Content-Type", "application/json");
         response.set_status_and_content(status_type::ok, std::move(body), content_encoding::none);
     });
-    std::filesystem::current_path(assetDir.parent_path());
-    server.set_static_res_dir("", assetDir.filename().string());
+    server.set_http_handler<GET>("/page.html", [](coro_http_request&, coro_http_response& response) {
+        response.add_header("Content-Type", "text/html; charset=utf-8");
+        response.set_status_and_content_view(status_type::ok, html);
+    });
+    server.set_http_handler<GET>("/payload.bin", [](coro_http_request&, coro_http_response& response) {
+        response.add_header("Content-Type", "application/octet-stream");
+        response.set_status_and_content_view(status_type::ok, payload);
+    });
+    // 磁盘变体: 用 cinatra 自带的静态资源目录 (每请求 coro_file 异步读盘),
+    // files/ 内是 page-file.html / payload-file.bin, 挂载后路由为 /page-file.html 等
+    std::filesystem::current_path(assetDir);
+    server.set_static_res_dir("", "files");
     server.sync_start();
 }

@@ -7,7 +7,14 @@ readonly REPO_DIR="$(cd -- "${BENCH_DIR}/../.." && pwd)"
 readonly BUILD_DIR="${BENCH_BUILD_DIR:-${REPO_DIR}/.benchmark-build}"
 readonly SOURCE_DIR="${BUILD_DIR}/sources"
 readonly BIN_DIR="${BUILD_DIR}/bin"
-readonly OPTIMIZATIONS=(O2 O3)
+# 与 run.sh 保持一致: 默认只构建 O3 矩阵, 需要 O2 对比时设 BENCH_OPTIMIZATIONS="O2 O3"
+read -ra OPTIMIZATIONS <<< "${BENCH_OPTIMIZATIONS:-O3}"
+for optimization in "${OPTIMIZATIONS[@]}"; do
+    if [[ "${optimization}" != O2 && "${optimization}" != O3 ]]; then
+        printf 'BENCH_OPTIMIZATIONS entries must be O2 or O3, got %s\n' "${optimization}" >&2
+        exit 2
+    fi
+done
 
 readonly ASIO_REPOSITORY="https://github.com/chriskohlhoff/asio.git"
 readonly ASIO_COMMIT="231cb29bab30f82712fcd54faaea42424cc6e710"
@@ -32,12 +39,15 @@ fetch_source() {
 }
 
 mkdir -p "${SOURCE_DIR}" "${BIN_DIR}"
-mkdir -p "${BUILD_DIR}/assets"
+mkdir -p "${BUILD_DIR}/assets/files"
 cp "${BENCH_DIR}/assets/page.html" "${BUILD_DIR}/assets/page.html"
 python3 - "${BUILD_DIR}/assets/payload.bin" <<'PY'
 import pathlib, sys
 pathlib.Path(sys.argv[1]).write_bytes(b'x' * (64 * 1024))
 PY
+# 磁盘 IO 变体使用独立副本 (files/ 子目录), 与内存变体字节一致
+cp "${BUILD_DIR}/assets/page.html" "${BUILD_DIR}/assets/files/page-file.html"
+cp "${BUILD_DIR}/assets/payload.bin" "${BUILD_DIR}/assets/files/payload-file.bin"
 
 for command in clang clang++ cmake ninja; do
     if ! command -v "${command}" >/dev/null 2>&1; then
@@ -100,7 +110,7 @@ done
     clang --version | head -n 1
     clang++ --version | head -n 1
     cmake --version | head -n 1
-    "${BUILD_DIR}/nginx-O2/sbin/nginx" -v 2>&1
+    "${BUILD_DIR}/nginx-${OPTIMIZATIONS[0]}/sbin/nginx" -v 2>&1
     printf '\n--- 运行环境 ---\n'
     uname -srmo
     lscpu
