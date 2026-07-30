@@ -317,7 +317,7 @@ jobs:
             stop_server
 
             perf script --demangle \
-              -F comm,pid,tid,cpu,time,event,ip,sym,dso \
+              -F comm,pid,tid,time,event,ip,sym,dso \
               -i "${profile_dir}/perf.data" \
               | "${flamegraph_dir}/stackcollapse-perf.pl" \
               > "${profile_dir}/stacks.folded"
