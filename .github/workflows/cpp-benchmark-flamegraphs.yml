@@ -205,8 +205,6 @@ jobs:
           http://127.0.0.1:${port}/api/users/1001/orders/90001?page=2&limit=20&sort=name
           http://127.0.0.1:${port}/page.html
           http://127.0.0.1:${port}/payload.bin
-          http://127.0.0.1:${port}/page-file.html
-          http://127.0.0.1:${port}/payload-file.bin
           EOF
 
           server_pid=""
@@ -315,6 +313,15 @@ jobs:
               > "${profile_dir}/load.log"
             wait "${perf_pid}"
             stop_server
+
+            success_rate="$(awk '/Success rate:/ { print $3; exit }' \
+              "${profile_dir}/load.log")"
+            if [[ "${success_rate}" != '100.00%' ]]; then
+              printf '%s load returned a %s success rate.\n' \
+                "${label}" "${success_rate:-missing}" >&2
+              cat "${profile_dir}/load.log" >&2
+              exit 1
+            fi
 
             perf script --demangle \
               -F comm,pid,tid,time,event,ip,sym,dso \
