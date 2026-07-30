@@ -1,0 +1,355 @@
+name: C++ Benchmark Flame Graphs (Clang)
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: Sampling duration for each C++ server (seconds)
+        required: true
+        default: 30
+        type: number
+      warmup:
+        description: Warm-up duration before sampling (seconds)
+        required: true
+        default: 5
+        type: number
+      connections:
+        description: Concurrent HTTP connections
+        required: true
+        default: 128
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  flamegraphs:
+    name: Profile all C++ benchmarks
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    timeout-minutes: 90
+    env:
+      PROFILE_ROOT: ${{ github.workspace }}/.flamegraph-build
+      ASIO_COMMIT: 231cb29bab30f82712fcd54faaea42424cc6e710
+      YLT_COMMIT: 225f4d4805145b9bba73a618edd16312e1339369
+      FLAMEGRAPH_COMMIT: 41fee1f99f9276008b7cd112fca19dc3ea84ac32
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install profiling dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          retry_pacman() {
+            local attempt
+            for attempt in 1 2 3; do
+              if pacman "$@"; then
+                return
+              fi
+              if (( attempt == 3 )); then
+                return 1
+              fi
+              printf 'pacman failed (attempt %s/3); retrying in 10 seconds.\n' \
+                "${attempt}" >&2
+              sleep 10
+            done
+          }
+
+          retry_pacman -Syu --noconfirm
+          retry_pacman -S --needed --noconfirm \
+            base-devel clang cmake curl git ninja oha perf perl pkgconf python
+
+          clang++ --version
+          perf version
+          oha --version
+
+      - name: Fetch pinned benchmark sources and FlameGraph
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source_dir="${PROFILE_ROOT}/sources"
+          mkdir -p "${source_dir}"
+
+          checkout_at() {
+            local name="$1"
+            local repository="$2"
+            local commit="$3"
+            local destination="${source_dir}/${name}"
+
+            git clone --filter=blob:none --no-checkout "${repository}" "${destination}"
+            git -C "${destination}" fetch --depth 1 origin "${commit}"
+            git -C "${destination}" -c advice.detachedHead=false \
+              checkout --detach "${commit}"
+          }
+
+          checkout_at asio https://github.com/chriskohlhoff/asio.git "${ASIO_COMMIT}"
+          checkout_at yalantinglibs https://github.com/alibaba/yalantinglibs.git "${YLT_COMMIT}"
+          checkout_at FlameGraph https://github.com/brendangregg/FlameGraph.git \
+            "${FLAMEGRAPH_COMMIT}"
+
+      - name: Build every C++ benchmark with Clang
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          asset_dir="${PROFILE_ROOT}/assets"
+          build_dir="${PROFILE_ROOT}/cmake"
+          mkdir -p "${asset_dir}/files"
+          cp benchmarks/http/assets/page.html "${asset_dir}/page.html"
+          python3 - "${asset_dir}/payload.bin" <<'PY'
+          import pathlib
+          import sys
+
+          pathlib.Path(sys.argv[1]).write_bytes(b"x" * (64 * 1024))
+          PY
+          cp "${asset_dir}/page.html" "${asset_dir}/files/page-file.html"
+          cp "${asset_dir}/payload.bin" "${asset_dir}/files/payload-file.bin"
+
+          cmake -S benchmarks/http -B "${build_dir}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O3 -g -DNDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls' \
+            -DCMAKE_EXE_LINKER_FLAGS=-Wl,--build-id \
+            -DASIO_SOURCE_DIR="${PROFILE_ROOT}/sources/asio" \
+            -DYLT_SOURCE_DIR="${PROFILE_ROOT}/sources/yalantinglibs"
+          cmake --build "${build_dir}" --parallel --target \
+            bench-hxlibs bench-asio bench-yalantinglibs
+
+          for executable in bench-hxlibs bench-asio bench-yalantinglibs; do
+            test -x "${build_dir}/bin/${executable}"
+            readelf --sections "${build_dir}/bin/${executable}" \
+              | grep '\.debug_info' > /dev/null
+          done
+
+      - name: Verify perf access
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          perf_event_paranoid="$(cat /proc/sys/kernel/perf_event_paranoid)"
+          if (( perf_event_paranoid > 2 )) \
+              && [[ -w /proc/sys/kernel/perf_event_paranoid ]]; then
+            printf '2\n' > /proc/sys/kernel/perf_event_paranoid || true
+          fi
+          printf 'kernel.perf_event_paranoid=%s\n' \
+            "$(cat /proc/sys/kernel/perf_event_paranoid)"
+          perf stat -e cpu-clock:u -- sleep 0.1
+
+      - name: Generate one flame graph per C++ benchmark
+        shell: bash
+        env:
+          PROFILE_DURATION: ${{ inputs.duration }}
+          PROFILE_WARMUP: ${{ inputs.warmup }}
+          PROFILE_CONNECTIONS: ${{ inputs.connections }}
+        run: |
+          set -euo pipefail
+
+          for value_name in PROFILE_DURATION PROFILE_WARMUP PROFILE_CONNECTIONS; do
+            value="${!value_name}"
+            if [[ ! "${value}" =~ ^[1-9][0-9]*$ ]]; then
+              printf '%s must be a positive integer, got %s\n' \
+                "${value_name}" "${value}" >&2
+              exit 2
+            fi
+          done
+          if (( PROFILE_DURATION > 300 || PROFILE_WARMUP > 60 \
+              || PROFILE_CONNECTIONS > 4096 )); then
+            printf 'Inputs exceed the limits: duration<=300, warmup<=60, connections<=4096\n' >&2
+            exit 2
+          fi
+
+          readonly port=18080
+          readonly frequency=99
+          readonly build_dir="${PROFILE_ROOT}/cmake"
+          readonly asset_dir="${PROFILE_ROOT}/assets"
+          readonly flamegraph_dir="${PROFILE_ROOT}/sources/FlameGraph"
+          readonly result_dir="${PROFILE_ROOT}/results"
+          mkdir -p "${result_dir}"
+
+          mapfile -t allowed_cpus < <(python3 - <<'PY'
+          import os
+
+          for cpu in sorted(os.sched_getaffinity(0)):
+              print(cpu)
+          PY
+          )
+          if (( ${#allowed_cpus[@]} == 0 )); then
+            printf 'No CPU is available in the runner affinity set.\n' >&2
+            exit 1
+          fi
+
+          if (( ${#allowed_cpus[@]} == 1 )); then
+            server_cpu_count=1
+            server_cpus="${allowed_cpus[0]}"
+            client_cpus="${allowed_cpus[0]}"
+          else
+            server_cpu_count=$(( ${#allowed_cpus[@]} / 2 ))
+            client_cpu_count=$(( ${#allowed_cpus[@]} - server_cpu_count ))
+            server_cpus="$(IFS=,; printf '%s' "${allowed_cpus[*]:0:server_cpu_count}")"
+            client_cpus="$(IFS=,; printf '%s' \
+              "${allowed_cpus[*]:server_cpu_count:client_cpu_count}")"
+          fi
+          readonly server_cpu_count server_cpus client_cpus
+
+          routes_file="${PROFILE_ROOT}/mixed-routes.txt"
+          cat > "${routes_file}" <<EOF
+          http://127.0.0.1:${port}/
+          http://127.0.0.1:${port}/
+          http://127.0.0.1:${port}/api/users
+          http://127.0.0.1:${port}/api/users/1001/orders/90001?page=2&limit=20&sort=name
+          http://127.0.0.1:${port}/page.html
+          http://127.0.0.1:${port}/payload.bin
+          http://127.0.0.1:${port}/page-file.html
+          http://127.0.0.1:${port}/payload-file.bin
+          EOF
+
+          server_pid=""
+          stop_server() {
+            if [[ -n "${server_pid}" ]] && kill -0 "${server_pid}" 2>/dev/null; then
+              kill -TERM "${server_pid}" 2>/dev/null || true
+              for _ in {1..50}; do
+                if ! kill -0 "${server_pid}" 2>/dev/null; then
+                  break
+                fi
+                sleep 0.1
+              done
+              if kill -0 "${server_pid}" 2>/dev/null; then
+                kill -KILL "${server_pid}" 2>/dev/null || true
+              fi
+              wait "${server_pid}" 2>/dev/null || true
+            fi
+            server_pid=""
+          }
+          trap stop_server EXIT
+
+          {
+            printf '# Clang C++ benchmark flame graphs\n\n'
+            printf '| Benchmark | Samples | Flame graph |\n'
+            printf '| --- | ---: | --- |\n'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          {
+            printf 'repository=%s\n' "${GITHUB_REPOSITORY}"
+            printf 'revision=%s\n' "${GITHUB_SHA}"
+            printf 'duration_seconds=%s\n' "${PROFILE_DURATION}"
+            printf 'warmup_seconds=%s\n' "${PROFILE_WARMUP}"
+            printf 'connections=%s\n' "${PROFILE_CONNECTIONS}"
+            printf 'sample_frequency_hz=%s\n' "${frequency}"
+            printf 'server_cpus=%s\n' "${server_cpus}"
+            printf 'client_cpus=%s\n' "${client_cpus}"
+            printf 'server_workers=%s\n' "${server_cpu_count}"
+            printf 'asio_commit=%s\n' "${ASIO_COMMIT}"
+            printf 'yalantinglibs_commit=%s\n' "${YLT_COMMIT}"
+            printf 'flamegraph_commit=%s\n\n' "${FLAMEGRAPH_COMMIT}"
+            clang++ --version
+            perf version
+            oha --version
+            uname -srmo
+          } > "${result_dir}/metadata.txt"
+
+          readonly configurations=(
+            'bench-hxlibs|HXLibs'
+            'bench-asio|Asio'
+            'bench-yalantinglibs|yalantinglibs'
+          )
+
+          for configuration in "${configurations[@]}"; do
+            IFS='|' read -r executable label <<< "${configuration}"
+            binary="${build_dir}/bin/${executable}"
+            profile_dir="${result_dir}/${executable}"
+            mkdir -p "${profile_dir}"
+
+            taskset -c "${server_cpus}" \
+              "${binary}" "${port}" "${server_cpu_count}" "${asset_dir}" \
+              > "${profile_dir}/server.log" 2>&1 &
+            server_pid=$!
+
+            ready=false
+            for _ in {1..300}; do
+              if ! kill -0 "${server_pid}" 2>/dev/null; then
+                printf '%s exited during startup.\n' "${label}" >&2
+                cat "${profile_dir}/server.log" >&2
+                exit 1
+              fi
+              response="$(curl --silent --show-error --max-time 1 \
+                "http://127.0.0.1:${port}/" || true)"
+              if [[ "${response}" == 'Hello World!' ]]; then
+                ready=true
+                break
+              fi
+              sleep 0.1
+            done
+            if [[ "${ready}" != true ]]; then
+              printf '%s did not become ready.\n' "${label}" >&2
+              cat "${profile_dir}/server.log" >&2
+              exit 1
+            fi
+
+            taskset -c "${client_cpus}" oha --no-tui \
+              -z "${PROFILE_WARMUP}s" -c "${PROFILE_CONNECTIONS}" \
+              --urls-from-file "${routes_file}" \
+              > "${profile_dir}/warmup.log"
+
+            perf record -e cpu-clock:u -F "${frequency}" --call-graph fp \
+              --pid "${server_pid}" \
+              --output "${profile_dir}/perf.data" \
+              -- sleep "$(( PROFILE_DURATION + 2 ))" \
+              > "${profile_dir}/perf-record.log" 2>&1 &
+            perf_pid=$!
+            sleep 1
+            if ! kill -0 "${perf_pid}" 2>/dev/null; then
+              wait "${perf_pid}" || true
+              cat "${profile_dir}/perf-record.log" >&2
+              exit 1
+            fi
+
+            taskset -c "${client_cpus}" oha --no-tui \
+              -z "${PROFILE_DURATION}s" -c "${PROFILE_CONNECTIONS}" \
+              --urls-from-file "${routes_file}" \
+              > "${profile_dir}/load.log"
+            wait "${perf_pid}"
+            stop_server
+
+            perf script --demangle \
+              -F comm,pid,tid,cpu,time,event,ip,sym,dso \
+              -i "${profile_dir}/perf.data" \
+              | "${flamegraph_dir}/stackcollapse-perf.pl" \
+              > "${profile_dir}/stacks.folded"
+            perf report --stdio --no-children --demangle --percent-limit 0.5 \
+              --sort comm,dso,symbol -i "${profile_dir}/perf.data" \
+              > "${profile_dir}/perf-report.txt"
+
+            # shellcheck disable=SC2016
+            sample_count="$(awk '{ total += $NF } END { print total + 0 }' \
+              "${profile_dir}/stacks.folded")"
+            if (( sample_count == 0 )); then
+              printf 'perf captured no samples for %s.\n' "${label}" >&2
+              exit 1
+            fi
+
+            "${flamegraph_dir}/flamegraph.pl" \
+              --title "${label} C++ Benchmark" \
+              --subtitle "Clang -O3, mixed HTTP load, ${PROFILE_DURATION}s" \
+              --countname samples --colors hot --hash --width 1600 \
+              "${profile_dir}/stacks.folded" \
+              > "${profile_dir}/${executable}.svg"
+
+            printf "| %s | %s | \`%s/%s.svg\` |\n" \
+              "${label}" "${sample_count}" "${executable}" "${executable}" \
+              >> "${GITHUB_STEP_SUMMARY}"
+          done
+
+      - name: Upload flame graphs and profiling data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-benchmark-flamegraphs-clang
+          path: .flamegraph-build/results/
+          if-no-files-found: warn
+          retention-days: 30
